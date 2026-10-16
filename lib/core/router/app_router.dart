@@ -4,6 +4,7 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/settings_page.dart';
 import '../../features/auth/presentation/pages/verify_phone_page.dart';
+import '../../features/feedback/presentation/pages/feedback_page.dart';
 import '../../features/pantry/presentation/pages/pantry_page.dart';
 import '../../features/places/presentation/pages/places_page.dart';
 import '../../features/requests/presentation/pages/quick_add_page.dart';
@@ -61,6 +62,12 @@ class AppRouter {
             path: '/requests/:id',
             builder: (context, state) =>
                 RequestDetailPage(id: int.parse(state.pathParameters['id']!)),
+          ),
+
+          // Feedback is a full-screen flow, reached from Settings.
+          GoRoute(
+            path: '/feedback',
+            builder: (context, state) => const FeedbackPage(),
           ),
 
           // Tab shell: Today · Shopping · Places · Settings.

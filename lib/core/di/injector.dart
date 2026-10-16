@@ -6,6 +6,10 @@ import '../../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../features/feedback/data/datasources/feedback_remote_datasource.dart';
+import '../../features/feedback/data/repositories/feedback_repository_impl.dart';
+import '../../features/feedback/domain/repositories/feedback_repository.dart';
+import '../../features/feedback/presentation/bloc/feedback_bloc.dart';
 import '../../features/places/data/datasources/places_remote_datasource.dart';
 import '../../features/places/data/repositories/places_repository_impl.dart';
 import '../../features/places/domain/repositories/places_repository.dart';
@@ -60,6 +64,12 @@ Future<void> configureDependencies() async {
     ..registerLazySingleton<PantryRepository>(
       () => PantryRepositoryImpl(getIt()),
     )
+    ..registerLazySingleton<FeedbackRemoteDataSource>(
+      () => FeedbackRemoteDataSource(getIt()),
+    )
+    ..registerLazySingleton<FeedbackRepository>(
+      () => FeedbackRepositoryImpl(getIt()),
+    )
     ..registerLazySingleton<LocationProvider>(() => MockLocationProvider())
     ..registerLazySingleton<FlutterLocalNotificationsPlugin>(
       () => FlutterLocalNotificationsPlugin(),
@@ -74,5 +84,6 @@ Future<void> configureDependencies() async {
     ..registerFactory<AuthBloc>(() => AuthBloc(getIt(), getIt()))
     ..registerFactory<RequestsBloc>(() => RequestsBloc(getIt()))
     ..registerFactory<PlacesBloc>(() => PlacesBloc(getIt()))
-    ..registerFactory<PantryBloc>(() => PantryBloc(getIt()));
+    ..registerFactory<PantryBloc>(() => PantryBloc(getIt()))
+    ..registerFactory<FeedbackBloc>(() => FeedbackBloc(getIt()));
 }

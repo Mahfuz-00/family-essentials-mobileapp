@@ -68,6 +68,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: AppTheme.space3),
                 _escalation(user),
                 const SizedBox(height: AppTheme.space3),
+                _support(),
+                const SizedBox(height: AppTheme.space3),
                 _signOut(),
               ],
             );
@@ -262,6 +264,38 @@ class _SettingsPageState extends State<SettingsPage> {
 
               context.read<AuthBloc>().add(VoiceConsentChanged(value));
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _support() {
+    return WarmCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Help & feedback',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Something broken, or missing? Tell the platform team — and follow '
+            'what happens to it.',
+            style: TextStyle(fontSize: 12, color: AppTheme.muted),
+          ),
+          const SizedBox(height: AppTheme.space3),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonal(
+              onPressed: () => context.push('/feedback'),
+              child: const Text('Report a problem'),
+            ),
           ),
         ],
       ),
