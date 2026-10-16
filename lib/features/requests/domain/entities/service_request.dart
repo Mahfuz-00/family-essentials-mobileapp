@@ -116,6 +116,7 @@ class RequestBoard extends Equatable {
     required this.overdue,
     required this.dueToday,
     required this.assignedToMe,
+    required this.backlog,
     required this.completedToday,
   });
 
@@ -123,6 +124,11 @@ class RequestBoard extends Equatable {
   final List<ServiceRequest> overdue;
   final List<ServiceRequest> dueToday;
   final List<ServiceRequest> assignedToMe;
+
+  /// Open items the other buckets miss: no due date, due later, or assigned to
+  /// someone else. Without it a new undated request appeared nowhere at all.
+  final List<ServiceRequest> backlog;
+
   final List<ServiceRequest> completedToday;
 
   @override
@@ -131,6 +137,7 @@ class RequestBoard extends Equatable {
     overdue,
     dueToday,
     assignedToMe,
+    backlog,
     completedToday,
   ];
 }

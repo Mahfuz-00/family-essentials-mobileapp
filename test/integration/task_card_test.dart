@@ -53,8 +53,9 @@ void main() {
     repository = MockRequestsRepository();
   });
 
-  testWidgets('renders the item with its quantity, store and priority',
-      (tester) async {
+  testWidgets('renders the item with its quantity, store and priority', (
+    tester,
+  ) async {
     await tester.pumpWidget(harness(request(), RequestsBloc(repository)));
 
     expect(find.text('Organic Whole Milk'), findsOneWidget);
@@ -64,24 +65,29 @@ void main() {
     expect(find.text('normal'), findsOneWidget);
   });
 
-  testWidgets('accepts a pending item from the completion circle',
-      (tester) async {
-    when(() => repository.act(1, 'accept', payload: any(named: 'payload')))
-        .thenAnswer((_) async {});
+  testWidgets('accepts a pending item from the completion circle', (
+    tester,
+  ) async {
+    when(
+      () => repository.act(1, 'accept', payload: any(named: 'payload')),
+    ).thenAnswer((_) async {});
 
     await tester.pumpWidget(harness(request(), RequestsBloc(repository)));
 
     await tester.tap(find.byType(InkResponse));
     await tester.pump();
 
-    verify(() => repository.act(1, 'accept', payload: any(named: 'payload')))
-        .called(1);
+    verify(
+      () => repository.act(1, 'accept', payload: any(named: 'payload')),
+    ).called(1);
   });
 
-  testWidgets('completes an accepted item from the completion circle',
-      (tester) async {
-    when(() => repository.act(1, 'complete', payload: any(named: 'payload')))
-        .thenAnswer((_) async {});
+  testWidgets('completes an accepted item from the completion circle', (
+    tester,
+  ) async {
+    when(
+      () => repository.act(1, 'complete', payload: any(named: 'payload')),
+    ).thenAnswer((_) async {});
 
     await tester.pumpWidget(
       harness(request(status: 'accepted'), RequestsBloc(repository)),
@@ -90,19 +96,23 @@ void main() {
     await tester.tap(find.byType(InkResponse));
     await tester.pump();
 
-    verify(() => repository.act(1, 'complete', payload: any(named: 'payload')))
-        .called(1);
+    verify(
+      () => repository.act(1, 'complete', payload: any(named: 'payload')),
+    ).called(1);
   });
 
-  testWidgets('shows a completed item as struck through and inert',
-      (tester) async {
+  testWidgets('shows a completed item as struck through and inert', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       harness(request(status: 'completed'), RequestsBloc(repository)),
     );
 
     final titles = tester.widgetList<Text>(find.text('Organic Whole Milk'));
     expect(
-      titles.any((text) => text.style?.decoration == TextDecoration.lineThrough),
+      titles.any(
+        (text) => text.style?.decoration == TextDecoration.lineThrough,
+      ),
       isTrue,
       reason: 'completed work is struck through',
     );

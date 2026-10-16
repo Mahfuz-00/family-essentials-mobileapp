@@ -106,6 +106,7 @@ class RequestBoardModel extends RequestBoard {
     required super.overdue,
     required super.dueToday,
     required super.assignedToMe,
+    required super.backlog,
     required super.completedToday,
   });
 
@@ -122,6 +123,7 @@ class RequestBoardModel extends RequestBoard {
       overdue: parse('overdue'),
       dueToday: parse('due_today'),
       assignedToMe: parse('assigned_to_me'),
+      backlog: parse('backlog'),
       completedToday: parse('completed_today'),
     );
   }

@@ -31,28 +31,27 @@ void main() {
   blocTest<PantryBloc, PantryState>(
     'loads the pantry pulse and its items',
     build: () {
-      when(() => repository.snapshot(dueOnly: false)).thenAnswer((_) async => snapshot);
+      when(
+        () => repository.snapshot(dueOnly: false),
+      ).thenAnswer((_) async => snapshot);
 
       return PantryBloc(repository);
     },
     act: (bloc) => bloc.add(const PantryRequested()),
-    expect: () => [
-      const PantryLoading(),
-      const PantryLoaded(snapshot),
-    ],
+    expect: () => [const PantryLoading(), const PantryLoaded(snapshot)],
   );
 
   blocTest<PantryBloc, PantryState>(
     'restocking an item emits a success state',
     build: () {
-      when(() => repository.restock(id: 1, quantity: 1)).thenAnswer((_) async => milk);
+      when(
+        () => repository.restock(id: 1, quantity: 1),
+      ).thenAnswer((_) async => milk);
 
       return PantryBloc(repository);
     },
     act: (bloc) => bloc.add(const EssentialRestocked(id: 1)),
-    expect: () => [
-      const PantryActionSuccess('Stock topped up.'),
-    ],
+    expect: () => [const PantryActionSuccess('Stock topped up.')],
   );
 
   blocTest<PantryBloc, PantryState>(
@@ -73,23 +72,20 @@ void main() {
       return PantryBloc(repository);
     },
     act: (bloc) => bloc.add(const EssentialCreated(name: 'Coffee')),
-    expect: () => [
-      const PantryActionSuccess('Essential added to the pantry.'),
-    ],
+    expect: () => [const PantryActionSuccess('Essential added to the pantry.')],
   );
 
   blocTest<PantryBloc, PantryState>(
     'a due-only request is passed through to the repository',
     build: () {
-      when(() => repository.snapshot(dueOnly: true)).thenAnswer((_) async => snapshot);
+      when(
+        () => repository.snapshot(dueOnly: true),
+      ).thenAnswer((_) async => snapshot);
 
       return PantryBloc(repository);
     },
     act: (bloc) => bloc.add(const PantryRequested(dueOnly: true)),
-    expect: () => [
-      const PantryLoading(),
-      const PantryLoaded(snapshot),
-    ],
+    expect: () => [const PantryLoading(), const PantryLoaded(snapshot)],
     verify: (_) => verify(() => repository.snapshot(dueOnly: true)).called(1),
   );
 }

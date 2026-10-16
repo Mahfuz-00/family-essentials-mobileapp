@@ -20,8 +20,9 @@ void main() {
     repository = MockAuthRepository();
 
     // The shell kicks off SessionLoaded; no session is needed to render tabs.
-    when(() => repository.me())
-        .thenAnswer((_) async => throw const AuthFailure('no session'));
+    when(
+      () => repository.me(),
+    ).thenAnswer((_) async => throw const AuthFailure('no session'));
   });
 
   Widget harness(String location) {
@@ -49,16 +50,22 @@ void main() {
     expect(bar.selectedIndex, 0);
   });
 
-  testWidgets('keeps the shopping tab lit for the pantry sub-screen',
-      (tester) async {
+  testWidgets('keeps the shopping tab lit for the pantry sub-screen', (
+    tester,
+  ) async {
     await tester.pumpWidget(harness('/pantry'));
 
     final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-    expect(bar.selectedIndex, 1, reason: 'pantry belongs to the shopping section');
+    expect(
+      bar.selectedIndex,
+      1,
+      reason: 'pantry belongs to the shopping section',
+    );
   });
 
-  testWidgets('lights the matching tab for a nested places route',
-      (tester) async {
+  testWidgets('lights the matching tab for a nested places route', (
+    tester,
+  ) async {
     await tester.pumpWidget(harness('/places/42'));
 
     final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));

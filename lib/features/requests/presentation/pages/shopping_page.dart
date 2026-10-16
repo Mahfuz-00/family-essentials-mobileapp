@@ -73,6 +73,8 @@ class _ShoppingView extends StatelessWidget {
             ...state.board.overdue,
             ...state.board.dueToday,
             ...state.board.assignedToMe,
+            // Undated and unassigned items are still things to buy.
+            ...state.board.backlog,
           ];
 
           // De-duplicate: a request can legitimately appear on more than one board.

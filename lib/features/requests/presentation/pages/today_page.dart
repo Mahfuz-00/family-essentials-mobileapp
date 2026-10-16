@@ -73,6 +73,7 @@ class _TodayView extends StatelessWidget {
                   ...state.board.overdue,
                   ...state.board.dueToday,
                   ...state.board.assignedToMe,
+                  ...state.board.backlog,
                   ...state.board.completedToday,
                 ], DateTime.now()),
               );
@@ -164,6 +165,12 @@ class _TodayView extends StatelessWidget {
             dotColor: AppTheme.secondary,
             requests: board.assignedToMe,
             empty: 'Nothing assigned to you.',
+          ),
+          _Section(
+            title: 'Backlog',
+            dotColor: AppTheme.outline,
+            requests: board.backlog,
+            empty: 'Nothing waiting in the backlog.',
           ),
           _Section(
             title: 'Completed today',

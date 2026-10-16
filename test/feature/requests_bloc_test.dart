@@ -23,14 +23,17 @@ void main() {
   const board = RequestBoard(
     counts: {
       'total': 1,
+      'open': 1,
       'overdue': 0,
       'due_today': 0,
       'assigned_to_me': 0,
+      'backlog': 1,
       'completed_today': 0,
     },
     overdue: [],
     dueToday: [],
     assignedToMe: [request],
+    backlog: [],
     completedToday: [],
   );
 
