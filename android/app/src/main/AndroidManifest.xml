@@ -9,6 +9,10 @@
          notification, without this. Its absence was why nothing arrived. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
+    <!-- Needed by every release build. It was declared only in the debug and
+         profile manifests, so a release APK could not reach the API at all. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="family_essentials_mobile"
         android:name="${applicationName}"

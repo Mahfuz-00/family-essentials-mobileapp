@@ -78,9 +78,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       _session.isAuthenticated.value = true;
       emit(AuthAuthenticated(user));
       await _emitMemberships(emit, user);
-    } on AuthFailure {
-      _session.isAuthenticated.value = false;
-      emit(const AuthUnauthenticated());
+    } on AuthFailure catch (failure) {
+      // A rejected token means the session is over. Anything else — a timeout, a
+      // dropped connection — is a failure the screen can offer to retry, and
+      // signing the member out for it was the bug behind the endless spinner.
+      if (failure.unauthorized || !_session.isAuthenticated.value) {
+        _session.isAuthenticated.value = false;
+        emit(const AuthUnauthenticated());
+        return;
+      }
+
+      emit(AuthFailureState(failure.message));
     }
   }
 

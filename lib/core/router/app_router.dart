@@ -7,6 +7,7 @@ import '../../features/auth/presentation/pages/verify_phone_page.dart';
 import '../../features/feedback/presentation/pages/feedback_page.dart';
 import '../../features/pantry/presentation/pages/pantry_page.dart';
 import '../../features/places/presentation/pages/places_page.dart';
+import '../../features/recurring/presentation/pages/recurring_page.dart';
 import '../../features/requests/presentation/pages/quick_add_page.dart';
 import '../../features/requests/presentation/pages/request_detail_page.dart';
 import '../../features/requests/presentation/pages/shopping_page.dart';
@@ -91,6 +92,12 @@ class AppRouter {
               GoRoute(
                 path: '/pantry',
                 builder: (context, state) => const PantryPage(),
+              ),
+              // Recurring rules are set up once, from Today, so they stay a
+              // sub-screen of that tab rather than earning a tab of their own.
+              GoRoute(
+                path: '/recurring',
+                builder: (context, state) => const RecurringPage(),
               ),
               GoRoute(
                 path: '/places',

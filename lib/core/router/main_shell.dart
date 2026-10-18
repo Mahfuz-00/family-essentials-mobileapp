@@ -54,8 +54,9 @@ class _MainShellState extends State<MainShell> {
     context.read<AuthBloc>().add(const SessionLoaded());
   }
 
-  /// Pantry is a sub-screen of the shopping tab, so it keeps Shopping lit.
-  static const _tabAliases = <String, int>{'/pantry': 1};
+  /// Pantry is a sub-screen of the shopping tab, so it keeps Shopping lit;
+  /// recurring rules belong to Today.
+  static const _tabAliases = <String, int>{'/pantry': 1, '/recurring': 0};
 
   int get _index {
     for (final alias in _tabAliases.entries) {

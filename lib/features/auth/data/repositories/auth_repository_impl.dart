@@ -97,7 +97,11 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       return await action();
     } on DioException catch (error) {
-      throw AuthFailure(_messageFrom(error));
+      throw AuthFailure(
+        _messageFrom(error),
+        // Only a 401 means the session is over; a timeout means try again.
+        unauthorized: error.response?.statusCode == 401,
+      );
     }
   }
 

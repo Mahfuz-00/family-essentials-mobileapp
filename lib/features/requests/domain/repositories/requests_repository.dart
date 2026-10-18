@@ -19,6 +19,14 @@ abstract class RequestsRepository {
     String? triggerDirection,
   });
 
+  /// Change the member's reminder cue on an existing task. Passing null for both
+  /// clears the cue, so the task is reminded by time alone.
+  Future<ServiceRequest> updateCue({
+    required int id,
+    int? triggerPlaceId,
+    String? triggerDirection,
+  });
+
   Future<void> act(int id, String action, {Map<String, dynamic>? payload});
 
   Future<void> triggerVoiceCall(int requestId);

@@ -10,6 +10,7 @@ class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
     on<BoardRequested>(_onBoardRequested);
     on<DetailRequested>(_onDetailRequested);
     on<RequestSubmitted>(_onRequestSubmitted);
+    on<ReminderCueChanged>(_onReminderCueChanged);
     on<ActionRequested>(_onActionRequested);
     on<VoiceCallRequested>(_onVoiceCallRequested);
   }
@@ -65,6 +66,25 @@ class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
       );
 
       emit(const RequestsActionSuccess('Request added.'));
+    } on AppFailure catch (failure) {
+      emit(RequestsFailure(failure.message));
+    }
+  }
+
+  Future<void> _onReminderCueChanged(
+    ReminderCueChanged event,
+    Emitter<RequestsState> emit,
+  ) async {
+    emit(const RequestsLoading());
+
+    try {
+      await _repository.updateCue(
+        id: event.id,
+        triggerPlaceId: event.triggerPlaceId,
+        triggerDirection: event.triggerDirection,
+      );
+
+      emit(const RequestsActionSuccess('Reminder updated.'));
     } on AppFailure catch (failure) {
       emit(RequestsFailure(failure.message));
     }

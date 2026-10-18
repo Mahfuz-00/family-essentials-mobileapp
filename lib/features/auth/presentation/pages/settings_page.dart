@@ -56,6 +56,25 @@ class _SettingsPageState extends State<SettingsPage> {
             }
 
             if (user == null) {
+              // A failed me() leaves the user null for good, so say so and offer
+              // the one action that can fix it instead of spinning forever.
+              if (state is AuthFailureState) {
+                return Padding(
+                  padding: const EdgeInsets.all(AppTheme.space4),
+                  child: WarmEmptyState(
+                    title: 'Your settings did not load',
+                    description:
+                        '${state.message}\nCheck your connection and try again.',
+                    icon: Icons.cloud_off_outlined,
+                    action: FilledButton(
+                      onPressed: () =>
+                          context.read<AuthBloc>().add(const SessionLoaded()),
+                      child: const Text('Try again'),
+                    ),
+                  ),
+                );
+              }
+
               return const Center(
                 child: CircularProgressIndicator(color: AppTheme.secondary),
               );

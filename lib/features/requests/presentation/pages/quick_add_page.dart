@@ -4,13 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/theme/warm_widgets.dart';
 import '../../../places/domain/entities/place.dart';
 import '../../../places/domain/repositories/places_repository.dart';
 import '../../domain/entities/service_request.dart';
 import '../bloc/requests_bloc.dart';
 import '../bloc/requests_event.dart';
 import '../bloc/requests_state.dart';
+import '../widgets/reminder_cue.dart';
 
 /// Ask for one thing, then say when you want to be reminded.
 ///
@@ -47,8 +47,8 @@ class _QuickAddFormState extends State<_QuickAddForm> {
   int? _triggerPlaceId;
   DateTime? _dueAt;
 
-  /// time | enter | exit
-  String _remind = 'time';
+  /// One of [cueByTime], [cueOnArrival], [cueOnLeaving].
+  String _remind = cueByTime;
 
   @override
   void initState() {
@@ -89,7 +89,8 @@ class _QuickAddFormState extends State<_QuickAddForm> {
   }
 
   Future<void> _pickMember() async {
-    final chosen = await _chooseFrom<HouseholdMember>(
+    final chosen = await showChoiceSheet<HouseholdMember>(
+      context: context,
       title: 'Who is it for?',
       options: _members,
       label: (member) => member.name,
@@ -104,12 +105,11 @@ class _QuickAddFormState extends State<_QuickAddForm> {
   }
 
   Future<void> _pickShop() async {
-    final chosen = await _chooseFrom<Place>(
+    final chosen = await showChoiceSheet<Place>(
+      context: context,
       title: 'Where is it bought?',
       options: _places,
-      label: (place) => place.kindLabel == null
-          ? place.name
-          : '${place.name} · ${place.kindLabel}',
+      label: _placeLabel,
       current: _places.where((place) => place.id == _shopId).firstOrNull,
     );
 
@@ -122,85 +122,16 @@ class _QuickAddFormState extends State<_QuickAddForm> {
     }
   }
 
-  Future<void> _pickTriggerPlace() async {
-    final chosen = await _chooseFrom<Place>(
-      title: 'Remind me at',
-      options: _places,
-      label: (place) => place.kindLabel == null
-          ? place.name
-          : '${place.name} · ${place.kindLabel}',
-      current: _places
-          .where((place) => place.id == _triggerPlaceId)
-          .firstOrNull,
-    );
-
-    if (chosen != null) {
-      setState(() => _triggerPlaceId = chosen.id);
-    }
-  }
-
-  Future<T?> _chooseFrom<T>({
-    required String title,
-    required List<T> options,
-    required String Function(T option) label,
-    T? current,
-  }) {
-    if (options.isEmpty) {
-      return Future.value(null);
-    }
-
-    return showModalBottomSheet<T>(
-      context: context,
-      backgroundColor: AppTheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppTheme.radiusXl),
-        ),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.ink,
-                ),
-              ),
-            ),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                children: [
-                  for (final option in options)
-                    ListTile(
-                      title: Text(label(option)),
-                      trailing: identical(option, current)
-                          ? const Icon(Icons.check, color: AppTheme.secondary)
-                          : null,
-                      onTap: () => Navigator.of(context).pop(option),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppTheme.space2),
-          ],
-        ),
-      ),
-    );
-  }
+  String _placeLabel(Place place) => place.kindLabel == null
+      ? place.name
+      : '${place.name} · ${place.kindLabel}';
 
   void _submit() {
     if (_title.text.trim().isEmpty) {
       return;
     }
 
-    final locationTrigger = _remind == 'time';
+    final byTime = _remind == cueByTime;
 
     context.read<RequestsBloc>().add(
       RequestSubmitted(
@@ -209,8 +140,8 @@ class _QuickAddFormState extends State<_QuickAddForm> {
         dueAt: _dueAt,
         assigneeId: _assigneeId,
         placeId: _shopId,
-        triggerPlaceId: locationTrigger ? null : _triggerPlaceId,
-        triggerDirection: locationTrigger ? null : _remind,
+        triggerPlaceId: byTime ? null : _triggerPlaceId,
+        triggerDirection: byTime ? null : _remind,
       ),
     );
   }
@@ -219,9 +150,6 @@ class _QuickAddFormState extends State<_QuickAddForm> {
   Widget build(BuildContext context) {
     final member = _members.where((m) => m.userId == _assigneeId).firstOrNull;
     final shop = _places.where((p) => p.id == _shopId).firstOrNull;
-    final triggerPlace = _places
-        .where((p) => p.id == _triggerPlaceId)
-        .firstOrNull;
 
     return Scaffold(
       appBar: AppBar(title: const Text('New request')),
@@ -293,40 +221,18 @@ class _QuickAddFormState extends State<_QuickAddForm> {
                 ),
                 const SizedBox(height: AppTheme.space5),
 
-                SectionHeader(
-                  title: 'Remind me',
-                  count: _remind == 'time' ? 0 : 1,
+                // The same control the detail sheet and a recurring rule use.
+                ReminderCueControl(
+                  mode: _remind,
+                  places: _places,
+                  triggerPlaceId: _triggerPlaceId,
+                  onModeChanged: (mode) => setState(() {
+                    _remind = mode;
+                    _triggerPlaceId ??= _shopId;
+                  }),
+                  onPlaceChanged: (placeId) =>
+                      setState(() => _triggerPlaceId = placeId),
                 ),
-                const SizedBox(height: AppTheme.space2),
-                Wrap(
-                  spacing: AppTheme.space2,
-                  runSpacing: AppTheme.space2,
-                  children: [
-                    _remindChip('time', 'When it is due'),
-                    _remindChip('enter', 'When I arrive'),
-                    _remindChip('exit', 'When I leave'),
-                  ],
-                ),
-
-                if (_remind != 'time') ...[
-                  const SizedBox(height: AppTheme.space3),
-                  _choiceChip(
-                    icon: Icons.place_outlined,
-                    label: triggerPlace == null
-                        ? 'Choose a place'
-                        : '${_remind == 'exit' ? 'Leaving' : 'Arriving at'} ${triggerPlace.name}',
-                    onTap: _pickTriggerPlace,
-                    wide: true,
-                  ),
-                  if (triggerPlace == null)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: Text(
-                        'Pick the place that should set the reminder off — your office, or home.',
-                        style: TextStyle(fontSize: 12, color: AppTheme.muted),
-                      ),
-                    ),
-                ],
 
                 const SizedBox(height: AppTheme.space5),
                 FilledButton(
@@ -354,7 +260,6 @@ class _QuickAddFormState extends State<_QuickAddForm> {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
-    bool wide = false,
   }) {
     return ActionChip(
       onPressed: onTap,
@@ -370,35 +275,6 @@ class _QuickAddFormState extends State<_QuickAddForm> {
           fontSize: 13,
           fontWeight: FontWeight.w600,
           color: AppTheme.ink,
-        ),
-      ),
-    );
-  }
-
-  Widget _remindChip(String value, String label) {
-    final selected = _remind == value;
-
-    return ChoiceChip(
-      selected: selected,
-      onSelected: (_) => setState(() {
-        _remind = value;
-        _triggerPlaceId ??= _shopId;
-      }),
-      showCheckmark: false,
-      selectedColor: AppTheme.forestSoft,
-      backgroundColor: AppTheme.surface,
-      side: BorderSide(
-        color: selected ? AppTheme.secondary : const Color(0x1F2B2D42),
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-      ),
-      label: Text(
-        label,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: selected ? AppTheme.secondary : AppTheme.ink,
         ),
       ),
     );

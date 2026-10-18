@@ -253,6 +253,4 @@ class LocalNotifications {
       enableVibration: style != 'silent',
     );
   }
-
-  Future<void> cancel(int requestId) => _plugin.cancel(id: requestId);
 }

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/warm_widgets.dart';
 import '../../domain/entities/place.dart';
 import '../../domain/repositories/places_repository.dart';
 import '../bloc/places_bloc.dart';
@@ -161,15 +162,11 @@ class _PlacesViewState extends State<_PlacesView> {
                   child: const Text('Save place'),
                 ),
                 const Divider(height: 40),
-                const Text(
-                  'Saved',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.ink,
-                    fontSize: 16,
-                  ),
+                SectionHeader(
+                  title: 'Saved',
+                  count: state is PlacesLoaded ? state.places.length : 0,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.space3),
                 if (state is PlacesLoaded)
                   for (final place in state.places) _PlaceTile(place: place),
                 if (state is PlacesLoading)
@@ -193,21 +190,38 @@ class _PlaceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ListTile(
-        title: Text(
-          place.name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.space3),
+      child: WarmCard(
+        padding: const EdgeInsets.fromLTRB(
+          AppTheme.space4,
+          AppTheme.space3,
+          AppTheme.space2,
+          AppTheme.space3,
         ),
-        subtitle: Text(
-          '${place.kindLabel ?? place.category ?? 'other'} · ${place.radiusMeters} m · '
-          '${place.activeRequestsCount ?? 0} open',
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Row(
           children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    place.name,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${place.kindLabel ?? place.category ?? 'other'} · ${place.radiusMeters} m · '
+                    '${place.activeRequestsCount ?? 0} open',
+                    style: const TextStyle(fontSize: 12, color: AppTheme.muted),
+                  ),
+                ],
+              ),
+            ),
             // The arrival test used to sit on the home screen, one button per
             // place. It belongs here, next to the place it simulates.
             IconButton(
@@ -216,6 +230,7 @@ class _PlaceTile extends StatelessWidget {
               onPressed: () => _simulate(context),
             ),
             IconButton(
+              tooltip: 'Remove ${place.name}',
               icon: const Icon(Icons.delete_outline),
               onPressed: () =>
                   context.read<PlacesBloc>().add(PlaceDeleted(place.id)),

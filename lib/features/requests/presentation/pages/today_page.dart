@@ -46,6 +46,9 @@ class _TodayView extends StatefulWidget {
 }
 
 class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
+  /// The backlog is context, not today's work — so it starts folded away.
+  bool _backlogExpanded = false;
+
   @override
   void initState() {
     super.initState();
@@ -220,12 +223,66 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
             ],
             if (board.backlog.isNotEmpty) ...[
               const SizedBox(height: AppTheme.space5),
+              // Expands in place. It used to navigate to /today — the page it
+              // was already on, so the chevron did nothing at all.
               _LaterRow(
                 count: board.backlog.length,
-                onTap: () => context.go('/today'),
+                expanded: _backlogExpanded,
+                onTap: () =>
+                    setState(() => _backlogExpanded = !_backlogExpanded),
               ),
+              if (_backlogExpanded) ...[
+                const SizedBox(height: AppTheme.space3),
+                for (final request in board.backlog) TaskCard(request: request),
+              ],
             ],
           ],
+          // The way to the rules that write these tasks. Set up once, so it is
+          // one row rather than a tab.
+          const SizedBox(height: AppTheme.space5),
+          const _RecurringEntry(),
+        ],
+      ),
+    );
+  }
+}
+
+/// The doorway to recurring rules, opened from Today.
+class _RecurringEntry extends StatelessWidget {
+  const _RecurringEntry();
+
+  @override
+  Widget build(BuildContext context) {
+    return WarmCard(
+      onTap: () => context.push('/recurring'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space4,
+        vertical: AppTheme.space3,
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.repeat, size: 18, color: AppTheme.muted),
+          const SizedBox(width: AppTheme.space2),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Recurring rules',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.ink,
+                  ),
+                ),
+                Text(
+                  'Chores that come back on their own.',
+                  style: TextStyle(fontSize: 12, color: AppTheme.muted),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, size: 18, color: AppTheme.muted),
         ],
       ),
     );
@@ -345,36 +402,51 @@ class _Section extends StatelessWidget {
   }
 }
 
-/// The backlog, collapsed to a count: it is context, not today's work.
+/// The backlog, folded to a count: it is context, not today's work. Tapping it
+/// unfolds those tasks in place.
 class _LaterRow extends StatelessWidget {
-  const _LaterRow({required this.count, required this.onTap});
+  const _LaterRow({
+    required this.count,
+    required this.expanded,
+    required this.onTap,
+  });
 
   final int count;
+  final bool expanded;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return WarmCard(
-      onTap: onTap,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.space4,
-        vertical: AppTheme.space3,
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.inbox_outlined, size: 18, color: AppTheme.muted),
-          const SizedBox(width: AppTheme.space2),
-          Expanded(
-            child: Text(
-              '$count waiting for later',
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppTheme.onSurfaceVariant,
+    return Semantics(
+      button: true,
+      expanded: expanded,
+      label: '$count waiting for later',
+      child: WarmCard(
+        onTap: onTap,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.space4,
+          vertical: AppTheme.space3,
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.inbox_outlined, size: 18, color: AppTheme.muted),
+            const SizedBox(width: AppTheme.space2),
+            Expanded(
+              child: Text(
+                '$count waiting for later',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.onSurfaceVariant,
+                ),
               ),
             ),
-          ),
-          const Icon(Icons.chevron_right, size: 18, color: AppTheme.muted),
-        ],
+            Icon(
+              expanded ? Icons.expand_less : Icons.expand_more,
+              size: 18,
+              color: AppTheme.muted,
+            ),
+          ],
+        ),
       ),
     );
   }

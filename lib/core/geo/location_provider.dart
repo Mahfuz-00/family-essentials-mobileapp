@@ -2,8 +2,10 @@ import '../../core/geo/geofence_evaluator.dart';
 
 /// The seam a real geolocation plugin plugs into.
 ///
-/// Two implementations ship: [GeolocatorLocationProvider] for a device, and
-/// [MockLocationProvider] for tests and for the "simulate arriving" action.
+/// One implementation ships: [GeolocatorLocationProvider], for a device. The
+/// arrival simulation reads the place's own coordinates through the repository
+/// instead, so it works on a machine with no location plugin at all and no mock
+/// provider is needed.
 ///
 /// Foreground only. Nothing here starts a background service or reads a position
 /// while the app is not running — arrival while the app is closed needs platform
@@ -18,21 +20,4 @@ abstract class LocationProvider {
 
   /// A current fix. Throws when the position cannot be read.
   Future<GeoPoint> currentPosition();
-}
-
-class MockLocationProvider implements LocationProvider {
-  GeoPoint? _simulated;
-
-  /// Pretend the device is at [point] (used by the "simulate arrival" action).
-  void simulate(GeoPoint point) => _simulated = point;
-
-  @override
-  Future<bool> hasPermission() async => true;
-
-  @override
-  Future<bool> requestPermission() async => true;
-
-  @override
-  Future<GeoPoint> currentPosition() async =>
-      _simulated ?? const GeoPoint(0, 0);
 }

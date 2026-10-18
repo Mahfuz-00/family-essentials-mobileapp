@@ -108,7 +108,7 @@ repository; and `any()` on a non-nullable type needs `registerFallbackValue` in
 `lib/core/theme/app_theme.dart` holds the Warm Sage tokens (colours, radii, the
 8-point spacing scale, elevation, the type scale) and
 `lib/core/theme/warm_widgets.dart` the shared widgets: `WarmCard`,
-`PriorityChip`, `StatPill`, `SectionHeader`, `WarmEmptyState`, `WarmBanner`.
+`PriorityChip`, `StatPill`, `SectionHeader`, `WarmEmptyState`.
 
 Screens compose those; `AppTheme.space4` rather than `16`. The full token
 reference is in `Docs/design-system.md`.

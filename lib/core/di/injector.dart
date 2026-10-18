@@ -20,6 +20,10 @@ import '../../features/pantry/data/datasources/pantry_remote_datasource.dart';
 import '../../features/pantry/data/repositories/pantry_repository_impl.dart';
 import '../../features/pantry/domain/repositories/pantry_repository.dart';
 import '../../features/pantry/presentation/bloc/pantry_bloc.dart';
+import '../../features/recurring/data/datasources/recurring_remote_datasource.dart';
+import '../../features/recurring/data/repositories/recurring_repository_impl.dart';
+import '../../features/recurring/domain/repositories/recurring_repository.dart';
+import '../../features/recurring/presentation/bloc/recurring_bloc.dart';
 import '../../features/requests/data/datasources/requests_remote_datasource.dart';
 import '../../features/requests/data/repositories/requests_repository_impl.dart';
 import '../../features/requests/domain/repositories/requests_repository.dart';
@@ -76,6 +80,12 @@ Future<void> configureDependencies() async {
     ..registerLazySingleton<FeedbackRepository>(
       () => FeedbackRepositoryImpl(getIt()),
     )
+    ..registerLazySingleton<RecurringRemoteDataSource>(
+      () => RecurringRemoteDataSource(getIt()),
+    )
+    ..registerLazySingleton<RecurringRepository>(
+      () => RecurringRepositoryImpl(getIt()),
+    )
     ..registerLazySingleton<LocationProvider>(
       () => const GeolocatorLocationProvider(),
     )
@@ -109,5 +119,6 @@ Future<void> configureDependencies() async {
     ..registerFactory<RequestsBloc>(() => RequestsBloc(getIt()))
     ..registerFactory<PlacesBloc>(() => PlacesBloc(getIt()))
     ..registerFactory<PantryBloc>(() => PantryBloc(getIt()))
-    ..registerFactory<FeedbackBloc>(() => FeedbackBloc(getIt()));
+    ..registerFactory<FeedbackBloc>(() => FeedbackBloc(getIt()))
+    ..registerFactory<RecurringBloc>(() => RecurringBloc(getIt()));
 }

@@ -36,6 +36,20 @@ class RequestsRemoteDataSource {
     return response.data!;
   }
 
+  /// Partial update. A null value is sent as an explicit null, which is how the
+  /// API clears a field such as the reminder cue.
+  Future<Map<String, dynamic>> update(
+    int id,
+    Map<String, dynamic> payload,
+  ) async {
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '/v1/requests/$id',
+      data: payload,
+    );
+
+    return response.data!;
+  }
+
   Future<void> act(int id, String action, {Map<String, dynamic>? payload}) =>
       _dio.post<void>('/v1/requests/$id/$action', data: payload ?? const {});
 

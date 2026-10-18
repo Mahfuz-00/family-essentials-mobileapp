@@ -17,6 +17,11 @@ class ServiceRequest extends Equatable {
     this.assigneeId,
     this.assigneeName,
     this.requesterName,
+    this.triggerPlaceId,
+    this.triggerDirection,
+    this.triggerPlaceName,
+    this.amountMinor,
+    this.ledgerId,
     this.history = const [],
     this.voiceCalls = const [],
   });
@@ -36,11 +41,41 @@ class ServiceRequest extends Equatable {
   final int? assigneeId;
   final String? assigneeName;
   final String? requesterName;
+
+  /// The member's own reminder cue — separate from [storeName], which is where
+  /// the thing is bought. Null when the task is reminded by time alone.
+  final int? triggerPlaceId;
+
+  /// `enter` or `exit`, the direction that sets the cue off.
+  final String? triggerDirection;
+
+  /// Only present when the API eager-loaded the place.
+  final String? triggerPlaceName;
+
+  /// What this task is charged to, in integer minor units.
+  final int? amountMinor;
+  final int? ledgerId;
+
   final List<AssignmentEntry> history;
   final List<VoiceCallEntry> voiceCalls;
 
   bool get isOpen =>
       const ['pending', 'accepted', 'in_progress'].contains(status);
+
+  bool get hasLocationTrigger => triggerPlaceId != null;
+
+  /// The cue in one line, exactly as the member set it — or null when the
+  /// reminder is time-based. The app never invents a cue the API did not store.
+  String? get reminderCue {
+    if (triggerPlaceId == null) {
+      return null;
+    }
+
+    final where = triggerPlaceName ?? 'a saved place';
+    final how = triggerDirection == 'exit' ? 'leave' : 'arrive at';
+
+    return 'Reminds you when you $how $where';
+  }
 
   @override
   List<Object?> get props => [
@@ -59,6 +94,11 @@ class ServiceRequest extends Equatable {
     assigneeId,
     assigneeName,
     requesterName,
+    triggerPlaceId,
+    triggerDirection,
+    triggerPlaceName,
+    amountMinor,
+    ledgerId,
     history,
     voiceCalls,
   ];

@@ -40,7 +40,7 @@ lib/features/<feature>/
 5. **Bloc** — `on<Event>` handlers; emit `Loading` on fetch, `ActionSuccess(message)` after a
    mutation (the page listens and refetches), `Failure` on `AppFailure`.
 6. **Page** — build from `AppTheme` tokens and `core/theme/warm_widgets.dart`
-   (`WarmCard`, `PriorityChip`, `StatPill`, `SectionHeader`, `WarmEmptyState`, `WarmBanner`).
+   (`WarmCard`, `PriorityChip`, `StatPill`, `SectionHeader`, `WarmEmptyState`).
    Handle loading, empty and error. Touch targets 44x44 minimum.
 7. **Register** in `lib/core/di/injector.dart`: datasource and repository as lazy singletons,
    bloc as a factory.

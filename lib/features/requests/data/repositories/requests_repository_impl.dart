@@ -62,6 +62,24 @@ class RequestsRepositoryImpl implements RequestsRepository {
   }
 
   @override
+  Future<ServiceRequest> updateCue({
+    required int id,
+    int? triggerPlaceId,
+    String? triggerDirection,
+  }) {
+    return _guard(() async {
+      final data = await _remote.update(id, {
+        'location_trigger_place_id': triggerPlaceId,
+        'location_trigger_direction': triggerDirection,
+      });
+
+      return ServiceRequestModel.fromJson(
+        (data['data'] as Map).cast<String, dynamic>(),
+      );
+    });
+  }
+
+  @override
   Future<void> act(int id, String action, {Map<String, dynamic>? payload}) =>
       _guard(() => _remote.act(id, action, payload: payload));
 

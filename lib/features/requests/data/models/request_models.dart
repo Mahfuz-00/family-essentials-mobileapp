@@ -17,6 +17,11 @@ class ServiceRequestModel extends ServiceRequest {
     super.assigneeId,
     super.assigneeName,
     super.requesterName,
+    super.triggerPlaceId,
+    super.triggerDirection,
+    super.triggerPlaceName,
+    super.amountMinor,
+    super.ledgerId,
     super.history,
     super.voiceCalls,
   });
@@ -24,6 +29,9 @@ class ServiceRequestModel extends ServiceRequest {
   factory ServiceRequestModel.fromJson(Map<String, dynamic> json) {
     final assignee = json['assignee'] as Map?;
     final requester = json['requested_by'] as Map?;
+    // The member's own reminder cue: which saved place, and whether arriving or
+    // leaving. Absent when the task is reminded by time alone.
+    final trigger = json['location_trigger'] as Map?;
 
     return ServiceRequestModel(
       id: json['id'] as int,
@@ -41,6 +49,11 @@ class ServiceRequestModel extends ServiceRequest {
       assigneeId: assignee?['id'] as int?,
       assigneeName: assignee?['name'] as String?,
       requesterName: requester?['name'] as String?,
+      triggerPlaceId: (trigger?['place_id'] as num?)?.toInt(),
+      triggerDirection: trigger?['direction'] as String?,
+      triggerPlaceName: trigger?['place_name'] as String?,
+      amountMinor: (json['amount_minor'] as num?)?.toInt(),
+      ledgerId: (json['ledger_id'] as num?)?.toInt(),
       history: (json['history'] as List? ?? const [])
           .cast<Map<String, dynamic>>()
           .map(AssignmentModel.fromJson)

@@ -61,6 +61,22 @@ class RequestSubmitted extends RequestsEvent {
   ];
 }
 
+/// Re-point the reminder cue on an existing task. Both null clears it.
+class ReminderCueChanged extends RequestsEvent {
+  const ReminderCueChanged({
+    required this.id,
+    this.triggerPlaceId,
+    this.triggerDirection,
+  });
+
+  final int id;
+  final int? triggerPlaceId;
+  final String? triggerDirection;
+
+  @override
+  List<Object?> get props => [id, triggerPlaceId, triggerDirection];
+}
+
 class ActionRequested extends RequestsEvent {
   const ActionRequested({required this.id, required this.action, this.payload});
 
