@@ -68,6 +68,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: AppTheme.space3),
                 _escalation(user),
                 const SizedBox(height: AppTheme.space3),
+                _locationArrivals(user),
+                const SizedBox(height: AppTheme.space3),
                 _support(),
                 const SizedBox(height: AppTheme.space3),
                 _signOut(),
@@ -264,6 +266,46 @@ class _SettingsPageState extends State<SettingsPage> {
 
               context.read<AuthBloc>().add(VoiceConsentChanged(value));
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _locationArrivals(User user) {
+    return WarmCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Arrival notifications',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'When you arrive at a saved place with your own work waiting, you '
+            'are told once. Checked while the app is open; nothing is read in '
+            'the background, and household quiet hours still apply.',
+            style: TextStyle(fontSize: 12, color: AppTheme.muted),
+          ),
+          const SizedBox(height: AppTheme.space2),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: user.locationNotificationsOptIn,
+            activeThumbColor: AppTheme.secondary,
+            title: const Text('Tell me when I arrive'),
+            subtitle: Text(
+              user.locationNotificationsOptIn
+                  ? 'On — location access is needed for this.'
+                  : 'Off — no arrival notifications.',
+              style: const TextStyle(fontSize: 12, color: AppTheme.muted),
+            ),
+            onChanged: (value) =>
+                context.read<AuthBloc>().add(LocationConsentChanged(value)),
           ),
         ],
       ),

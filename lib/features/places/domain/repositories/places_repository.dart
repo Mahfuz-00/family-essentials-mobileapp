@@ -18,4 +18,7 @@ abstract class PlacesRepository {
     required double latitude,
     required double longitude,
   });
+
+  /// Everything still open at one saved place — the screen a notification opens.
+  Future<PlaceNeeds> placeNeeds(int placeId);
 }

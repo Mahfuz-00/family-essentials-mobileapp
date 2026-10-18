@@ -13,6 +13,7 @@ import '../../features/feedback/presentation/bloc/feedback_bloc.dart';
 import '../../features/places/data/datasources/places_remote_datasource.dart';
 import '../../features/places/data/repositories/places_repository_impl.dart';
 import '../../features/places/domain/repositories/places_repository.dart';
+import '../../features/places/location_arrival_check.dart';
 import '../../features/places/presentation/bloc/places_bloc.dart';
 import '../../features/pantry/data/datasources/pantry_remote_datasource.dart';
 import '../../features/pantry/data/repositories/pantry_repository_impl.dart';
@@ -22,6 +23,7 @@ import '../../features/requests/data/datasources/requests_remote_datasource.dart
 import '../../features/requests/data/repositories/requests_repository_impl.dart';
 import '../../features/requests/domain/repositories/requests_repository.dart';
 import '../../features/requests/presentation/bloc/requests_bloc.dart';
+import '../geo/geolocator_location_provider.dart';
 import '../geo/location_provider.dart';
 import '../network/dio_client.dart';
 import '../notifications/local_notifications.dart';
@@ -70,7 +72,16 @@ Future<void> configureDependencies() async {
     ..registerLazySingleton<FeedbackRepository>(
       () => FeedbackRepositoryImpl(getIt()),
     )
-    ..registerLazySingleton<LocationProvider>(() => MockLocationProvider())
+    ..registerLazySingleton<LocationProvider>(
+      () => const GeolocatorLocationProvider(),
+    )
+    ..registerLazySingleton<LocationArrivalCheck>(
+      () => LocationArrivalCheck(
+        provider: getIt<LocationProvider>(),
+        places: getIt<PlacesRepository>(),
+        notifications: getIt<LocalNotifications>(),
+      ),
+    )
     ..registerLazySingleton<FlutterLocalNotificationsPlugin>(
       () => FlutterLocalNotificationsPlugin(),
     )

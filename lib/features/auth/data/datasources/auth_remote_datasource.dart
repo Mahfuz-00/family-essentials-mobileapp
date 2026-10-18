@@ -71,6 +71,9 @@ class AuthRemoteDataSource {
   Future<void> updateVoiceConsent(bool optIn) =>
       _dio.patch<void>('/v1/auth/voice-consent', data: {'voice_opt_in': optIn});
 
+  Future<void> updateLocationConsent(bool optIn) =>
+      _dio.patch<void>('/v1/auth/location-consent', data: {'opt_in': optIn});
+
   Future<void> logout() => _dio.post<void>('/v1/auth/logout');
 
   Future<void> sendPhoneCode() => _dio.post<void>('/v1/auth/phone/send-code');

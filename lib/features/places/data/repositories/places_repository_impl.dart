@@ -57,6 +57,15 @@ class PlacesRepositoryImpl implements PlacesRepository {
     });
   }
 
+  @override
+  Future<PlaceNeeds> placeNeeds(int placeId) {
+    return _guard(() async {
+      final data = await _remote.placeNeeds(placeId);
+
+      return PlaceNeedsModel.fromJson(data);
+    });
+  }
+
   Future<T> _guard<T>(Future<T> Function() action) async {
     try {
       return await action();

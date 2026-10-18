@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/di/injector.dart';
+import 'core/notifications/local_notifications.dart';
 import 'core/router/app_router.dart';
 import 'core/session/auth_session.dart';
 import 'core/storage/secure_storage.dart';
@@ -17,6 +18,11 @@ Future<void> main() async {
   final token = await storage.readToken();
 
   session.isAuthenticated.value = token != null && token.isNotEmpty;
+
+  // A tapped arrival opens the place it was about, on the existing Today route.
+  final router = getIt<AppRouter>().router;
+  getIt<LocalNotifications>().onArrivalTapped = (placeId) =>
+      router.go('/today?place_id=$placeId');
 
   runApp(const FamilyEssentialsApp());
 }

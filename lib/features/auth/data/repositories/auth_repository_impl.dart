@@ -63,6 +63,10 @@ class AuthRepositoryImpl implements AuthRepository {
       _guard(() => _remote.updateVoiceConsent(optIn));
 
   @override
+  Future<void> updateLocationConsent(bool optIn) =>
+      _guard(() => _remote.updateLocationConsent(optIn));
+
+  @override
   Future<void> logout() {
     return _guard(() async {
       await _remote.logout();

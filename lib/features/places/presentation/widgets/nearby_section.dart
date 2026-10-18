@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/di/injector.dart';
-import '../../../../core/geo/location_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/place.dart';
 import '../../domain/repositories/places_repository.dart';
@@ -21,7 +20,6 @@ class NearbySection extends StatefulWidget {
 class _NearbySectionState extends State<NearbySection> {
   List<Place> _places = const [];
   GeofenceEvaluation? _evaluation;
-  bool _permissionDenied = false;
   String? _error;
   bool _busy = false;
 
@@ -51,34 +49,18 @@ class _NearbySectionState extends State<NearbySection> {
       _error = null;
     });
 
-    final provider = getIt<LocationProvider>();
-    final granted = await provider.requestPermission();
-
-    if (!granted) {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-          _permissionDenied = true;
-        });
-      }
-      return;
-    }
-
-    if (provider is MockLocationProvider) {
-      provider.simulate(place.point);
-    }
-
+    // A simulation reports the place's own coordinates. It deliberately does not
+    // read the device: that path is the arrival check on app resume, and this
+    // button must keep working on a machine with no location plugin.
     try {
-      final position = await provider.currentPosition();
       final evaluation = await getIt<PlacesRepository>().reportPosition(
-        latitude: position.latitude,
-        longitude: position.longitude,
+        latitude: place.latitude,
+        longitude: place.longitude,
       );
 
       if (mounted) {
         setState(() {
           _evaluation = evaluation;
-          _permissionDenied = false;
           _busy = false;
         });
       }
@@ -128,21 +110,6 @@ class _NearbySectionState extends State<NearbySection> {
                 ),
             ],
           ),
-          if (_permissionDenied) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.coralSoft,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Location permission denied — reminders still fire on their due '
-                'time (time-based fallback). Enable location to get store alerts.',
-                style: TextStyle(color: AppTheme.tertiary, fontSize: 12),
-              ),
-            ),
-          ],
           if (_error != null) ...[
             const SizedBox(height: 12),
             Text(
@@ -186,6 +153,19 @@ class _NearbySectionState extends State<NearbySection> {
                           ),
                         ),
                   ],
+                ),
+              ),
+            for (final arrival in _evaluation!.arrivals)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  arrival.isSent
+                      ? 'Told: ${arrival.body ?? ''}'
+                      : 'Not told: ${arrival.reasonMessage ?? arrival.reason ?? ''}',
+                  style: TextStyle(
+                    color: arrival.isSent ? AppTheme.secondary : AppTheme.muted,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             for (final transition in _evaluation!.transitions)

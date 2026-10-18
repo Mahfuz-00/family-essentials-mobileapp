@@ -11,6 +11,8 @@ import '../../../../core/theme/warm_widgets.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../places/location_arrival_check.dart';
+import '../../../places/presentation/widgets/location_needs_card.dart';
 import '../../../places/presentation/widgets/nearby_section.dart';
 import '../../domain/entities/service_request.dart';
 import '../bloc/requests_bloc.dart';
@@ -19,19 +21,75 @@ import '../bloc/requests_state.dart';
 
 /// M-03 — Home / Today. Live logistics for the household.
 class TodayPage extends StatelessWidget {
-  const TodayPage({super.key});
+  const TodayPage({super.key, this.focusedPlaceId});
+
+  /// Set when an arrival notification was tapped: the place to open.
+  final int? focusedPlaceId;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => getIt<RequestsBloc>()..add(const BoardRequested()),
-      child: const _TodayView(),
+      child: _TodayView(focusedPlaceId: focusedPlaceId),
     );
   }
 }
 
-class _TodayView extends StatelessWidget {
-  const _TodayView();
+class _TodayView extends StatefulWidget {
+  const _TodayView({this.focusedPlaceId});
+
+  final int? focusedPlaceId;
+
+  @override
+  State<_TodayView> createState() => _TodayViewState();
+}
+
+class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkArrivals();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // A resumed app is the only moment this page can learn about an arrival, so
+    // it is checked here rather than on a timer.
+    if (state == AppLifecycleState.resumed) {
+      _checkArrivals();
+    }
+  }
+
+  bool get _arrivalNotificationsEnabled {
+    final state = context.read<AuthBloc>().state;
+
+    if (state is AuthMembershipsLoaded) {
+      return state.user.locationNotificationsOptIn;
+    }
+
+    if (state is AuthAuthenticated) {
+      return state.user.locationNotificationsOptIn;
+    }
+
+    return false;
+  }
+
+  Future<void> _checkArrivals() async {
+    // Off unless the member asked for it; the check itself handles a refused
+    // permission and never blocks the board.
+    if (!mounted || !_arrivalNotificationsEnabled) {
+      return;
+    }
+
+    await getIt<LocationArrivalCheck>().run(enabled: true);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -146,6 +204,10 @@ class _TodayView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppTheme.space4),
+          if (widget.focusedPlaceId != null) ...[
+            LocationNeedsCard(placeId: widget.focusedPlaceId!),
+            const SizedBox(height: AppTheme.space4),
+          ],
           const NearbySection(),
           const SizedBox(height: AppTheme.space4),
           _Section(

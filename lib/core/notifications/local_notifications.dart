@@ -3,16 +3,29 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../../features/places/domain/entities/place.dart';
 import '../../features/requests/domain/entities/service_request.dart';
 import 'notification_planner.dart';
 
 /// PRD Layer 1: reminders scheduled directly on the device so they fire at the
 /// exact due time even without connectivity.
+///
+/// Also displays arrivals: the server decides who is told what on entering a
+/// saved place, and this class only shows the decision it was handed.
 class LocalNotifications {
   LocalNotifications(this._plugin, this._planner);
 
   final FlutterLocalNotificationsPlugin _plugin;
   final NotificationPlanner _planner;
+
+  /// Wired in `main.dart` to the router, so tapping an arrival opens the place
+  /// it was about.
+  void Function(String placeId)? onArrivalTapped;
+
+  static const String _arrivalPayloadPrefix = 'place:';
+
+  /// Away from the reminder ids, which are request ids.
+  static const int _arrivalIdBase = 900000;
 
   final Set<int> _scheduled = <int>{};
   bool _initialized = false;
@@ -37,9 +50,43 @@ class LocalNotifications {
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         iOS: DarwinInitializationSettings(),
       ),
+      onDidReceiveNotificationResponse: (response) {
+        final payload = response.payload;
+
+        if (payload == null || !payload.startsWith(_arrivalPayloadPrefix)) {
+          return;
+        }
+
+        onArrivalTapped?.call(payload.substring(_arrivalPayloadPrefix.length));
+      },
     );
 
     _initialized = true;
+  }
+
+  /// Show one arrival decision immediately.
+  ///
+  /// The text comes from the server, so the app never composes a notification the
+  /// API did not authorise.
+  Future<void> showArrival(LocationArrival arrival) async {
+    await init();
+
+    await _plugin.show(
+      id: _arrivalIdBase + (arrival.id % 100000),
+      title: arrival.title ?? arrival.placeName ?? 'Arrival',
+      body: arrival.body,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'family_essentials_arrivals',
+          'Arrivals',
+          channelDescription: 'Work waiting where you have just arrived',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      payload: '$_arrivalPayloadPrefix${arrival.placeId}',
+    );
   }
 
   Future<bool> requestPermission() async {

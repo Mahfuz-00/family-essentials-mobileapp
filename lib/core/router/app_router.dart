@@ -78,7 +78,11 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: '/today',
-                builder: (context, state) => const TodayPage(),
+                builder: (context, state) => TodayPage(
+                  focusedPlaceId: int.tryParse(
+                    state.uri.queryParameters['place_id'] ?? '',
+                  ),
+                ),
               ),
               GoRoute(
                 path: '/shopping',

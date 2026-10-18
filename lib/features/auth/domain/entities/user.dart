@@ -10,6 +10,7 @@ class User extends Equatable {
     this.phone,
     this.isPlatformAdmin = false,
     this.voiceOptIn = false,
+    this.locationNotificationsOptIn = false,
     this.activeTenantId,
   });
 
@@ -21,6 +22,10 @@ class User extends Equatable {
   final bool phoneVerified;
   final bool isPlatformAdmin;
   final bool voiceOptIn;
+
+  /// Opt-in, server-stored: arrival notifications are off until asked for.
+  final bool locationNotificationsOptIn;
+
   final int? activeTenantId;
 
   @override
@@ -33,6 +38,7 @@ class User extends Equatable {
     phoneVerified,
     isPlatformAdmin,
     voiceOptIn,
+    locationNotificationsOptIn,
     activeTenantId,
   ];
 }

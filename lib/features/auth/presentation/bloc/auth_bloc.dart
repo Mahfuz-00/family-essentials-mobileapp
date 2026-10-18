@@ -15,6 +15,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<MembershipsRequested>(_onMembershipsRequested);
     on<TenantSwitchRequested>(_onTenantSwitch);
     on<VoiceConsentChanged>(_onVoiceConsentChanged);
+    on<LocationConsentChanged>(_onLocationConsentChanged);
     on<PhoneCodeRequested>(_onPhoneCode);
     on<PhoneVerifyRequested>(_onPhoneVerify);
     on<LogoutRequested>(_onLogout);
@@ -119,6 +120,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     try {
       await _repository.updateVoiceConsent(event.optIn);
+
+      final user = await _repository.me();
+      _user = user;
+      await _emitMemberships(emit, user);
+    } on AuthFailure catch (failure) {
+      emit(AuthFailureState(failure.message));
+    }
+  }
+
+  Future<void> _onLocationConsentChanged(
+    LocationConsentChanged event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+
+    try {
+      await _repository.updateLocationConsent(event.optIn);
 
       final user = await _repository.me();
       _user = user;

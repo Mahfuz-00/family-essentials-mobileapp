@@ -36,4 +36,13 @@ class PlacesRemoteDataSource {
 
     return response.data!;
   }
+
+  /// The open work at one place — what a notification tap opens.
+  Future<Map<String, dynamic>> placeNeeds(int id) async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/v1/places/$id/requests',
+    );
+
+    return response.data!;
+  }
 }

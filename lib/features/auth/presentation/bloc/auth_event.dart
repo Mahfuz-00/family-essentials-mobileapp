@@ -68,6 +68,15 @@ class VoiceConsentChanged extends AuthEvent {
   List<Object?> get props => [optIn];
 }
 
+class LocationConsentChanged extends AuthEvent {
+  const LocationConsentChanged(this.optIn);
+
+  final bool optIn;
+
+  @override
+  List<Object?> get props => [optIn];
+}
+
 class PhoneCodeRequested extends AuthEvent {
   const PhoneCodeRequested();
 }

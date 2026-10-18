@@ -12,6 +12,7 @@ class UserModel extends User {
     super.phone,
     super.isPlatformAdmin,
     super.voiceOptIn,
+    super.locationNotificationsOptIn,
     super.activeTenantId,
   });
 
@@ -25,6 +26,8 @@ class UserModel extends User {
       phoneVerified: json['phone_verified'] as bool? ?? false,
       isPlatformAdmin: json['is_platform_admin'] as bool? ?? false,
       voiceOptIn: json['voice_opt_in'] as bool? ?? false,
+      locationNotificationsOptIn:
+          json['location_notifications_opt_in'] as bool? ?? false,
       activeTenantId: json['active_tenant_id'] as int?,
     );
   }

@@ -2,15 +2,22 @@ import '../../core/geo/geofence_evaluator.dart';
 
 /// The seam a real geolocation plugin plugs into.
 ///
-/// Phase 5 ships [MockLocationProvider] so the geofence flow can be demoed and
-/// tested without hardware. A `GeolocatorLocationProvider` (geolocator +
-/// background service on Android, background location mode on iOS) implements
-/// this same interface once it can be validated on a device - see
-/// `Docs/phase-5-device-test-plan.md`.
+/// Two implementations ship: [GeolocatorLocationProvider] for a device, and
+/// [MockLocationProvider] for tests and for the "simulate arriving" action.
+///
+/// Foreground only. Nothing here starts a background service or reads a position
+/// while the app is not running — arrival while the app is closed needs platform
+/// permissions this project has deliberately not asked for.
 abstract class LocationProvider {
-  Future<GeoPoint> currentPosition();
+  /// Whether permission has already been granted. Must not prompt.
+  Future<bool> hasPermission();
 
+  /// Ask the operating system. Returns false when the member declines, and
+  /// callers must degrade gracefully rather than insisting.
   Future<bool> requestPermission();
+
+  /// A current fix. Throws when the position cannot be read.
+  Future<GeoPoint> currentPosition();
 }
 
 class MockLocationProvider implements LocationProvider {
@@ -20,9 +27,12 @@ class MockLocationProvider implements LocationProvider {
   void simulate(GeoPoint point) => _simulated = point;
 
   @override
-  Future<GeoPoint> currentPosition() async =>
-      _simulated ?? const GeoPoint(0, 0);
+  Future<bool> hasPermission() async => true;
 
   @override
   Future<bool> requestPermission() async => true;
+
+  @override
+  Future<GeoPoint> currentPosition() async =>
+      _simulated ?? const GeoPoint(0, 0);
 }
