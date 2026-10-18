@@ -38,6 +38,9 @@ class RequestsRepositoryImpl implements RequestsRepository {
     String priority = 'normal',
     DateTime? dueAt,
     int? assigneeId,
+    int? placeId,
+    int? triggerPlaceId,
+    String? triggerDirection,
   }) {
     return _guard(() async {
       final data = await _remote.create({
@@ -47,6 +50,9 @@ class RequestsRepositoryImpl implements RequestsRepository {
         'priority': priority,
         'due_at': dueAt?.toIso8601String(),
         'assignee_id': assigneeId,
+        'place_id': placeId,
+        'location_trigger_place_id': triggerPlaceId,
+        'location_trigger_direction': triggerDirection,
       });
 
       return ServiceRequestModel.fromJson(

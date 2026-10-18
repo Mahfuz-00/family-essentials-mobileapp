@@ -11,6 +11,7 @@ class User extends Equatable {
     this.isPlatformAdmin = false,
     this.voiceOptIn = false,
     this.locationNotificationsOptIn = false,
+    this.alertStyle = 'sound',
     this.activeTenantId,
   });
 
@@ -26,6 +27,9 @@ class User extends Equatable {
   /// Opt-in, server-stored: arrival notifications are off until asked for.
   final bool locationNotificationsOptIn;
 
+  /// silent | vibrate | sound | voice — the server uses this to pick the channel.
+  final String alertStyle;
+
   final int? activeTenantId;
 
   @override
@@ -39,6 +43,7 @@ class User extends Equatable {
     isPlatformAdmin,
     voiceOptIn,
     locationNotificationsOptIn,
+    alertStyle,
     activeTenantId,
   ];
 }

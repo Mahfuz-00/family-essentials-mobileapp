@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/di/injector.dart';
 import 'core/notifications/local_notifications.dart';
+import 'core/notifications/push_service.dart';
 import 'core/router/app_router.dart';
 import 'core/session/auth_session.dart';
 import 'core/storage/secure_storage.dart';
@@ -23,6 +26,10 @@ Future<void> main() async {
   final router = getIt<AppRouter>().router;
   getIt<LocalNotifications>().onArrivalTapped = (placeId) =>
       router.go('/today?place_id=$placeId');
+
+  // Registers this device when Firebase options were supplied at build time;
+  // otherwise it is a no-op and local notifications still work.
+  unawaited(getIt<PushService>().start());
 
   runApp(const FamilyEssentialsApp());
 }

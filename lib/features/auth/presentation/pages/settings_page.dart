@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/di/injector.dart';
+import '../../../../core/notifications/local_notifications.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/warm_widgets.dart';
 import '../../domain/entities/membership.dart';
@@ -66,9 +68,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: AppTheme.space3),
                 _notifications(user),
                 const SizedBox(height: AppTheme.space3),
-                _escalation(user),
-                const SizedBox(height: AppTheme.space3),
-                _locationArrivals(user),
+                _alerts(user),
                 const SizedBox(height: AppTheme.space3),
                 _support(),
                 const SizedBox(height: AppTheme.space3),
@@ -228,13 +228,15 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _escalation(User user) {
+  /// One card for everything about interruption: how it announces itself, what
+  /// it announces, and whether it may call.
+  Widget _alerts(User user) {
     return WarmCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Voice call escalation',
+            'Alerts',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -243,15 +245,88 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Automated calls when an urgent item is overdue. Bounded by a daily budget and quiet hours.',
+            'How the app reaches you, and how loudly. Household quiet hours always win.',
             style: TextStyle(fontSize: 12, color: AppTheme.muted),
           ),
+          const SizedBox(height: AppTheme.space3),
+
+          const Text(
+            'HOW IT ANNOUNCES ITSELF',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.02 * 11,
+              color: AppTheme.muted,
+            ),
+          ),
           const SizedBox(height: AppTheme.space2),
+          Wrap(
+            spacing: AppTheme.space2,
+            runSpacing: AppTheme.space2,
+            children: [
+              for (final style in LocalNotifications.arrivalStyles)
+                ChoiceChip(
+                  selected: user.alertStyle == style,
+                  onSelected: (_) =>
+                      context.read<AuthBloc>().add(AlertStyleChanged(style)),
+                  showCheckmark: false,
+                  selectedColor: AppTheme.forestSoft,
+                  backgroundColor: AppTheme.surface,
+                  side: BorderSide(
+                    color: user.alertStyle == style
+                        ? AppTheme.secondary
+                        : const Color(0x1F2B2D42),
+                  ),
+                  label: Text(
+                    _styleLabel(style),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: user.alertStyle == style
+                          ? AppTheme.secondary
+                          : AppTheme.ink,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () =>
+                  getIt<LocalNotifications>().preview(user.alertStyle),
+              icon: const Icon(Icons.play_arrow, size: 18),
+              label: const Text('Preview'),
+            ),
+          ),
+          const Text(
+            'Voice speaks the line when you open the notification. iOS cannot '
+            'speak from a push, and neither platform can while the app is closed.',
+            style: TextStyle(fontSize: 11, color: AppTheme.muted),
+          ),
+
+          const Divider(height: 24),
+
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: user.locationNotificationsOptIn,
+            activeThumbColor: AppTheme.secondary,
+            title: const Text('Tell me when I arrive or leave'),
+            subtitle: Text(
+              user.locationNotificationsOptIn
+                  ? 'On — checked while the app is open.'
+                  : 'Off — no arrival notifications.',
+              style: const TextStyle(fontSize: 12, color: AppTheme.muted),
+            ),
+            onChanged: (value) =>
+                context.read<AuthBloc>().add(LocationConsentChanged(value)),
+          ),
+
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             value: user.voiceOptIn,
             activeThumbColor: AppTheme.secondary,
-            title: const Text('Opt in to voice calls'),
+            title: const Text('Call me for urgent overdue tasks'),
             subtitle: Text(
               user.phoneVerified
                   ? 'You are reachable on your verified number.'
@@ -272,45 +347,12 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _locationArrivals(User user) {
-    return WarmCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Arrival notifications',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.ink,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'When you arrive at a saved place with your own work waiting, you '
-            'are told once. Checked while the app is open; nothing is read in '
-            'the background, and household quiet hours still apply.',
-            style: TextStyle(fontSize: 12, color: AppTheme.muted),
-          ),
-          const SizedBox(height: AppTheme.space2),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: user.locationNotificationsOptIn,
-            activeThumbColor: AppTheme.secondary,
-            title: const Text('Tell me when I arrive'),
-            subtitle: Text(
-              user.locationNotificationsOptIn
-                  ? 'On — location access is needed for this.'
-                  : 'Off — no arrival notifications.',
-              style: const TextStyle(fontSize: 12, color: AppTheme.muted),
-            ),
-            onChanged: (value) =>
-                context.read<AuthBloc>().add(LocationConsentChanged(value)),
-          ),
-        ],
-      ),
-    );
-  }
+  String _styleLabel(String style) => switch (style) {
+    'silent' => 'Silent',
+    'vibrate' => 'Vibrate',
+    'voice' => 'Voice',
+    _ => 'Sound',
+  };
 
   Widget _support() {
     return WarmCard(

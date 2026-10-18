@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/place.dart';
+import '../../domain/repositories/places_repository.dart';
 import '../bloc/places_bloc.dart';
 import '../bloc/places_event.dart';
 import '../bloc/places_state.dart';
@@ -201,15 +202,55 @@ class _PlaceTile extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Text(
-          '${place.category ?? 'other'} · ${place.radiusMeters} m · '
+          '${place.kindLabel ?? place.category ?? 'other'} · ${place.radiusMeters} m · '
           '${place.activeRequestsCount ?? 0} open',
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete_outline),
-          onPressed: () =>
-              context.read<PlacesBloc>().add(PlaceDeleted(place.id)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // The arrival test used to sit on the home screen, one button per
+            // place. It belongs here, next to the place it simulates.
+            IconButton(
+              tooltip: 'Simulate arriving here',
+              icon: const Icon(Icons.my_location, color: AppTheme.secondary),
+              onPressed: () => _simulate(context),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () =>
+                  context.read<PlacesBloc>().add(PlaceDeleted(place.id)),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Future<void> _simulate(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      final evaluation = await getIt<PlacesRepository>().reportPosition(
+        latitude: place.latitude,
+        longitude: place.longitude,
+      );
+
+      final arrivals = evaluation.arrivals;
+      final first = arrivals.isEmpty ? null : arrivals.first;
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            first == null
+                ? 'Checked in at ${place.name}. Nothing waiting.'
+                : first.isSent
+                ? 'Told: ${first.body ?? ''}'
+                : 'Not told: ${first.reasonMessage ?? first.reason ?? ''}',
+          ),
+        ),
+      );
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(error.toString())));
+    }
   }
 }

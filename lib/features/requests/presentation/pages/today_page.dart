@@ -8,18 +8,19 @@ import '../../../../core/di/injector.dart';
 import '../../../../core/notifications/local_notifications.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/warm_widgets.dart';
-import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../places/location_arrival_check.dart';
 import '../../../places/presentation/widgets/location_needs_card.dart';
-import '../../../places/presentation/widgets/nearby_section.dart';
 import '../../domain/entities/service_request.dart';
 import '../bloc/requests_bloc.dart';
 import '../bloc/requests_event.dart';
 import '../bloc/requests_state.dart';
 
-/// M-03 — Home / Today. Live logistics for the household.
+/// M-03 — Home / Today.
+///
+/// One screen, one job: what needs doing now. "Next up" is the answer; the rest
+/// of the list is context. Nothing renders before there is content.
 class TodayPage extends StatelessWidget {
   const TodayPage({super.key, this.focusedPlaceId});
 
@@ -49,7 +50,9 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _checkArrivals();
+
+    // Once, after the first frame: the auth bloc may not have a user yet.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkArrivals());
   }
 
   @override
@@ -82,8 +85,6 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
   }
 
   Future<void> _checkArrivals() async {
-    // Off unless the member asked for it; the check itself handles a refused
-    // permission and never blocks the board.
     if (!mounted || !_arrivalNotificationsEnabled) {
       return;
     }
@@ -137,25 +138,7 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
               );
             }
           },
-          builder: (context, state) {
-            return Column(
-              children: [
-                const _GreetingHeader(),
-                if (state is RequestsBoardLoaded &&
-                    state.board.counts['overdue'] != null)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    child: _OverdueBanner(
-                      request: state.board.overdue.isEmpty
-                          ? null
-                          : state.board.overdue.first,
-                      count: state.board.counts['overdue'] ?? 0,
-                    ),
-                  ),
-                Expanded(child: _body(context, state)),
-              ],
-            );
-          },
+          builder: (context, state) => _body(context, state),
         ),
       ),
     );
@@ -174,233 +157,223 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
 
     final board = state.board;
 
+    // Today and "assigned to me" overlap heavily; show each task once, most
+    // urgent first.
+    final today = <ServiceRequest>[
+      ...board.dueToday,
+      ...board.assignedToMe.where(
+        (task) => !board.dueToday.any((other) => other.id == task.id),
+      ),
+    ];
+
+    final next = board.overdue.isNotEmpty
+        ? board.overdue.first
+        : (today.isNotEmpty ? today.first : null);
+
     return RefreshIndicator(
       color: AppTheme.secondary,
       onRefresh: () async =>
           context.read<RequestsBloc>().add(const BoardRequested()),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              StatPill(value: board.counts['total'] ?? 0, label: 'Total'),
-              StatPill(
-                value: board.counts['overdue'] ?? 0,
-                label: 'Overdue',
-                tone: WarmTone.danger,
-              ),
-              StatPill(
-                value: board.counts['due_today'] ?? 0,
-                label: 'Due today',
-                tone: WarmTone.warning,
-              ),
-              StatPill(
-                value: board.counts['assigned_to_me'] ?? 0,
-                label: 'Mine',
-                tone: WarmTone.primary,
-              ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.space4),
           if (widget.focusedPlaceId != null) ...[
             LocationNeedsCard(placeId: widget.focusedPlaceId!),
             const SizedBox(height: AppTheme.space4),
           ],
-          const NearbySection(),
-          const SizedBox(height: AppTheme.space4),
-          _Section(
-            title: 'Overdue',
-            dotColor: AppTheme.error,
-            requests: board.overdue,
-            empty: 'Nothing overdue.',
-          ),
-          _Section(
-            title: 'Due today',
-            dotColor: AppTheme.warning,
-            requests: board.dueToday,
-            empty: 'Nothing due today.',
-          ),
-          _Section(
-            title: 'Assigned to me',
-            dotColor: AppTheme.secondary,
-            requests: board.assignedToMe,
-            empty: 'Nothing assigned to you.',
-          ),
-          _Section(
-            title: 'Backlog',
-            dotColor: AppTheme.outline,
-            requests: board.backlog,
-            empty: 'Nothing waiting in the backlog.',
-          ),
-          _Section(
-            title: 'Completed today',
-            dotColor: AppTheme.success,
-            requests: board.completedToday,
-            empty: 'Nothing completed yet.',
-          ),
+
+          if (next == null)
+            WarmEmptyState(
+              title: 'Nothing needs you',
+              description:
+                  'When somebody asks you for something, or a deadline arrives, '
+                  'it shows up here — and you are told at the moment it matters.',
+              icon: Icons.check_circle_outline,
+              action: FilledButton(
+                onPressed: () async {
+                  final created = await context.push<bool>('/requests/new');
+
+                  if (created == true && context.mounted) {
+                    context.read<RequestsBloc>().add(const BoardRequested());
+                  }
+                },
+                child: const Text('Add a request'),
+              ),
+            )
+          else ...[
+            _NextUp(request: next),
+            if (board.overdue.isNotEmpty) ...[
+              const SizedBox(height: AppTheme.space5),
+              _Section(
+                title: 'Overdue',
+                dotColor: AppTheme.error,
+                requests: board.overdue,
+              ),
+            ],
+            if (today.isNotEmpty) ...[
+              const SizedBox(height: AppTheme.space5),
+              _Section(
+                title: 'Today',
+                dotColor: AppTheme.warning,
+                requests: today,
+              ),
+            ],
+            if (board.backlog.isNotEmpty) ...[
+              const SizedBox(height: AppTheme.space5),
+              _LaterRow(
+                count: board.backlog.length,
+                onTap: () => context.go('/today'),
+              ),
+            ],
+          ],
         ],
       ),
     );
   }
 }
 
-class _GreetingHeader extends StatelessWidget {
-  const _GreetingHeader();
+/// The one thing to do next. The only card with a coloured border on the screen.
+class _NextUp extends StatelessWidget {
+  const _NextUp({required this.request});
+
+  final ServiceRequest request;
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-        User? user;
-        String? household;
+    final overdue =
+        request.isOpen &&
+        request.dueAt != null &&
+        request.dueAt!.isBefore(DateTime.now());
 
-        if (state is AuthMembershipsLoaded) {
-          user = state.user;
-
-          for (final membership in state.memberships) {
-            if (membership.isActive) {
-              household = membership.tenant.name;
-              break;
-            }
-          }
-
-          household ??= state.memberships.isEmpty
-              ? null
-              : state.memberships.first.tenant.name;
-        } else if (state is AuthAuthenticated) {
-          user = state.user;
-        }
-
-        final hour = DateTime.now().hour;
-        final greeting = hour < 12
-            ? 'Good morning'
-            : hour < 18
-            ? 'Good afternoon'
-            : 'Good evening';
-        final firstName = (user?.name ?? 'there').split(' ').first;
-
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'NEXT UP',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.02 * 11,
+            color: AppTheme.muted,
+          ),
+        ),
+        const SizedBox(height: AppTheme.space2),
+        WarmCard(
+          highlighted: true,
+          padding: const EdgeInsets.all(AppTheme.space4),
+          onTap: () => context.push('/requests/${request.id}'),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '$greeting, $firstName',
+                      request.title,
                       style: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 19,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.ink,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
-                      household ?? 'Household logistics · live sync',
+                      [
+                        if (request.quantity != null) request.quantity!,
+                        if (request.storeName != null) request.storeName!,
+                        if (request.assigneeName != null)
+                          '→ ${request.assigneeName}',
+                      ].join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.02 * 11,
+                        fontSize: 13,
                         color: AppTheme.muted,
                       ),
                     ),
+                    if (request.dueAt != null) ...[
+                      const SizedBox(height: 8),
+                      PriorityChip(
+                        label: overdue ? 'Overdue' : _time(request.dueAt!),
+                        tone: overdue ? WarmTone.danger : WarmTone.primary,
+                        dot: true,
+                      ),
+                    ],
                   ],
                 ),
               ),
+              const SizedBox(width: AppTheme.space2),
               IconButton(
-                tooltip: 'Refresh the board',
-                onPressed: () =>
-                    context.read<RequestsBloc>().add(const BoardRequested()),
+                tooltip: 'Mark done',
+                onPressed: () => context.read<RequestsBloc>().add(
+                  ActionRequested(id: request.id, action: 'complete'),
+                ),
                 icon: const Icon(
-                  Icons.refresh,
-                  color: AppTheme.onSurfaceVariant,
+                  Icons.check_circle_outline,
+                  color: AppTheme.secondary,
                 ),
               ),
             ],
           ),
-        );
-      },
+        ),
+      ],
     );
   }
+
+  String _time(DateTime due) =>
+      '${due.hour.toString().padLeft(2, '0')}:${due.minute.toString().padLeft(2, '0')}';
 }
 
-class _OverdueBanner extends StatelessWidget {
-  const _OverdueBanner({required this.request, required this.count});
+class _Section extends StatelessWidget {
+  const _Section({required this.title, required this.requests, this.dotColor});
 
-  final ServiceRequest? request;
-  final int count;
+  final String title;
+  final List<ServiceRequest> requests;
+  final Color? dotColor;
 
   @override
   Widget build(BuildContext context) {
-    if (count == 0 || request == null) {
-      return const SizedBox.shrink();
-    }
-
-    final bloc = context.read<RequestsBloc>();
-
-    return WarmBanner(
-      title: 'Overdue attention required ($count)',
-      detail:
-          '${request!.title}${request!.storeName == null ? '' : ' · ${request!.storeName}'}',
-      actions: [
-        OutlinedButton(
-          onPressed: () => bloc.add(const BoardRequested()),
-          child: const Text('Review'),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            minimumSize: const Size(0, 40),
-            backgroundColor: AppTheme.error,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-          ),
-          onPressed: () =>
-              bloc.add(ActionRequested(id: request!.id, action: 'escalate')),
-          child: const Text('Voice alert'),
-        ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(title: title, count: requests.length, dotColor: dotColor),
+        const SizedBox(height: AppTheme.space3),
+        for (final request in requests) TaskCard(request: request),
       ],
     );
   }
 }
 
-class _Section extends StatelessWidget {
-  const _Section({
-    required this.title,
-    required this.requests,
-    required this.empty,
-    this.dotColor,
-  });
+/// The backlog, collapsed to a count: it is context, not today's work.
+class _LaterRow extends StatelessWidget {
+  const _LaterRow({required this.count, required this.onTap});
 
-  final String title;
-  final List<ServiceRequest> requests;
-  final String empty;
-  final Color? dotColor;
+  final int count;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppTheme.space5),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return WarmCard(
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.space4,
+        vertical: AppTheme.space3,
+      ),
+      child: Row(
         children: [
-          SectionHeader(
-            title: title,
-            count: requests.length,
-            dotColor: dotColor,
-          ),
-          const SizedBox(height: AppTheme.space3),
-          if (requests.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppTheme.space3),
-              child: Text(
-                empty,
-                style: const TextStyle(fontSize: 13, color: AppTheme.muted),
+          const Icon(Icons.inbox_outlined, size: 18, color: AppTheme.muted),
+          const SizedBox(width: AppTheme.space2),
+          Expanded(
+            child: Text(
+              '$count waiting for later',
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppTheme.onSurfaceVariant,
               ),
-            )
-          else
-            for (final request in requests) TaskCard(request: request),
+            ),
+          ),
+          const Icon(Icons.chevron_right, size: 18, color: AppTheme.muted),
         ],
       ),
     );

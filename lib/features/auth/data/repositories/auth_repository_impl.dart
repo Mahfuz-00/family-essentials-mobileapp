@@ -67,6 +67,10 @@ class AuthRepositoryImpl implements AuthRepository {
       _guard(() => _remote.updateLocationConsent(optIn));
 
   @override
+  Future<void> updateAlertStyle(String style) =>
+      _guard(() => _remote.updateAlertStyle(style));
+
+  @override
   Future<void> logout() {
     return _guard(() async {
       await _remote.logout();

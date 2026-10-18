@@ -14,6 +14,9 @@ abstract class RequestsRepository {
     String priority,
     DateTime? dueAt,
     int? assigneeId,
+    int? placeId,
+    int? triggerPlaceId,
+    String? triggerDirection,
   });
 
   Future<void> act(int id, String action, {Map<String, dynamic>? payload});

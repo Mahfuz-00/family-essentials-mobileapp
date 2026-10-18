@@ -28,6 +28,9 @@ class RequestSubmitted extends RequestsEvent {
     this.priority = 'normal',
     this.dueAt,
     this.assigneeId,
+    this.placeId,
+    this.triggerPlaceId,
+    this.triggerDirection,
   });
 
   final String title;
@@ -37,6 +40,13 @@ class RequestSubmitted extends RequestsEvent {
   final DateTime? dueAt;
   final int? assigneeId;
 
+  /// The shop where it will be bought, if one was chosen.
+  final int? placeId;
+
+  /// The reminder cue: which saved place, and whether arriving or leaving.
+  final int? triggerPlaceId;
+  final String? triggerDirection;
+
   @override
   List<Object?> get props => [
     title,
@@ -45,6 +55,9 @@ class RequestSubmitted extends RequestsEvent {
     priority,
     dueAt,
     assigneeId,
+    placeId,
+    triggerPlaceId,
+    triggerDirection,
   ];
 }
 

@@ -13,6 +13,7 @@ class UserModel extends User {
     super.isPlatformAdmin,
     super.voiceOptIn,
     super.locationNotificationsOptIn,
+    super.alertStyle,
     super.activeTenantId,
   });
 
@@ -28,6 +29,7 @@ class UserModel extends User {
       voiceOptIn: json['voice_opt_in'] as bool? ?? false,
       locationNotificationsOptIn:
           json['location_notifications_opt_in'] as bool? ?? false,
+      alertStyle: json['alert_style'] as String? ?? 'sound',
       activeTenantId: json['active_tenant_id'] as int?,
     );
   }

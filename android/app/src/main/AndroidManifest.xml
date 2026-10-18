@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 
+    <!-- Android 13+ will not grant notification permission, and will not show any
+         notification, without this. Its absence was why nothing arrived. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     <application
         android:label="family_essentials_mobile"
         android:name="${applicationName}"

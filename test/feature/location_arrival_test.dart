@@ -25,7 +25,10 @@ class RecordingNotifications extends LocalNotifications {
   final List<LocationArrival> shown = [];
 
   @override
-  Future<void> showArrival(LocationArrival arrival) async {
+  Future<void> showArrival(
+    LocationArrival arrival, {
+    String style = 'sound',
+  }) async {
     shown.add(arrival);
   }
 }

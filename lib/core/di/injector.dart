@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
@@ -26,8 +27,11 @@ import '../../features/requests/presentation/bloc/requests_bloc.dart';
 import '../geo/geolocator_location_provider.dart';
 import '../geo/location_provider.dart';
 import '../network/dio_client.dart';
+import '../notifications/device_token_api.dart';
 import '../notifications/local_notifications.dart';
 import '../notifications/notification_planner.dart';
+import '../notifications/push_service.dart';
+import '../notifications/speech.dart';
 import '../router/app_router.dart';
 import '../session/auth_session.dart';
 import '../storage/secure_storage.dart';
@@ -90,6 +94,15 @@ Future<void> configureDependencies() async {
     )
     ..registerLazySingleton<LocalNotifications>(
       () => LocalNotifications(getIt(), getIt()),
+    )
+    ..registerLazySingleton<Speech>(() => Speech(FlutterTts()))
+    ..registerLazySingleton<DeviceTokenApi>(() => DeviceTokenApi(getIt()))
+    ..registerLazySingleton<PushService>(
+      () => PushService(
+        tokens: getIt<DeviceTokenApi>(),
+        notifications: getIt<LocalNotifications>(),
+        speech: getIt<Speech>(),
+      ),
     )
     ..registerLazySingleton<AppRouter>(() => AppRouter(getIt()))
     ..registerFactory<AuthBloc>(() => AuthBloc(getIt(), getIt()))

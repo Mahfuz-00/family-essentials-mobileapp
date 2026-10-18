@@ -59,6 +59,9 @@ class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
         priority: event.priority,
         dueAt: event.dueAt,
         assigneeId: event.assigneeId,
+        placeId: event.placeId,
+        triggerPlaceId: event.triggerPlaceId,
+        triggerDirection: event.triggerDirection,
       );
 
       emit(const RequestsActionSuccess('Request added.'));

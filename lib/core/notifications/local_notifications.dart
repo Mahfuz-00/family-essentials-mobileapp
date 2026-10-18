@@ -10,8 +10,8 @@ import 'notification_planner.dart';
 /// PRD Layer 1: reminders scheduled directly on the device so they fire at the
 /// exact due time even without connectivity.
 ///
-/// Also displays arrivals: the server decides who is told what on entering a
-/// saved place, and this class only shows the decision it was handed.
+/// Also displays arrivals. The server decides who is told what; this class only
+/// shows the decision it was handed, on the channel the member chose.
 class LocalNotifications {
   LocalNotifications(this._plugin, this._planner);
 
@@ -26,6 +26,15 @@ class LocalNotifications {
 
   /// Away from the reminder ids, which are request ids.
   static const int _arrivalIdBase = 900000;
+
+  /// One channel per alert style: Android fixes a channel's sound and vibration
+  /// when it is created, so the style cannot be applied at send time.
+  static const List<String> arrivalStyles = [
+    'silent',
+    'vibrate',
+    'sound',
+    'voice',
+  ];
 
   final Set<int> _scheduled = <int>{};
   bool _initialized = false;
@@ -61,32 +70,59 @@ class LocalNotifications {
       },
     );
 
+    await _createArrivalChannels();
+
     _initialized = true;
   }
 
-  /// Show one arrival decision immediately.
-  ///
-  /// The text comes from the server, so the app never composes a notification the
-  /// API did not authorise.
-  Future<void> showArrival(LocationArrival arrival) async {
-    await init();
+  Future<void> _createArrivalChannels() async {
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
 
-    await _plugin.show(
-      id: _arrivalIdBase + (arrival.id % 100000),
-      title: arrival.title ?? arrival.placeName ?? 'Arrival',
-      body: arrival.body,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'family_essentials_arrivals',
-          'Arrivals',
-          channelDescription: 'Work waiting where you have just arrived',
-          importance: Importance.high,
-          priority: Priority.high,
-        ),
-        iOS: DarwinNotificationDetails(),
+    if (android == null) {
+      return;
+    }
+
+    const channels = [
+      AndroidNotificationChannel(
+        'arrivals_silent',
+        'Arrivals — silent',
+        description: 'Work waiting where you have just arrived, quietly',
+        importance: Importance.low,
+        playSound: false,
+        enableVibration: false,
       ),
-      payload: '$_arrivalPayloadPrefix${arrival.placeId}',
-    );
+      AndroidNotificationChannel(
+        'arrivals_vibrate',
+        'Arrivals — vibrate',
+        description: 'Work waiting where you have just arrived, with a buzz',
+        importance: Importance.high,
+        playSound: false,
+        enableVibration: true,
+      ),
+      AndroidNotificationChannel(
+        'arrivals_sound',
+        'Arrivals — sound',
+        description: 'Work waiting where you have just arrived, with a sound',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+      ),
+      AndroidNotificationChannel(
+        'arrivals_voice',
+        'Arrivals — voice',
+        description: 'The same, and spoken when you open it',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+      ),
+    ];
+
+    for (final channel in channels) {
+      await android.createNotificationChannel(channel);
+    }
   }
 
   Future<bool> requestPermission() async {
@@ -156,6 +192,66 @@ class LocalNotifications {
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
     }
+  }
+
+  /// Show one arrival decision immediately.
+  ///
+  /// The text comes from the server, so the app never composes a notification the
+  /// API did not authorise. `style` picks the channel; on iOS the system decides
+  /// vibration, and the sound is the bundled default.
+  Future<void> showArrival(
+    LocationArrival arrival, {
+    String style = 'sound',
+  }) async {
+    await init();
+
+    await _plugin.show(
+      id: _arrivalIdBase + (arrival.id % 100000),
+      title: arrival.title ?? arrival.placeName ?? 'Arrival',
+      body: arrival.body,
+      notificationDetails: NotificationDetails(
+        android: _androidDetails(style),
+        iOS: const DarwinNotificationDetails(),
+      ),
+      payload: '$_arrivalPayloadPrefix${arrival.placeId}',
+    );
+  }
+
+  /// Plays the chosen style, so the member can hear what they are choosing.
+  Future<void> preview(String style) async {
+    await showArrival(
+      LocationArrival(
+        id: 0,
+        placeId: 0,
+        kind: 'other',
+        status: 'sent',
+        placeName: 'Preview',
+        title: 'Preview',
+        body: style == 'voice'
+            ? 'This is how an arrival will be spoken when you open it.'
+            : 'This is how an arrival will look.',
+      ),
+      style: style,
+    );
+  }
+
+  AndroidNotificationDetails _androidDetails(String style) {
+    final name = switch (style) {
+      'silent' => 'Arrivals — silent',
+      'vibrate' => 'Arrivals — vibrate',
+      'voice' => 'Arrivals — voice',
+      _ => 'Arrivals — sound',
+    };
+
+    return AndroidNotificationDetails(
+      'arrivals_$style',
+      name,
+      channelDescription: 'Work waiting where you have just arrived',
+      importance: style == 'silent' ? Importance.low : Importance.high,
+      priority: style == 'silent' ? Priority.low : Priority.high,
+      playSound: style == 'sound' || style == 'voice',
+      enableVibration: style != 'silent',
+    );
   }
 
   Future<void> cancel(int requestId) => _plugin.cancel(id: requestId);

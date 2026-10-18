@@ -77,6 +77,15 @@ class LocationConsentChanged extends AuthEvent {
   List<Object?> get props => [optIn];
 }
 
+class AlertStyleChanged extends AuthEvent {
+  const AlertStyleChanged(this.style);
+
+  final String style;
+
+  @override
+  List<Object?> get props => [style];
+}
+
 class PhoneCodeRequested extends AuthEvent {
   const PhoneCodeRequested();
 }

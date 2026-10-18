@@ -19,6 +19,8 @@ abstract class AuthRepository {
 
   Future<void> updateLocationConsent(bool optIn);
 
+  Future<void> updateAlertStyle(String style);
+
   Future<List<Membership>> memberships();
 
   Future<void> switchTenant(int tenantId);
