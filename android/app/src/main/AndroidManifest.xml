@@ -1,12 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Arrival notifications: foreground only. No ACCESS_BACKGROUND_LOCATION and
-         no foreground service, because arrival while the app is closed is not
-         implemented. -->
+    <!-- Hardware Geofencing permissions: Enter & Exit transitions while in foreground or background/closed -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
 
     <!-- Android 13+ will not grant notification permission, and will not show any
-         notification, without this. Its absence was why nothing arrived. -->
+         notification, without this. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <!-- Needed by every release build. It was declared only in the debug and
@@ -16,7 +17,8 @@
     <application
         android:label="family_essentials_mobile"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

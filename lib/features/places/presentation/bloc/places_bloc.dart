@@ -1,18 +1,20 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/error/failures.dart';
+import '../../../../core/geo/native_geofence_manager.dart';
 import '../../domain/repositories/places_repository.dart';
 import 'places_event.dart';
 import 'places_state.dart';
 
 class PlacesBloc extends Bloc<PlacesEvent, PlacesState> {
-  PlacesBloc(this._repository) : super(const PlacesInitial()) {
+  PlacesBloc(this._repository, [this._geofenceManager]) : super(const PlacesInitial()) {
     on<PlacesRequested>(_onRequested);
     on<PlaceCreated>(_onCreated);
     on<PlaceDeleted>(_onDeleted);
   }
 
   final PlacesRepository _repository;
+  final NativeGeofenceManager? _geofenceManager;
 
   Future<void> _onRequested(
     PlacesRequested event,
@@ -21,7 +23,9 @@ class PlacesBloc extends Bloc<PlacesEvent, PlacesState> {
     emit(const PlacesLoading());
 
     try {
-      emit(PlacesLoaded(await _repository.places()));
+      final list = await _repository.places();
+      _geofenceManager?.syncPlaces(list);
+      emit(PlacesLoaded(list));
     } on AppFailure catch (failure) {
       emit(PlacesFailure(failure.message));
     }

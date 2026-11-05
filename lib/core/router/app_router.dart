@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/pages/login_page.dart';
@@ -5,6 +7,7 @@ import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/settings_page.dart';
 import '../../features/auth/presentation/pages/verify_phone_page.dart';
 import '../../features/feedback/presentation/pages/feedback_page.dart';
+import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/pantry/presentation/pages/pantry_page.dart';
 import '../../features/places/presentation/pages/places_page.dart';
 import '../../features/recurring/presentation/pages/recurring_page.dart';
@@ -15,21 +18,68 @@ import '../../features/requests/presentation/pages/today_page.dart';
 import '../session/auth_session.dart';
 import 'main_shell.dart';
 
+CustomTransitionPage<void> _buildFadeSlidePage({
+  required LocalKey key,
+  required Widget child,
+}) {
+  return CustomTransitionPage<void>(
+    key: key,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 260),
+    reverseTransitionDuration: const Duration(milliseconds: 220),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return FadeTransition(
+        opacity: curved,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.04, 0),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
 class AppRouter {
   AppRouter(AuthSession session)
     : router = GoRouter(
         initialLocation: '/today',
-        refreshListenable: session.isAuthenticated,
+        refreshListenable: Listenable.merge([
+          session.isAuthenticated,
+          session.hasSeenOnboarding,
+        ]),
         redirect: (context, state) {
           final loggedIn = session.isAuthenticated.value;
+          final seenOnboarding = session.hasSeenOnboarding.value;
           final isAuthRoute =
               state.matchedLocation == '/login' ||
-              state.matchedLocation == '/register';
+              state.matchedLocation == '/register' ||
+              state.matchedLocation == '/verify-phone';
+          final isOnboardingRoute = state.matchedLocation == '/onboarding';
 
+          // First launch: must see the onboarding carousel
+          if (!seenOnboarding) {
+            return isOnboardingRoute ? null : '/onboarding';
+          }
+
+          // If onboarding is already seen, prevent accessing onboarding page
+          if (isOnboardingRoute) {
+            return loggedIn ? '/today' : '/login';
+          }
+
+          // Unauthenticated users must log in
           if (!loggedIn && !isAuthRoute) {
             return '/login';
           }
 
+          // Authenticated users skipping auth routes
           if (loggedIn && isAuthRoute) {
             return '/today';
           }
@@ -38,74 +88,114 @@ class AppRouter {
         },
         routes: [
           GoRoute(
+            path: '/onboarding',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const OnboardingPage(),
+            ),
+          ),
+          GoRoute(
             path: '/login',
-            builder: (context, state) => const LoginPage(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const LoginPage(),
+            ),
           ),
           GoRoute(
             path: '/register',
-            builder: (context, state) => const RegisterPage(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const RegisterPage(),
+            ),
           ),
           GoRoute(
             path: '/verify-phone',
-            builder: (context, state) => const VerifyPhonePage(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const VerifyPhonePage(),
+            ),
           ),
 
           // Superseded by /today; kept so older links keep working.
           GoRoute(path: '/home', redirect: (context, state) => '/today'),
 
           // Full-screen flows: these sit outside the tab shell.
-          // Declared before the :id route so "new" is not treated as an id.
           GoRoute(
             path: '/requests/new',
-            builder: (context, state) => const QuickAddPage(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const QuickAddPage(),
+            ),
           ),
           GoRoute(
             path: '/requests/:id',
-            builder: (context, state) =>
-                RequestDetailPage(id: int.parse(state.pathParameters['id']!)),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: RequestDetailPage(
+                id: int.parse(state.pathParameters['id']!),
+              ),
+            ),
           ),
 
           // Feedback is a full-screen flow, reached from Settings.
           GoRoute(
             path: '/feedback',
-            builder: (context, state) => const FeedbackPage(),
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const FeedbackPage(),
+            ),
           ),
 
           // Tab shell: Today · Shopping · Places · Settings.
-          // Pantry is a sub-screen of the shopping tab.
           ShellRoute(
             builder: (context, state, child) =>
                 MainShell(location: state.matchedLocation, child: child),
             routes: [
               GoRoute(
                 path: '/today',
-                builder: (context, state) => TodayPage(
-                  focusedPlaceId: int.tryParse(
-                    state.uri.queryParameters['place_id'] ?? '',
+                pageBuilder: (context, state) => _buildFadeSlidePage(
+                  key: state.pageKey,
+                  child: TodayPage(
+                    focusedPlaceId: int.tryParse(
+                      state.uri.queryParameters['place_id'] ?? '',
+                    ),
                   ),
                 ),
               ),
               GoRoute(
                 path: '/shopping',
-                builder: (context, state) => const ShoppingPage(),
+                pageBuilder: (context, state) => _buildFadeSlidePage(
+                  key: state.pageKey,
+                  child: const ShoppingPage(),
+                ),
               ),
               GoRoute(
                 path: '/pantry',
-                builder: (context, state) => const PantryPage(),
+                pageBuilder: (context, state) => _buildFadeSlidePage(
+                  key: state.pageKey,
+                  child: const PantryPage(),
+                ),
               ),
-              // Recurring rules are set up once, from Today, so they stay a
-              // sub-screen of that tab rather than earning a tab of their own.
               GoRoute(
                 path: '/recurring',
-                builder: (context, state) => const RecurringPage(),
+                pageBuilder: (context, state) => _buildFadeSlidePage(
+                  key: state.pageKey,
+                  child: const RecurringPage(),
+                ),
               ),
               GoRoute(
                 path: '/places',
-                builder: (context, state) => const PlacesPage(),
+                pageBuilder: (context, state) => _buildFadeSlidePage(
+                  key: state.pageKey,
+                  child: const PlacesPage(),
+                ),
               ),
               GoRoute(
                 path: '/settings',
-                builder: (context, state) => const SettingsPage(),
+                pageBuilder: (context, state) => _buildFadeSlidePage(
+                  key: state.pageKey,
+                  child: const SettingsPage(),
+                ),
               ),
             ],
           ),

@@ -21,6 +21,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _phone = TextEditingController();
   final TextEditingController _password = TextEditingController();
   final TextEditingController _confirm = TextEditingController();
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
 
   @override
   void dispose() {
@@ -104,15 +106,41 @@ class _RegisterPageState extends State<RegisterPage> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: _password,
-                      obscureText: true,
-                      decoration: const InputDecoration(labelText: 'Password'),
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: AppTheme.muted,
+                            size: 20,
+                          ),
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _confirm,
-                      obscureText: true,
-                      decoration: const InputDecoration(
+                      obscureText: _obscureConfirm,
+                      decoration: InputDecoration(
                         labelText: 'Confirm password',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirm
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: AppTheme.muted,
+                            size: 20,
+                          ),
+                          onPressed: () => setState(
+                            () => _obscureConfirm = !_obscureConfirm,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),

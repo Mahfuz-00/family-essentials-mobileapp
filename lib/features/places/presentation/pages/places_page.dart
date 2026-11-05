@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -70,6 +71,59 @@ class _PlacesViewState extends State<_PlacesView> {
             return ListView(
               padding: const EdgeInsets.all(20),
               children: [
+                // OpenStreetMap Info Card
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppTheme.sageSoft,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppTheme.secondary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondary,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.map_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'OpenStreetMap Geofencing',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                color: AppTheme.ink,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Geofences trigger automated errands when you arrive inside the boundary. Data © OpenStreetMap contributors.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.muted,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
                 const Text(
                   'Add a place',
                   style: TextStyle(
@@ -188,6 +242,31 @@ class _PlaceTile extends StatelessWidget {
 
   final Place place;
 
+  Future<void> _openOpenStreetMap(BuildContext context) async {
+    final lat = place.latitude;
+    final lon = place.longitude;
+    final uri = Uri.parse(
+      'https://www.openstreetmap.org/?mlat=$lat&mlon=$lon#map=16/$lat/$lon',
+    );
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open OpenStreetMap link')),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open map: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -199,41 +278,91 @@ class _PlaceTile extends StatelessWidget {
           AppTheme.space2,
           AppTheme.space3,
         ),
-        child: Row(
+        child: Column(
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    place.name,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.ink,
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        place.name,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${place.kindLabel ?? place.category ?? 'other'} · ${place.radiusMeters} m · '
+                        '${place.activeRequestsCount ?? 0} open',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'View on OpenStreetMap',
+                  icon: const Icon(Icons.map_outlined, color: AppTheme.secondary),
+                  onPressed: () => _openOpenStreetMap(context),
+                ),
+                IconButton(
+                  tooltip: 'Simulate arriving here',
+                  icon: const Icon(Icons.my_location, color: AppTheme.secondary),
+                  onPressed: () => _simulate(context),
+                ),
+                IconButton(
+                  tooltip: 'Remove ${place.name}',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () =>
+                      context.read<PlacesBloc>().add(PlaceDeleted(place.id)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: () => _openOpenStreetMap(context),
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.secondary.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: AppTheme.secondary.withValues(alpha: 0.15),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.place_outlined,
+                      size: 14,
+                      color: AppTheme.secondary,
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${place.kindLabel ?? place.category ?? 'other'} · ${place.radiusMeters} m · '
-                    '${place.activeRequestsCount ?? 0} open',
-                    style: const TextStyle(fontSize: 12, color: AppTheme.muted),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'OpenStreetMap: ${place.latitude.toStringAsFixed(4)}, ${place.longitude.toStringAsFixed(4)} (tap to view)',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.secondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.open_in_new,
+                      size: 12,
+                      color: AppTheme.secondary,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            // The arrival test used to sit on the home screen, one button per
-            // place. It belongs here, next to the place it simulates.
-            IconButton(
-              tooltip: 'Simulate arriving here',
-              icon: const Icon(Icons.my_location, color: AppTheme.secondary),
-              onPressed: () => _simulate(context),
-            ),
-            IconButton(
-              tooltip: 'Remove ${place.name}',
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () =>
-                  context.read<PlacesBloc>().add(PlaceDeleted(place.id)),
             ),
           ],
         ),

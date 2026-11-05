@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -207,11 +208,18 @@ class _RequestDetailView extends StatelessWidget {
                 child: const Text('Cancel'),
               ),
             if (request.isOpen)
-              OutlinedButton(
-                onPressed: () => context.read<RequestsBloc>().add(
-                  VoiceCallRequested(request.id),
-                ),
-                child: const Text('Trigger voice call'),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  context.read<RequestsBloc>().add(
+                    VoiceCallRequested(request.id),
+                  );
+                  final uri = Uri.parse('tel:');
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri);
+                  }
+                },
+                icon: const Icon(Icons.phone, size: 18),
+                label: const Text('Call assignee'),
               ),
           ],
         ),
