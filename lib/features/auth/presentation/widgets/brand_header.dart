@@ -12,7 +12,7 @@ class BrandHeader extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Stitch Official KinSync Emblem
+        // Stitch Official FairShare Emblem
         Container(
           height: 68,
           width: 68,
@@ -26,7 +26,7 @@ class BrandHeader extends StatelessWidget {
             boxShadow: AppTheme.elev2,
           ),
           child: CustomPaint(
-            painter: _KinSyncLogoPainter(),
+            painter: _FairShareLogoPainter(),
           ),
         ),
         const SizedBox(height: AppTheme.space3),
@@ -34,7 +34,7 @@ class BrandHeader extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Kin',
+              'Fair',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
@@ -43,7 +43,7 @@ class BrandHeader extends StatelessWidget {
               ),
             ),
             const Text(
-              'Sync',
+              'Share',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w600,
@@ -77,8 +77,8 @@ class BrandHeader extends StatelessWidget {
   }
 }
 
-/// Precise CustomPainter recreating the KinSync Two Partners Converging Emblem
-class _KinSyncLogoPainter extends CustomPainter {
+/// Precise CustomPainter recreating the FairShare Two Partners Converging Emblem
+class _FairShareLogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final scale = size.width / 200.0;

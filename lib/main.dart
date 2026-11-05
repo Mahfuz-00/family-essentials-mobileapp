@@ -48,7 +48,7 @@ class FamilyEssentialsApp extends StatelessWidget {
     return BlocProvider<AuthBloc>(
       create: (_) => getIt<AuthBloc>(),
       child: MaterialApp.router(
-        title: 'KinSync',
+        title: 'FairShare',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         routerConfig: getIt<AppRouter>().router,
