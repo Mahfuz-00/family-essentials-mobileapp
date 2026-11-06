@@ -6,24 +6,16 @@ class AppConfig {
   /// interchangeable. See `Backend/routes/mobile.php`.
   ///
   /// Override at build time with:
-  ///   flutter run --dart-define=API_BASE_URL=http://192.168.1.20:8000/mobile
+  ///   flutter run --dart-define=API_BASE_URL=http://localhost:8000/mobile
   ///
-  /// 10.0.2.2 is the Android emulator's alias for the host machine's localhost.
+  /// For physical devices connected via USB, running `adb reverse tcp:8000 tcp:8000`
+  /// maps localhost:8000 directly to the host machine.
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000/mobile',
+    defaultValue: 'http://localhost:8000/mobile',
   );
 
   /// Firebase, supplied at build time.
-  ///
-  /// Deliberately passed as options rather than a `google-services.json`, so the
-  /// app still builds and runs without a Firebase project: when these are empty
-  /// the app skips push registration and relies on local notifications only.
-  ///
-  ///   flutter run --dart-define=FIREBASE_API_KEY=... \
-  ///               --dart-define=FIREBASE_APP_ID=... \
-  ///               --dart-define=FIREBASE_SENDER_ID=... \
-  ///               --dart-define=FIREBASE_PROJECT_ID=...
   static const String firebaseApiKey = String.fromEnvironment(
     'FIREBASE_API_KEY',
   );

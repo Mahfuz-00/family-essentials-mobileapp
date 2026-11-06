@@ -30,6 +30,7 @@ import '../../features/requests/domain/repositories/requests_repository.dart';
 import '../../features/requests/presentation/bloc/requests_bloc.dart';
 import '../geo/geolocator_location_provider.dart';
 import '../geo/location_provider.dart';
+import '../geo/native_geofence_manager.dart';
 import '../network/dio_client.dart';
 import '../notifications/device_token_api.dart';
 import '../notifications/local_notifications.dart';
@@ -96,6 +97,12 @@ Future<void> configureDependencies() async {
         notifications: getIt<LocalNotifications>(),
       ),
     )
+    ..registerLazySingleton<NativeGeofenceManager>(
+      () => NativeGeofenceManager(
+        placesRepository: getIt<PlacesRepository>(),
+        localNotifications: getIt<LocalNotifications>(),
+      ),
+    )
     ..registerLazySingleton<FlutterLocalNotificationsPlugin>(
       () => FlutterLocalNotificationsPlugin(),
     )
@@ -117,7 +124,7 @@ Future<void> configureDependencies() async {
     ..registerLazySingleton<AppRouter>(() => AppRouter(getIt()))
     ..registerFactory<AuthBloc>(() => AuthBloc(getIt(), getIt()))
     ..registerFactory<RequestsBloc>(() => RequestsBloc(getIt()))
-    ..registerFactory<PlacesBloc>(() => PlacesBloc(getIt()))
+    ..registerFactory<PlacesBloc>(() => PlacesBloc(getIt(), getIt()))
     ..registerFactory<PantryBloc>(() => PantryBloc(getIt()))
     ..registerFactory<FeedbackBloc>(() => FeedbackBloc(getIt()))
     ..registerFactory<RecurringBloc>(() => RecurringBloc(getIt()));

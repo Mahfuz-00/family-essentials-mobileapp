@@ -18,6 +18,11 @@ class DioClient {
       InterceptorsWrapper(
         onRequest:
             (RequestOptions options, RequestInterceptorHandler handler) async {
+              final customUrl = await _storage.readBaseUrl();
+              if (customUrl != null && customUrl.trim().isNotEmpty) {
+                options.baseUrl = customUrl.trim();
+              }
+
               final token = await _storage.readToken();
 
               if (token != null && token.isNotEmpty) {

@@ -180,6 +180,7 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
+          _HouseholdGreetingHeader(board: board),
           if (widget.focusedPlaceId != null) ...[
             LocationNeedsCard(placeId: widget.focusedPlaceId!),
             const SizedBox(height: AppTheme.space4),
@@ -285,6 +286,122 @@ class _RecurringEntry extends StatelessWidget {
           const Icon(Icons.chevron_right, size: 18, color: AppTheme.muted),
         ],
       ),
+    );
+  }
+}
+
+/// Welcoming header establishing active household context, sync status, and warm greeting.
+class _HouseholdGreetingHeader extends StatelessWidget {
+  const _HouseholdGreetingHeader({required this.board});
+
+  final dynamic board;
+
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        String? userName;
+        String? householdName;
+
+        if (state is AuthMembershipsLoaded) {
+          userName = state.user.name.split(' ').first;
+          householdName = state.activeMembership?.tenant.name;
+        } else if (state is AuthAuthenticated) {
+          userName = state.user.name.split(' ').first;
+        }
+
+        final greetingText =
+            userName != null ? '${_greeting()}, $userName' : _greeting();
+        final householdLabel = householdName ?? 'The Family Household';
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: AppTheme.space4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.sageSoft,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+                      border: Border.all(
+                        color: AppTheme.secondary.withValues(alpha: 0.15),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: AppTheme.secondary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          householdLabel,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                            color: AppTheme.secondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.sync_rounded, size: 14, color: AppTheme.muted),
+                      SizedBox(width: 4),
+                      Text(
+                        'Live sync',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTheme.space2),
+              Text(
+                greetingText,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
+                  color: AppTheme.ink,
+                ),
+              ),
+              const SizedBox(height: 2),
+              const Text(
+                'Household logistics & errands live overview',
+                style: TextStyle(fontSize: 13, color: AppTheme.muted),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
