@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injector.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/warm_widgets.dart';
 import '../../domain/entities/essential.dart';
@@ -261,6 +262,46 @@ class _EssentialCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
+                if (essential.isDue) ...[
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.add_shopping_cart, size: 16),
+                    onPressed: () async {
+                      try {
+                        if (getIt.isRegistered<DioClient>()) {
+                          final dio = getIt<DioClient>().dio;
+                          await dio.post<dynamic>(
+                            '/v1/essentials/${essential.id}/create-errand',
+                          );
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Added "${essential.name}" to Household Errands!',
+                              ),
+                            ),
+                          );
+                        }
+                      } catch (_) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Could not create errand. Please try again.',
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 40),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    label: const Text('Add Errand'),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 FilledButton.tonal(
                   onPressed: () => bloc.add(
                     EssentialRestocked(id: essential.id, quantity: 1),

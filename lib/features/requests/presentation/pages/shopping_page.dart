@@ -27,8 +27,15 @@ class ShoppingPage extends StatelessWidget {
   }
 }
 
-class _ShoppingView extends StatelessWidget {
+class _ShoppingView extends StatefulWidget {
   const _ShoppingView();
+
+  @override
+  State<_ShoppingView> createState() => _ShoppingViewState();
+}
+
+class _ShoppingViewState extends State<_ShoppingView> {
+  int? _activeStopIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -129,6 +136,9 @@ class _ShoppingView extends StatelessWidget {
           }
 
           final stores = groups.keys.toList()..sort();
+          final stopIndex = _activeStopIndex != null && stores.isNotEmpty
+              ? _activeStopIndex!.clamp(0, stores.length - 1)
+              : null;
 
           return RefreshIndicator(
             color: AppTheme.secondary,
@@ -139,13 +149,119 @@ class _ShoppingView extends StatelessWidget {
               children: [
                 const _PantryPulseCard(),
                 const SizedBox(height: AppTheme.space4),
-                Text(
-                  '${unique.length} item${unique.length == 1 ? '' : 's'} across ${stores.length} store${stores.length == 1 ? '' : 's'}',
-                  style: const TextStyle(fontSize: 13, color: AppTheme.muted),
-                ),
+
+                if (stores.length > 1) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${unique.length} item${unique.length == 1 ? '' : 's'} across ${stores.length} store${stores.length == 1 ? '' : 's'}',
+                        style: const TextStyle(fontSize: 13, color: AppTheme.muted),
+                      ),
+                      TextButton.icon(
+                        icon: Icon(
+                          _activeStopIndex != null ? Icons.view_agenda : Icons.route,
+                          size: 16,
+                          color: AppTheme.secondary,
+                        ),
+                        label: Text(
+                          _activeStopIndex != null ? 'View All' : 'Multi-Stop Run',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.secondary,
+                          ),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _activeStopIndex = _activeStopIndex == null ? 0 : null;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  Text(
+                    '${unique.length} item${unique.length == 1 ? '' : 's'} across ${stores.length} store${stores.length == 1 ? '' : 's'}',
+                    style: const TextStyle(fontSize: 13, color: AppTheme.muted),
+                  ),
+                ],
+
                 const SizedBox(height: AppTheme.space4),
-                for (final store in stores)
-                  _StoreGroup(store: store, requests: groups[store]!),
+
+                if (stopIndex != null && stores.isNotEmpty) ...[
+                  WarmCard(
+                    borderColor: AppTheme.secondary,
+                    highlighted: true,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.navigation, size: 16, color: AppTheme.secondary),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Stop ${stopIndex + 1} of ${stores.length}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.secondary,
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.close, size: 16),
+                              tooltip: 'Exit Route Mode',
+                              onPressed: () => setState(() => _activeStopIndex = null),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          stores[stopIndex],
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.arrow_back, size: 14),
+                              label: const Text('Previous Stop'),
+                              onPressed: stopIndex > 0
+                                  ? () => setState(() => _activeStopIndex = stopIndex - 1)
+                                  : null,
+                            ),
+                            FilledButton.icon(
+                              icon: const Icon(Icons.arrow_forward, size: 14),
+                              label: Text(stopIndex < stores.length - 1 ? 'Next Stop' : 'Finish Run'),
+                              onPressed: () {
+                                if (stopIndex < stores.length - 1) {
+                                  setState(() => _activeStopIndex = stopIndex + 1);
+                                } else {
+                                  context.push('/receipt/scan');
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.space4),
+                  _StoreGroup(
+                    store: stores[stopIndex],
+                    requests: groups[stores[stopIndex]]!,
+                  ),
+                ] else ...[
+                  for (final store in stores)
+                    _StoreGroup(store: store, requests: groups[store]!),
+                ],
               ],
             ),
           );
