@@ -38,6 +38,11 @@ class _ShoppingView extends StatelessWidget {
         title: const Text('Shopping mode'),
         actions: [
           IconButton(
+            tooltip: 'Scan Receipt',
+            icon: const Icon(Icons.document_scanner_outlined),
+            onPressed: () => context.push('/receipt/scan'),
+          ),
+          IconButton(
             tooltip: 'Refresh',
             onPressed: () =>
                 context.read<RequestsBloc>().add(const BoardRequested()),
@@ -94,9 +99,21 @@ class _ShoppingView extends StatelessWidget {
                       'Every open item across your saved stores is ticked off. '
                       'Anything still outstanding will appear here.',
                   icon: Icons.shopping_cart_checkout,
-                  action: FilledButton(
-                    onPressed: () => context.push('/requests/new'),
-                    child: const Text('Add a request'),
+                  action: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      FilledButton.icon(
+                        icon: const Icon(Icons.document_scanner, size: 18),
+                        onPressed: () => context.push('/receipt/scan'),
+                        label: const Text('Scan receipt'),
+                      ),
+                      OutlinedButton(
+                        onPressed: () => context.push('/requests/new'),
+                        child: const Text('Add a request'),
+                      ),
+                    ],
                   ),
                 ),
               ],
