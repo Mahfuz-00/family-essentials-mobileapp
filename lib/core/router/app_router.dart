@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -12,6 +11,7 @@ import '../../features/pantry/presentation/pages/pantry_page.dart';
 import '../../features/places/presentation/pages/places_page.dart';
 import '../../features/recurring/presentation/pages/recurring_page.dart';
 import '../../features/requests/presentation/pages/quick_add_page.dart';
+import '../../features/requests/presentation/pages/receipt_scan_page.dart';
 import '../../features/requests/presentation/pages/request_detail_page.dart';
 import '../../features/requests/presentation/pages/shopping_page.dart';
 import '../../features/requests/presentation/pages/today_page.dart';
@@ -143,6 +143,14 @@ class AppRouter {
             pageBuilder: (context, state) => _buildFadeSlidePage(
               key: state.pageKey,
               child: const FeedbackPage(),
+            ),
+          ),
+
+          GoRoute(
+            path: '/receipt/scan',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const ReceiptScanPage(),
             ),
           ),
 
