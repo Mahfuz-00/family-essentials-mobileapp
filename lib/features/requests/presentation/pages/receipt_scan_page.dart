@@ -245,6 +245,34 @@ class _ReceiptScanPageState extends State<ReceiptScanPage> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: AppTheme.space3),
+
+                  // Machine-printed & English Notice
+                  Container(
+                    padding: const EdgeInsets.all(AppTheme.space3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFBEB), // amber-50
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      border: Border.all(color: const Color(0xFFFDE68A)), // amber-200
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline, color: Color(0xFFB45309), size: 18),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Notice: Receipts must be machine-printed (e.g. store cash register slip) and in English for optical character recognition.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF92400E),
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: AppTheme.space4),
 
                   // Actions
