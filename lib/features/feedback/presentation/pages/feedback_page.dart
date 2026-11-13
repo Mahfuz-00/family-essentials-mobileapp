@@ -91,7 +91,7 @@ class _FeedbackViewState extends State<_FeedbackView> {
             } else if (state is FeedbackFailure) {
               ScaffoldMessenger.of(
                 context,
-              ).showSnackBar(SnackBar(content: Text(state.message)));
+              ).showSnackBar(AppTheme.errorSnackBar(state.message));
             }
           },
           builder: (context, state) {

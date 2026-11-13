@@ -54,8 +54,8 @@ class _VerifyPhonePageState extends State<VerifyPhonePage> {
         body: SafeArea(
         child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
-            if (state is AuthAuthenticated) {
-              context.go('/home');
+            if (state is AuthAuthenticated || state is AuthMembershipsLoaded) {
+              context.go('/today');
             } else if (state is AuthCodeSent) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -65,7 +65,7 @@ class _VerifyPhonePageState extends State<VerifyPhonePage> {
             } else if (state is AuthFailureState) {
               ScaffoldMessenger.of(
                 context,
-              ).showSnackBar(SnackBar(content: Text(state.message)));
+              ).showSnackBar(AppTheme.errorSnackBar(state.message));
             }
           },
           child: Padding(

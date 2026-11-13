@@ -246,10 +246,7 @@ class _RequestDetailView extends StatelessWidget {
               context.read<RequestsBloc>().add(DetailRequested(id));
             } else if (state is RequestsFailure) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(state.message),
-                  backgroundColor: AppTheme.coralSoft,
-                ),
+                AppTheme.errorSnackBar(state.message),
               );
             }
           },

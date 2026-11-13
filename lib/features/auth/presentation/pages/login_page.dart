@@ -44,7 +44,7 @@ class _LoginPageState extends State<LoginPage> {
             } else if (state is AuthFailureState) {
               ScaffoldMessenger.of(
                 context,
-              ).showSnackBar(SnackBar(content: Text(state.message)));
+              ).showSnackBar(AppTheme.errorSnackBar(state.message));
             }
           },
           child: Center(

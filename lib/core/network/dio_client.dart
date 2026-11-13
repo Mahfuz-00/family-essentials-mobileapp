@@ -15,8 +15,6 @@ class DioClient {
       ),
     );
 
-    dio.interceptors.add(DemoMockInterceptor());
-
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest:
@@ -36,6 +34,8 @@ class DioClient {
             },
       ),
     );
+
+    dio.interceptors.add(DemoMockInterceptor());
   }
 
   final SecureStorage _storage;

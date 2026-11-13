@@ -1085,7 +1085,7 @@ class _LedgerViewState extends State<_LedgerView> {
         listener: (context, state) {
           if (state is LedgerFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message), backgroundColor: AppTheme.coralSoft),
+              AppTheme.errorSnackBar(state.message),
             );
           }
         },

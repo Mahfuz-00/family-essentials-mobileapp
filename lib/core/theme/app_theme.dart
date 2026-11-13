@@ -270,5 +270,52 @@ class AppTheme {
       thickness: 1,
       space: 1,
     ),
+
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: inverseSurface,
+      contentTextStyle: GoogleFonts.plusJakartaSans(
+        textStyle: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radiusMd),
+      ),
+      elevation: 4,
+    ),
   );
+
+  /// High-contrast Warm Sage error SnackBar with terracotta alert styling.
+  static SnackBar errorSnackBar(String message) {
+    return SnackBar(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: tertiary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radiusMd),
+      ),
+      content: Row(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            color: Colors.white,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

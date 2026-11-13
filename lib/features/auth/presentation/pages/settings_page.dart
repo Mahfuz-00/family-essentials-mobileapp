@@ -208,7 +208,7 @@ class _SettingsPageState extends State<SettingsPage> {
             } else if (state is AuthFailureState) {
               ScaffoldMessenger.of(
                 context,
-              ).showSnackBar(SnackBar(content: Text(state.message)));
+              ).showSnackBar(AppTheme.errorSnackBar(state.message));
             }
           },
           builder: (context, state) {

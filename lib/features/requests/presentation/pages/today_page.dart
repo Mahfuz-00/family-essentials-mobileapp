@@ -123,10 +123,7 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
               context.read<RequestsBloc>().add(const BoardRequested());
             } else if (state is RequestsFailure) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(state.message),
-                  backgroundColor: AppTheme.coralSoft,
-                ),
+                AppTheme.errorSnackBar(state.message),
               );
             } else if (state is RequestsBoardLoaded) {
               // Keep device-local reminders in step with the board.

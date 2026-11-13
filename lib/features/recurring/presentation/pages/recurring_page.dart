@@ -100,10 +100,7 @@ class _RecurringView extends StatelessWidget {
             context.read<RecurringBloc>().add(const RecurringRulesRequested());
           } else if (state is RecurringFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: AppTheme.coralSoft,
-              ),
+              AppTheme.errorSnackBar(state.message),
             );
           }
         },

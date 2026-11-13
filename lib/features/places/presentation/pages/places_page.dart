@@ -132,10 +132,7 @@ class _PlacesViewState extends State<_PlacesView> {
               }
             } else if (state is PlacesFailure) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(state.message),
-                  backgroundColor: AppTheme.accent,
-                ),
+                AppTheme.errorSnackBar(state.message),
               );
             }
           },

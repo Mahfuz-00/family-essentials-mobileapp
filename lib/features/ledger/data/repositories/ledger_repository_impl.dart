@@ -92,12 +92,9 @@ class LedgerRepositoryImpl implements LedgerRepository {
     try {
       return await call();
     } on DioException catch (dioError) {
-      final msg = dioError.response?.data is Map
-          ? (dioError.response?.data as Map)['message']?.toString()
-          : null;
-      throw AppFailure(msg ?? dioError.message ?? 'Server error occurred.');
+      throw AppFailure(extractErrorMessage(dioError));
     } catch (e) {
-      throw AppFailure(e.toString());
+      throw AppFailure(extractErrorMessage(e));
     }
   }
 }

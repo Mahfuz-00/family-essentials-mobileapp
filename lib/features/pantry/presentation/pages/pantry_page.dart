@@ -63,7 +63,7 @@ class _PantryView extends StatelessWidget {
           } else if (state is PantryFailure) {
             ScaffoldMessenger.of(
               context,
-            ).showSnackBar(SnackBar(content: Text(state.message)));
+            ).showSnackBar(AppTheme.errorSnackBar(state.message));
           }
         },
         builder: (context, state) {

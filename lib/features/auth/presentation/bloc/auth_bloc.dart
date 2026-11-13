@@ -74,7 +74,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     SessionLoaded event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoading());
+    if (_user == null) {
+      emit(const AuthLoading());
+    }
 
     try {
       final user = await _repository.me();
@@ -93,6 +95,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
 
       emit(AuthFailureState(failure.message));
+      if (_user != null) {
+        await _emitMemberships(emit, _user!);
+      }
     }
   }
 
@@ -122,6 +127,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _emitMemberships(emit, user);
     } on AuthFailure catch (failure) {
       emit(AuthFailureState(failure.message));
+      if (_user != null) {
+        await _emitMemberships(emit, _user!);
+      }
     }
   }
 
@@ -129,8 +137,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     VoiceConsentChanged event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoading());
-
     try {
       await _repository.updateVoiceConsent(event.optIn);
 
@@ -139,6 +145,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _emitMemberships(emit, user);
     } on AuthFailure catch (failure) {
       emit(AuthFailureState(failure.message));
+      if (_user != null) {
+        await _emitMemberships(emit, _user!);
+      }
     }
   }
 
@@ -146,8 +155,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     LocationConsentChanged event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoading());
-
     try {
       await _repository.updateLocationConsent(event.optIn);
 
@@ -156,6 +163,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _emitMemberships(emit, user);
     } on AuthFailure catch (failure) {
       emit(AuthFailureState(failure.message));
+      if (_user != null) {
+        await _emitMemberships(emit, _user!);
+      }
     }
   }
 
@@ -163,8 +173,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AlertStyleChanged event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoading());
-
     try {
       await _repository.updateAlertStyle(event.style);
 
@@ -173,6 +181,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _emitMemberships(emit, user);
     } on AuthFailure catch (failure) {
       emit(AuthFailureState(failure.message));
+      if (_user != null) {
+        await _emitMemberships(emit, _user!);
+      }
     }
   }
 

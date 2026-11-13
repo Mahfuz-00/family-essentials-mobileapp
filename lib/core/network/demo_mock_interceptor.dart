@@ -89,7 +89,10 @@ class DemoMockInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    if (isOfflineMode) {
+    final authHeader = options.headers['Authorization'] as String?;
+    final isDemoToken = authHeader != null && authHeader.contains('demo-token-');
+
+    if (isOfflineMode || isDemoToken) {
       final mock = _resolveMock(options.path, options.method.toUpperCase(), options);
       if (mock != null) {
         handler.resolve(
@@ -108,8 +111,14 @@ class DemoMockInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
+    final authHeader = err.requestOptions.headers['Authorization'] as String?;
+    final isDemoToken = authHeader != null && authHeader.contains('demo-token-');
+
     final isConnectionError = err.type == DioExceptionType.connectionError ||
         err.type == DioExceptionType.connectionTimeout ||
+        err.type == DioExceptionType.receiveTimeout ||
+        err.type == DioExceptionType.sendTimeout ||
+        err.type == DioExceptionType.transformTimeout ||
         err.type == DioExceptionType.unknown ||
         err.error is SocketException ||
         (err.response != null && err.response!.statusCode! >= 500);
@@ -118,7 +127,7 @@ class DemoMockInterceptor extends Interceptor {
       isOfflineMode = true;
     }
 
-    if (!isConnectionError && !isOfflineMode) {
+    if (!isConnectionError && !isOfflineMode && !isDemoToken) {
       handler.next(err);
       return;
     }
@@ -143,21 +152,49 @@ class DemoMockInterceptor extends Interceptor {
   }
 
   dynamic _resolveMock(String path, String method, RequestOptions options) {
+    final bodyMap = options.data is Map
+        ? (options.data as Map).cast<String, dynamic>()
+        : const <String, dynamic>{};
+
     // Auth login / register
     if (path.contains('/auth/login') || path.contains('/auth/register')) {
       return {
         'token': 'demo-token-12345',
         'user': {
           'id': 1,
-          'name': 'Tanvir Rahman (Demo)',
+          'name': bodyMap['name'] as String? ?? 'Tanvir Rahman',
+          'email': bodyMap['email'] as String? ?? 'tanvir@familyessentials.app',
+          'phone': bodyMap['phone'] as String? ?? '+15550000002',
+          'timezone': 'UTC',
+          'active_tenant_id': 1,
+          'email_verified': true,
+          'phone_verified': true,
+          'is_platform_admin': false,
+          'phone_verified_at': '2026-10-16T12:00:00Z',
+          'location_notifications_opt_in': true,
+          'voice_opt_in': true,
+          'voice_escalation_opt_in': true,
+          'alert_style': 'sound',
+        },
+      };
+    }
+
+    // Phone verification
+    if (path.contains('/auth/phone/verify')) {
+      return {
+        'user': {
+          'id': 1,
+          'name': 'Tanvir Rahman',
           'email': 'tanvir@familyessentials.app',
           'phone': '+15550000002',
           'timezone': 'UTC',
           'active_tenant_id': 1,
-          'phone_verified_at': '2026-10-16T12:00:00Z',
+          'email_verified': true,
+          'phone_verified': true,
+          'is_platform_admin': false,
           'location_notifications_opt_in': true,
-          'voice_escalation_opt_in': true,
-          'alert_style': 'balanced',
+          'voice_opt_in': true,
+          'alert_style': 'sound',
         },
       };
     }
@@ -167,30 +204,41 @@ class DemoMockInterceptor extends Interceptor {
       return {
         'data': {
           'id': 1,
-          'name': 'Tanvir Rahman (Demo)',
+          'name': 'Tanvir Rahman',
           'email': 'tanvir@familyessentials.app',
           'phone': '+15550000002',
           'timezone': 'UTC',
           'active_tenant_id': 1,
+          'email_verified': true,
+          'phone_verified': true,
+          'is_platform_admin': false,
           'phone_verified_at': '2026-10-16T12:00:00Z',
           'location_notifications_opt_in': true,
+          'voice_opt_in': true,
           'voice_escalation_opt_in': true,
-          'alert_style': 'balanced',
+          'alert_style': 'sound',
         },
       };
     }
 
-    // Memberships
-    if (path.contains('/tenant/memberships')) {
+    // Memberships (/v1/auth/tenants & /v1/tenant/memberships)
+    if (path.contains('/auth/tenants') || path.contains('/tenant/memberships')) {
       return {
         'data': [
           {
             'id': 1,
             'tenant_id': 1,
             'tenant_name': 'The Tanvir Household',
-            'role': 'admin',
+            'role': 'tenant_admin',
             'is_active': true,
-          }
+            'tenant': {
+              'id': 1,
+              'name': 'The Tanvir Household',
+              'slug': 'the-tanvir-household',
+              'status': 'active',
+              'subscription_tier': activePlanTier,
+            },
+          },
         ],
       };
     }
@@ -531,121 +579,207 @@ class DemoMockInterceptor extends Interceptor {
       };
     }
 
-    // Ledgers list
-    if (path.endsWith('/ledgers') && method == 'GET') {
+    // Ledgers list / create / update
+    if (path.contains('/ledgers') && !path.contains('/summary') && !path.contains('/entries')) {
+      if (method == 'GET') {
+        return {
+          'data': [
+            {
+              'id': 1,
+              'name': 'Household budget',
+              'currency': 'USD',
+              'my_role': 'owner',
+              'is_default': true,
+              'monthly_budget_minor': 250000,
+              'weekly_budget_minor': 60000,
+              'yearly_budget_minor': 3000000,
+            },
+          ],
+        };
+      }
       return {
-        'data': [
-          {
-            'id': 1,
-            'name': 'Household budget',
-            'currency': 'USD',
-            'my_role': 'owner',
-            'monthly_budget_minor': 250000,
-            'weekly_budget_minor': 60000,
-            'yearly_budget_minor': 3000000,
-          },
-        ],
+        'data': {
+          'id': 1,
+          'name': bodyMap['name'] as String? ?? 'Household budget',
+          'currency': 'USD',
+          'is_default': true,
+          'monthly_budget_minor': bodyMap['monthly_budget_minor'] as int? ?? 250000,
+          'weekly_budget_minor': bodyMap['weekly_budget_minor'] as int? ?? 60000,
+          'yearly_budget_minor': bodyMap['yearly_budget_minor'] as int? ?? 3000000,
+        },
       };
     }
 
     // Ledger summary
     if (path.contains('/summary')) {
-      final period = options.queryParameters['period'] ?? 'monthly';
+      final period =
+          options.queryParameters['period_type'] ??
+          options.queryParameters['period'] ??
+          'monthly';
       if (period == 'weekly') {
-        return {
+        final summaryData = {
           'currency': 'USD',
           'period': 'weekly',
+          'period_type': 'weekly',
           'budget_minor': 60000,
+          'remaining_budget_minor': 35500,
+          'budget_percent_used': 41,
+          'is_over_budget': false,
           'weekly_budget_minor': 60000,
           'yearly_budget_minor': 3000000,
+          'expense_minor': 24500,
+          'income_minor': 87500,
           'total_expense_minor': 24500,
           'total_income_minor': 87500,
           'net_minor': 63000,
           'by_category': [
-            {'category': 'grocery', 'total_minor': 14500},
-            {'category': 'utility_bill', 'total_minor': 4500},
-            {'category': 'household', 'total_minor': 3500},
-            {'category': 'other', 'total_minor': 2000},
+            {'category': 'grocery', 'label': 'Grocery', 'expense_minor': 14500, 'total_minor': 14500, 'share': 0.59},
+            {'category': 'utility_bill', 'label': 'Utilities', 'expense_minor': 4500, 'total_minor': 4500, 'share': 0.18},
+            {'category': 'household', 'label': 'Household', 'expense_minor': 3500, 'total_minor': 3500, 'share': 0.14},
+            {'category': 'other', 'label': 'Other', 'expense_minor': 2000, 'total_minor': 2000, 'share': 0.09},
+          ],
+          'weekly_breakdown': [
+            {'week': 1, 'label': 'Mon–Tue', 'expense_minor': 6500, 'income_minor': 87500},
+            {'week': 2, 'label': 'Wed–Thu', 'expense_minor': 8000, 'income_minor': 0},
+            {'week': 3, 'label': 'Fri–Sun', 'expense_minor': 10000, 'income_minor': 0},
           ],
         };
+        return {'data': summaryData, ...summaryData};
       } else if (period == 'yearly') {
-        return {
+        final summaryData = {
           'currency': 'USD',
           'period': 'yearly',
+          'period_type': 'yearly',
           'budget_minor': 3000000,
+          'remaining_budget_minor': 786000,
+          'budget_percent_used': 74,
+          'is_over_budget': false,
           'weekly_budget_minor': 60000,
           'yearly_budget_minor': 3000000,
+          'expense_minor': 2214000,
+          'income_minor': 4200000,
           'total_expense_minor': 2214000,
           'total_income_minor': 4200000,
           'net_minor': 1986000,
           'by_category': [
-            {'category': 'rent', 'total_minor': 1440000},
-            {'category': 'grocery', 'total_minor': 294000},
-            {'category': 'utility_bill', 'total_minor': 222000},
-            {'category': 'household', 'total_minor': 112800},
-            {'category': 'healthcare', 'total_minor': 82200},
-            {'category': 'other', 'total_minor': 63000},
+            {'category': 'rent', 'label': 'Rent & Mortgage', 'expense_minor': 1440000, 'total_minor': 1440000, 'share': 0.65},
+            {'category': 'grocery', 'label': 'Grocery', 'expense_minor': 294000, 'total_minor': 294000, 'share': 0.13},
+            {'category': 'utility_bill', 'label': 'Utilities', 'expense_minor': 222000, 'total_minor': 222000, 'share': 0.10},
+            {'category': 'household', 'label': 'Household', 'expense_minor': 112800, 'total_minor': 112800, 'share': 0.05},
+            {'category': 'healthcare', 'label': 'Healthcare', 'expense_minor': 82200, 'total_minor': 82200, 'share': 0.04},
+            {'category': 'other', 'label': 'Other', 'expense_minor': 63000, 'total_minor': 63000, 'share': 0.03},
+          ],
+          'weekly_breakdown': [
+            {'week': 1, 'label': 'Q1', 'expense_minor': 540000, 'income_minor': 1050000},
+            {'week': 2, 'label': 'Q2', 'expense_minor': 555000, 'income_minor': 1050000},
+            {'week': 3, 'label': 'Q3', 'expense_minor': 560000, 'income_minor': 1050000},
+            {'week': 4, 'label': 'Q4', 'expense_minor': 559000, 'income_minor': 1050000},
           ],
         };
+        return {'data': summaryData, ...summaryData};
       }
-      return {
+      final summaryData = {
         'currency': 'USD',
         'period': 'monthly',
+        'period_type': 'monthly',
         'budget_minor': 250000,
+        'remaining_budget_minor': 65500,
+        'budget_percent_used': 74,
+        'is_over_budget': false,
         'weekly_budget_minor': 60000,
         'yearly_budget_minor': 3000000,
+        'expense_minor': 184500,
+        'income_minor': 350000,
         'total_expense_minor': 184500,
         'total_income_minor': 350000,
         'net_minor': 165500,
         'by_category': [
-          {'category': 'rent', 'total_minor': 120000},
-          {'category': 'grocery', 'total_minor': 24500},
-          {'category': 'utility_bill', 'total_minor': 18500},
-          {'category': 'household', 'total_minor': 9400},
-          {'category': 'healthcare', 'total_minor': 6850},
-          {'category': 'other', 'total_minor': 5250},
+          {'category': 'rent', 'label': 'Rent & Mortgage', 'expense_minor': 120000, 'total_minor': 120000, 'share': 0.65},
+          {'category': 'grocery', 'label': 'Grocery', 'expense_minor': 24500, 'total_minor': 24500, 'share': 0.13},
+          {'category': 'utility_bill', 'label': 'Utilities', 'expense_minor': 18500, 'total_minor': 18500, 'share': 0.10},
+          {'category': 'household', 'label': 'Household', 'expense_minor': 9400, 'total_minor': 9400, 'share': 0.05},
+          {'category': 'healthcare', 'label': 'Healthcare', 'expense_minor': 6850, 'total_minor': 6850, 'share': 0.04},
+          {'category': 'other', 'label': 'Other', 'expense_minor': 5250, 'total_minor': 5250, 'share': 0.03},
+        ],
+        'weekly_breakdown': [
+          {'week': 1, 'label': 'Week 1', 'expense_minor': 132000, 'income_minor': 350000},
+          {'week': 2, 'label': 'Week 2', 'expense_minor': 24500, 'income_minor': 0},
+          {'week': 3, 'label': 'Week 3', 'expense_minor': 18500, 'income_minor': 0},
+          {'week': 4, 'label': 'Week 4', 'expense_minor': 9500, 'income_minor': 0},
         ],
       };
+      return {'data': summaryData, ...summaryData};
     }
 
     // Ledger entries
     if (path.contains('/entries')) {
+      if (method != 'GET') {
+        return {
+          'data': {
+            'id': DateTime.now().millisecondsSinceEpoch % 10000,
+            'ledger_id': 1,
+            'direction': bodyMap['direction'] as String? ?? 'out',
+            'amount_minor': (bodyMap['amount_minor'] as num?)?.toInt() ?? 0,
+            'category': bodyMap['category'] as String? ?? 'other',
+            'description': bodyMap['description'] as String? ?? 'Ledger Entry',
+            'source': bodyMap['source'] as String? ?? 'manual',
+            'logged_by': {'id': 1, 'name': 'Tanvir Rahman'},
+            'created_at': DateTime.now().toIso8601String(),
+          },
+        };
+      }
       return {
         'data': [
           {
             'id': 1,
+            'ledger_id': 1,
             'description': 'Monthly Apartment Rent',
             'category': 'rent',
             'amount_minor': 120000,
-            'direction': 'expense',
+            'direction': 'out',
+            'source': 'recurring',
             'occurred_on': '2026-11-01',
+            'created_at': '2026-11-01T09:00:00Z',
+            'logged_by': {'id': 1, 'name': 'Tanvir Rahman'},
             'paid_by': {'id': 1, 'name': 'Tanvir Rahman'},
           },
           {
             'id': 2,
+            'ledger_id': 1,
             'description': 'Weekly Fresh Grocery Run',
             'category': 'grocery',
             'amount_minor': 24500,
-            'direction': 'expense',
+            'direction': 'out',
+            'source': 'request',
             'occurred_on': '2026-11-13',
+            'created_at': '2026-11-13T14:20:00Z',
+            'logged_by': {'id': 1, 'name': 'Tanvir Rahman'},
             'paid_by': {'id': 1, 'name': 'Tanvir Rahman'},
           },
           {
             'id': 3,
+            'ledger_id': 1,
             'description': 'Electric & Gas Utility Bill',
             'category': 'utility_bill',
             'amount_minor': 18500,
-            'direction': 'expense',
+            'direction': 'out',
+            'source': 'manual',
             'occurred_on': '2026-11-05',
+            'created_at': '2026-11-05T11:30:00Z',
+            'logged_by': {'id': 1, 'name': 'Tanvir Rahman'},
             'paid_by': {'id': 1, 'name': 'Tanvir Rahman'},
           },
           {
             'id': 4,
+            'ledger_id': 1,
             'description': 'Monthly Salary Contribution',
-            'category': null,
+            'category': 'salary',
             'amount_minor': 350000,
-            'direction': 'income',
+            'direction': 'in',
+            'source': 'manual',
             'occurred_on': '2026-11-01',
+            'created_at': '2026-11-01T08:00:00Z',
+            'logged_by': {'id': 2, 'name': 'Sarah Rahman'},
             'paid_by': {'id': 2, 'name': 'Sarah Rahman'},
           },
         ],
@@ -660,10 +794,24 @@ class DemoMockInterceptor extends Interceptor {
           'total_assets_minor': 56270000,
           'total_liabilities_minor': 29920000,
           'net_worth_minor': 26350000,
+          'savings_minor': 2850000,
+          'investments_minor': 7420000,
+          'mortgage_minor': 28500000,
+          'loans_minor': 1420000,
           'monthly_budget_minor': 250000,
           'total_monthly_expenses_minor': 184500,
           'active_goals_count': 3,
           'pending_taxes_minor': 340000,
+          'goals': {
+            'active_count': 3,
+            'achieved_count': 1,
+            'total_saved_minor': 970000,
+            'total_target_minor': 2850000,
+          },
+          'taxes': {
+            'pending_count': 1,
+            'pending_minor': 340000,
+          },
         },
       };
     }
@@ -831,8 +979,52 @@ class DemoMockInterceptor extends Interceptor {
       return {'data': {'id': 99, 'status': 'ok'}};
     }
 
+    // Geofences evaluate
+    if (path.contains('/geofences/evaluate')) {
+      return {
+        'transitions': <Map<String, dynamic>>[],
+        'shopping_lists': <Map<String, dynamic>>[],
+        'location_notifications': <Map<String, dynamic>>[],
+      };
+    }
+
+    // Place Needs (/places/:id/requests)
+    if (path.contains('/places/') && path.endsWith('/requests') && method == 'GET') {
+      return {
+        'place': {
+          'id': 3,
+          'name': 'Whole Foods Market',
+          'category': 'grocery',
+          'latitude': 23.8103,
+          'longitude': 90.4125,
+          'radius_meters': 300,
+        },
+        'data': [
+          {
+            'id': 102,
+            'title': 'Weekly Organic Grocery Run',
+            'status': 'in_progress',
+            'quantity': '4 items',
+          },
+        ],
+      };
+    }
+
     // Places
     if (path.contains('/places')) {
+      if (method != 'GET') {
+        return {
+          'data': {
+            'id': DateTime.now().millisecondsSinceEpoch % 10000,
+            'name': bodyMap['name'] as String? ?? 'Saved Place',
+            'category': bodyMap['category'] as String? ?? 'grocery',
+            'address': bodyMap['address'] as String?,
+            'latitude': (bodyMap['latitude'] as num?)?.toDouble() ?? 23.8103,
+            'longitude': (bodyMap['longitude'] as num?)?.toDouble() ?? 90.4125,
+            'radius_meters': (bodyMap['radius_meters'] as num?)?.toInt() ?? 300,
+          },
+        };
+      }
       return {
         'data': [
           {
@@ -872,13 +1064,36 @@ class DemoMockInterceptor extends Interceptor {
     }
 
     // Pantry Essentials
-    if (path.contains('/essentials') && method == 'GET') {
+    if (path.contains('/essentials')) {
+      if (method != 'GET') {
+        return {
+          'data': {
+            'id': DateTime.now().millisecondsSinceEpoch % 10000,
+            'name': bodyMap['name'] as String? ?? 'Household Essential',
+            'category': bodyMap['category'] as String? ?? 'Groceries',
+            'default_store': bodyMap['default_store'] as String? ?? 'Whole Foods Market',
+            'pack_size': bodyMap['pack_size'] as String? ?? '1 Pack',
+            'cadence_days': (bodyMap['cadence_days'] as num?)?.toInt() ?? 14,
+            'threshold': (bodyMap['threshold'] as num?)?.toInt() ?? 1,
+            'stock_level': (bodyMap['stock_level'] as num?)?.toInt() ??
+                (bodyMap['quantity'] as num?)?.toInt() ??
+                2,
+            'is_active': true,
+            'is_due': false,
+            'last_restocked_at': DateTime.now().toIso8601String(),
+            'next_due_at': DateTime.now().add(const Duration(days: 14)).toIso8601String(),
+            'days_until_due': 14,
+          },
+        };
+      }
       return {
         'summary': {
           'total': 6,
           'due': 2,
           'safety_stock': 4,
           'cadence': 2,
+          'total_spent_minor': 14250,
+          'projected_restock_minor': 2450,
         },
         'data': [
           {
@@ -978,7 +1193,22 @@ class DemoMockInterceptor extends Interceptor {
     }
 
     // Recurring Rules
-    if (path.contains('/recurring-rules') && method == 'GET') {
+    if (path.contains('/recurring-rules')) {
+      if (method != 'GET') {
+        return {
+          'data': {
+            'id': DateTime.now().millisecondsSinceEpoch % 10000,
+            'title': bodyMap['title'] as String? ?? 'Recurring Rule',
+            'cadence': bodyMap['cadence'] as String? ?? 'weekly',
+            'weekday': (bodyMap['weekday'] as num?)?.toInt() ?? 6,
+            'day_of_month': (bodyMap['day_of_month'] as num?)?.toInt(),
+            'quantity': bodyMap['quantity'] as String?,
+            'priority': bodyMap['priority'] as String? ?? 'normal',
+            'active': bodyMap['active'] as bool? ?? true,
+            'next_run_on': '2026-11-20',
+          },
+        };
+      }
       return {
         'data': [
           {
@@ -1280,24 +1510,68 @@ class DemoMockInterceptor extends Interceptor {
     }
 
     // Feedback
-    if (path.contains('/feedback') && method == 'GET') {
+    if (path.contains('/feedback')) {
+      if (method != 'GET') {
+        return {
+          'data': {
+            'id': DateTime.now().millisecondsSinceEpoch % 10000,
+            'type': bodyMap['type'] as String? ?? 'bug',
+            'status': 'new',
+            'priority': bodyMap['priority'] as String? ?? 'normal',
+            'subject': bodyMap['subject'] as String? ?? 'Feedback Report',
+            'body': bodyMap['body'] as String? ?? '',
+            'created_at': DateTime.now().toIso8601String(),
+          },
+        };
+      }
       return {
         'data': [
           {
             'id': 1,
-            'category': 'praise',
-            'message': 'Loving the new multi-item grocery list and offline mode!',
+            'type': 'praise',
             'status': 'resolved',
+            'priority': 'normal',
+            'subject': 'Multi-item grocery list & offline mode',
+            'body': 'Loving the new multi-item grocery list and offline mode!',
+            'resolution_note': 'Thank you for your feedback!',
             'created_at': '2026-11-12T10:00:00Z',
           },
         ],
       };
     }
 
+    // Create / Update ServiceRequest (/v1/requests or /v1/requests/:id)
+    if (path.contains('/requests') && (method == 'POST' || method == 'PATCH')) {
+      return {
+        'data': {
+          'id': DateTime.now().millisecondsSinceEpoch % 10000,
+          'title': bodyMap['title'] as String? ?? 'Household Errand',
+          'status': 'pending',
+          'priority': bodyMap['priority'] as String? ?? 'normal',
+          'quantity': bodyMap['quantity'] as String?,
+          'store_name': bodyMap['store_name'] as String?,
+          'due_at': bodyMap['due_at'] as String?,
+          'items': bodyMap['items'] as List? ?? const [],
+          'assignee': bodyMap['assignee_id'] != null
+              ? {'id': bodyMap['assignee_id'], 'name': 'Tanvir Rahman'}
+              : null,
+          'location_trigger': bodyMap['location_trigger_place_id'] != null
+              ? {
+                  'place_id': bodyMap['location_trigger_place_id'],
+                  'direction': bodyMap['location_trigger_direction'] ?? 'enter',
+                  'place_name': 'Saved Place',
+                }
+              : null,
+          'history': const [],
+          'voice_calls': const [],
+        },
+      };
+    }
+
     // Generic fallback for POST/PATCH/DELETE actions
     if (method != 'GET') {
       return {
-        'data': {'id': 1, 'status': 'success'},
+        'data': {'id': 1, 'status': 'success', 'title': 'Updated', 'name': 'Updated'},
         'message': 'Saved successfully (Demo mode)',
       };
     }
