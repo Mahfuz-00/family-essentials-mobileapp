@@ -533,12 +533,16 @@ class _BillingPageState extends State<BillingPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              _tierName(_activeTier),
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.ink,
+                            Expanded(
+                              child: Text(
+                                _tierName(_activeTier),
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.ink,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             Container(
@@ -828,9 +832,19 @@ class _BillingPageState extends State<BillingPage> {
         children: [
           Icon(icon, size: 16, color: AppTheme.secondary),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontSize: 13, color: AppTheme.ink)),
-          const Spacer(),
-          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.muted)),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13, color: AppTheme.ink),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.muted),
+          ),
         ],
       ),
     );

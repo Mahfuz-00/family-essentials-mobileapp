@@ -931,6 +931,7 @@ class _LedgerView extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: SegmentedButton<String>(
+                    showSelectedIcon: false,
                     style: SegmentedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -938,18 +939,15 @@ class _LedgerView extends StatelessWidget {
                     segments: const [
                       ButtonSegment(
                         value: 'monthly',
-                        label: Text('Monthly', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        icon: Icon(Icons.calendar_month, size: 16),
+                        label: Text('Monthly', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                       ),
                       ButtonSegment(
                         value: 'weekly',
-                        label: Text('Weekly', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        icon: Icon(Icons.view_week, size: 16),
+                        label: Text('Weekly', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                       ),
                       ButtonSegment(
                         value: 'yearly',
-                        label: Text('Yearly', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        icon: Icon(Icons.calendar_today, size: 16),
+                        label: Text('Yearly', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                       ),
                     ],
                     selected: {state.periodType},

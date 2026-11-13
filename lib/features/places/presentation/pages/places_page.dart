@@ -287,31 +287,39 @@ class _PlacesViewState extends State<_PlacesView> {
                       Positioned(
                         top: 10,
                         left: 10,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.92),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: const [
-                              BoxShadow(color: Colors.black12, blurRadius: 4),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.touch_app, size: 14, color: AppTheme.secondary),
-                              const SizedBox(width: 4),
-                              Text(
-                                _selectedPlace != null
-                                    ? 'Editing: ${_selectedPlace!.name}'
-                                    : 'Tap map to drop pin',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.ink,
+                        right: 80,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.92),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: const [
+                                BoxShadow(color: Colors.black12, blurRadius: 4),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.touch_app, size: 14, color: AppTheme.secondary),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    _selectedPlace != null
+                                        ? 'Editing: ${_selectedPlace!.name}'
+                                        : 'Tap map to drop pin',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.ink,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -735,12 +743,16 @@ class _PlaceTile extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              place.name,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.ink,
+                            Flexible(
+                              child: Text(
+                                place.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.ink,
+                                ),
                               ),
                             ),
                             if (isSelected) ...[
@@ -767,6 +779,8 @@ class _PlaceTile extends StatelessWidget {
                         Text(
                           '${place.kindLabel ?? place.category ?? 'other'} · ${place.radiusMeters} m radius · '
                           '${place.activeRequestsCount ?? 0} open errands',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppTheme.muted,

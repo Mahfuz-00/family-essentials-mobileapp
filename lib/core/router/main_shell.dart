@@ -169,6 +169,12 @@ class _MainShellState extends State<MainShell> {
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
           indicatorColor: AppTheme.forestSoft,
+          iconTheme: WidgetStateProperty.resolveWith<IconThemeData?>((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const IconThemeData(color: AppTheme.secondary);
+            }
+            return const IconThemeData(color: AppTheme.muted);
+          }),
           labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>((states) {
             if (states.contains(WidgetState.selected)) {
               return const TextStyle(

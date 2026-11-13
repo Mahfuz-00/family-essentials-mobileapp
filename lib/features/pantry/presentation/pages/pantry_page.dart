@@ -281,9 +281,13 @@ class _EssentialCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Restock ${essential.name}',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.ink),
+                Expanded(
+                  child: Text(
+                    'Restock ${essential.name}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.ink),
+                  ),
                 ),
                 IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(ctx).pop()),
               ],
@@ -471,7 +475,7 @@ class _EssentialCard extends StatelessWidget {
                         minimumSize: const Size(0, 40),
                         visualDensity: VisualDensity.compact,
                       ),
-                      label: const Text('Add Errand'),
+                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Add Errand')),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -480,8 +484,11 @@ class _EssentialCard extends StatelessWidget {
                   child: FilledButton.tonalIcon(
                     icon: const Icon(Icons.add, size: 16),
                     onPressed: () => _showRestockDialog(context, essential),
-                    style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
-                    label: const Text('Restock & Spend'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 40),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Restock & Spend')),
                   ),
                 ),
               ],

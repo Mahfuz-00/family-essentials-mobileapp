@@ -236,6 +236,7 @@ class _SettingsPageState extends State<SettingsPage> {
           if (memberships.length > 1) ...[
             const SizedBox(height: AppTheme.space3),
             DropdownButtonFormField<int>(
+              isExpanded: true,
               initialValue: active?.tenant.id,
               decoration: const InputDecoration(labelText: 'Switch household'),
               items: [
@@ -244,6 +245,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     value: membership.tenant.id,
                     child: Text(
                       '${membership.tenant.name} (${membership.role == 'tenant_admin' ? 'Household Admin' : membership.role})',
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
               ],
@@ -279,7 +281,8 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: AppTheme.space3),
           DropdownButtonFormField<String>(
-            value: _selectedCurrency,
+            isExpanded: true,
+            initialValue: _selectedCurrency,
             decoration: const InputDecoration(
               labelText: 'Global Currency Marker',
               prefixIcon: Icon(Icons.currency_exchange_rounded),
