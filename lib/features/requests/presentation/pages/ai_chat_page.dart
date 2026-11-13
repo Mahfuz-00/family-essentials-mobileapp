@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/di/injector.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/warm_widgets.dart';
+import '../bloc/requests_bloc.dart';
+import '../bloc/requests_event.dart';
 
 class AiChatMessage {
   AiChatMessage({
@@ -56,7 +59,12 @@ class HouseholdMemberChatMsg {
 }
 
 class AiChatPage extends StatefulWidget {
-  const AiChatPage({super.key});
+  const AiChatPage({
+    super.key,
+    this.initialTab = 'ai',
+  });
+
+  final String initialTab;
 
   @override
   State<AiChatPage> createState() => _AiChatPageState();
@@ -65,9 +73,10 @@ class AiChatPage extends StatefulWidget {
 class _AiChatPageState extends State<AiChatPage> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  Timer? _pollTimer;
 
-  // 'family' = Member-to-member Chat & Voice Calls; 'ai' = AI Family Dispatcher
-  String _activeTab = 'family';
+  // 'ai' = AI Family Dispatcher; 'family' = Member-to-member Chat & Voice Calls
+  late String _activeTab;
   bool _isLoadingThread = true;
   bool _isSending = false;
 
@@ -108,7 +117,8 @@ class _AiChatPageState extends State<AiChatPage> {
     AiChatMessage(
       text:
           'Hello! I am your live AI Family Dispatcher.\n\n'
-          '• Type any errand in plain English (e.g. "Assign Sarah to pick up milk from Whole Foods tomorrow at 5pm urgent") to create & assign it on the live board.\n'
+          '• Type any errand in plain English (e.g. "Assign Sarah to pick up milk from Whole Foods today at 6pm") to create & assign it on the live board.\n'
+          '• Ask "What tasks are due today?" for live errands & chores.\n'
           '• Ask "What is our budget status?" for live ledger numbers.\n'
           '• Ask "Check pantry stock" for real low-stock alerts.',
       isUser: false,
@@ -119,14 +129,53 @@ class _AiChatPageState extends State<AiChatPage> {
   @override
   void initState() {
     super.initState();
+    _activeTab = (widget.initialTab == 'family' || widget.initialTab == 'ai')
+        ? widget.initialTab
+        : 'ai';
     _loadHouseholdChatAndQuotas();
+    // Poll every 2 seconds for new household member messages
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      _refreshFamilyMessagesSilently();
+    });
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _refreshFamilyMessagesSilently() async {
+    if (!mounted || !getIt.isRegistered<DioClient>()) return;
+    try {
+      final dio = getIt<DioClient>().dio;
+      final res = await dio.get<Map<String, dynamic>>('/v1/household/messages');
+      final data = res.data;
+      if (data != null && data['messages'] is List && mounted) {
+        final incoming = (data['messages'] as List)
+            .map(
+              (e) => HouseholdMemberChatMsg.fromJson(
+                (e as Map).cast<String, dynamic>(),
+              ),
+            )
+            .toList();
+        if (incoming.length != _familyMessages.length) {
+          setState(() {
+            _familyMessages = incoming;
+            final plan = data['plan'] as Map<String, dynamic>?;
+            if (plan != null) {
+              _chatUsed = (plan['chat_used'] as num?)?.toInt() ?? _chatUsed;
+              _callsUsed = (plan['calls_used'] as num?)?.toInt() ?? _callsUsed;
+            }
+          });
+          if (_activeTab == 'family') {
+            _scrollToBottom();
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadHouseholdChatAndQuotas() async {
@@ -296,13 +345,16 @@ class _AiChatPageState extends State<AiChatPage> {
     );
   }
 
-  Future<void> _initiateMemberCall(Map<String, dynamic> member) async {
+  Future<void> _initiateMemberCall(
+    Map<String, dynamic> member, {
+    bool isIncoming = false,
+  }) async {
     final targetName = member['name'] as String? ?? 'Family Member';
     final targetId = (member['id'] as num?)?.toInt() ?? 2;
     final targetPhone = member['phone'] as String? ?? '+8801711000002';
 
     // Enforce SaaS Subscription Plan Call Limits (Point 7 & Point 8)
-    if (_callsCap <= 0) {
+    if (!isIncoming && _callsCap <= 0) {
       _showPlanLimitUpgradeDialog(
         title: 'Calling Not Included in $_planLabel',
         message:
@@ -312,7 +364,7 @@ class _AiChatPageState extends State<AiChatPage> {
       return;
     }
 
-    if (_callsUsed >= _callsCap) {
+    if (!isIncoming && _callsUsed >= _callsCap) {
       _showPlanLimitUpgradeDialog(
         title: 'Monthly Call Quota Reached',
         message:
@@ -322,41 +374,43 @@ class _AiChatPageState extends State<AiChatPage> {
       return;
     }
 
-    try {
-      if (getIt.isRegistered<DioClient>()) {
-        final res = await getIt<DioClient>().dio.post<Map<String, dynamic>>(
-          '/v1/members/$targetId/call',
-        );
-        if (res.data != null) {
-          final quota = (res.data!['quota'] as num?)?.toInt();
-          final remaining = (res.data!['remaining_calls'] as num?)?.toInt();
-          if (quota != null && remaining != null) {
-            setState(() {
-              _callsCap = quota;
-              _callsUsed = (quota - remaining).clamp(0, quota);
-            });
-          } else {
-            setState(() => _callsUsed++);
+    if (!isIncoming) {
+      try {
+        if (getIt.isRegistered<DioClient>()) {
+          final res = await getIt<DioClient>().dio.post<Map<String, dynamic>>(
+            '/v1/members/$targetId/call',
+          );
+          if (res.data != null) {
+            final quota = (res.data!['quota'] as num?)?.toInt();
+            final remaining = (res.data!['remaining_calls'] as num?)?.toInt();
+            if (quota != null && remaining != null) {
+              setState(() {
+                _callsCap = quota;
+                _callsUsed = (quota - remaining).clamp(0, quota);
+              });
+            } else {
+              setState(() => _callsUsed++);
+            }
           }
+        } else {
+          setState(() => _callsUsed++);
         }
-      } else {
+      } on DioException catch (e) {
+        final code = e.response?.data is Map ? e.response?.data['code'] : null;
+        final msg = e.response?.data is Map ? e.response?.data['message'] : null;
+        if (e.response?.statusCode == 403 || code == 'plan_limit_exceeded') {
+          _showPlanLimitUpgradeDialog(
+            title: 'Plan Call Limit Reached',
+            message:
+                msg?.toString() ??
+                'Your current SaaS plan limit for member calling has been reached.',
+          );
+          return;
+        }
+        setState(() => _callsUsed++);
+      } catch (_) {
         setState(() => _callsUsed++);
       }
-    } on DioException catch (e) {
-      final code = e.response?.data is Map ? e.response?.data['code'] : null;
-      final msg = e.response?.data is Map ? e.response?.data['message'] : null;
-      if (e.response?.statusCode == 403 || code == 'plan_limit_exceeded') {
-        _showPlanLimitUpgradeDialog(
-          title: 'Plan Call Limit Reached',
-          message:
-              msg?.toString() ??
-              'Your current SaaS plan limit for member calling has been reached.',
-        );
-        return;
-      }
-      setState(() => _callsUsed++);
-    } catch (_) {
-      setState(() => _callsUsed++);
     }
 
     if (!mounted) return;
@@ -376,6 +430,7 @@ class _AiChatPageState extends State<AiChatPage> {
         planLabel: _planLabel,
         callsUsed: _callsUsed,
         callsCap: _callsCap,
+        isIncoming: isIncoming,
       ),
     );
   }
@@ -482,13 +537,40 @@ class _AiChatPageState extends State<AiChatPage> {
 
     final lower = text.toLowerCase();
 
-    // 1. Live Household Budget / Ledger Query (Point 2 — Real API, no fake placeholder)
+    // 0. Greetings / Help / Capabilities Query
+    if (lower == 'hi' ||
+        lower == 'hello' ||
+        lower == 'hey' ||
+        lower == 'help' ||
+        lower.contains('what can you do') ||
+        lower.contains('how do you work')) {
+      setState(() {
+        _aiMessages.add(
+          AiChatMessage(
+            text:
+                'I am connected to your live household data! Here is what you can ask or command me to do:\n\n'
+                '1. Check Budget & Spending: "What is our budget status?"\n'
+                '2. Check Pantry Inventory: "Check pantry stock"\n'
+                '3. Check Today\'s Errands: "What tasks are due today?"\n'
+                '4. Dispatch Live Errands: "Assign Sarah to buy organic milk from Whole Foods today at 6pm"',
+            isUser: false,
+            time: 'Live AI',
+          ),
+        );
+        _isSending = false;
+      });
+      _scrollToBottom();
+      return;
+    }
+
+    // 1. Live Household Budget / Ledger Query (Point 2 — Real API, fixed keys)
     if (lower.contains('budget') ||
         lower.contains('spend') ||
         lower.contains('spent') ||
         lower.contains('expense') ||
         lower.contains('money') ||
-        lower.contains('ledger')) {
+        lower.contains('ledger') ||
+        lower.contains('income')) {
       try {
         if (getIt.isRegistered<DioClient>()) {
           final dio = getIt<DioClient>().dio;
@@ -497,33 +579,48 @@ class _AiChatPageState extends State<AiChatPage> {
           if (list.isNotEmpty) {
             final firstLedger = (list.first as Map).cast<String, dynamic>();
             final ledgerId = (firstLedger['id'] as num?)?.toInt() ?? 1;
-            final currency = firstLedger['currency'] as String? ?? 'BDT';
+            final currency = firstLedger['currency'] as String? ?? 'USD';
             final sumRes = await dio.get<Map<String, dynamic>>(
               '/v1/ledgers/$ledgerId/summary',
-              queryParameters: {'period': 'monthly'},
+              queryParameters: {'period_type': 'monthly', 'period': 'monthly'},
             );
             final sumData =
                 (sumRes.data?['data'] ?? sumRes.data) as Map<String, dynamic>?;
             if (sumData != null && mounted) {
               final expenseMinor =
-                  (sumData['expense_minor'] as num?)?.toInt() ?? 0;
+                  (sumData['expense_minor'] as num?)?.toInt() ??
+                  (sumData['total_expense_minor'] as num?)?.toInt() ??
+                  0;
               final incomeMinor =
-                  (sumData['income_minor'] as num?)?.toInt() ?? 0;
+                  (sumData['income_minor'] as num?)?.toInt() ??
+                  (sumData['total_income_minor'] as num?)?.toInt() ??
+                  0;
+              final netMinor =
+                  (sumData['net_minor'] as num?)?.toInt() ??
+                  (incomeMinor - expenseMinor);
               final budgetMinor =
+                  (sumData['budget_minor'] as num?)?.toInt() ??
                   (sumData['budget_amount_minor'] as num?)?.toInt() ??
                   (firstLedger['monthly_budget_minor'] as num?)?.toInt() ??
                   0;
-              final cats = (sumData['categories'] as List?) ?? const [];
+              final remainingMinor =
+                  (sumData['remaining_budget_minor'] as num?)?.toInt() ??
+                  (budgetMinor - expenseMinor);
+              final cats =
+                  (sumData['by_category'] as List?) ??
+                  (sumData['categories'] as List?) ??
+                  const [];
               final topCat = cats.isNotEmpty
-                  ? '${(cats.first as Map)['category'] ?? 'Groceries'} (${formatMoneyMinor(((cats.first as Map)['expense_minor'] as num?)?.toInt() ?? 0, currency)})'
+                  ? '${(cats.first as Map)['label'] ?? (cats.first as Map)['category'] ?? 'Groceries'} (${formatMoneyMinor(((cats.first as Map)['expense_minor'] as num?)?.toInt() ?? 0, currency)})'
                   : 'No category breakdown yet';
 
               final reply =
-                  'Live Household Ledger (${firstLedger['name'] ?? 'Household Ledger'}):\n'
+                  'Live Household Ledger (${firstLedger['name'] ?? 'Household budget'}):\n'
                   '• Total Spent This Month: ${formatMoneyMinor(expenseMinor, currency)}\n'
                   '• Total Income: ${formatMoneyMinor(incomeMinor, currency)}\n'
-                  '• Monthly Budget Limit: ${budgetMinor > 0 ? formatMoneyMinor(budgetMinor, currency) : 'Not set'}\n'
-                  '• Top Category: $topCat';
+                  '• Net ${netMinor >= 0 ? "Surplus" : "Outflow"}: ${formatMoneyMinor(netMinor.abs(), currency)}\n'
+                  '• Monthly Budget Limit: ${budgetMinor > 0 ? formatMoneyMinor(budgetMinor, currency) : 'Not set'} (${formatMoneyMinor(remainingMinor.clamp(0, 999999999), currency)} remaining)\n'
+                  '• Top Spending Category: $topCat';
 
               setState(() {
                 _aiMessages.add(
@@ -539,11 +636,12 @@ class _AiChatPageState extends State<AiChatPage> {
       } catch (_) {}
     }
 
-    // 2. Live Pantry Inventory Query (Point 2 — Real /v1/essentials API)
+    // 2. Live Pantry Inventory Query (Point 2 — Real /v1/essentials API, fixed keys)
     if (lower.contains('pantry') ||
         lower.contains('stock') ||
         lower.contains('inventory') ||
-        lower.contains('restock')) {
+        lower.contains('restock') ||
+        lower.contains('essential')) {
       try {
         if (getIt.isRegistered<DioClient>()) {
           final dio = getIt<DioClient>().dio;
@@ -554,20 +652,33 @@ class _AiChatPageState extends State<AiChatPage> {
                 .map((e) => (e as Map).cast<String, dynamic>())
                 .toList();
             final lowItems = items.where((it) {
-              final q = (it['quantity'] as num?)?.toDouble() ?? 0;
-              final t = (it['low_stock_threshold'] as num?)?.toDouble() ?? 1;
-              return q <= t;
+              final isDue = it['is_due'] as bool?;
+              final q =
+                  (it['stock_level'] as num?)?.toDouble() ??
+                  (it['quantity'] as num?)?.toDouble() ??
+                  0;
+              final t =
+                  (it['threshold'] as num?)?.toDouble() ??
+                  (it['low_stock_threshold'] as num?)?.toDouble() ??
+                  1;
+              return isDue == true || q <= t;
             }).toList();
-            final lowNames = lowItems
-                .take(4)
-                .map((it) => it['name']?.toString() ?? 'Item')
-                .join(', ');
+            final lowDetails = lowItems
+                .take(5)
+                .map((it) {
+                  final name = it['name']?.toString() ?? 'Item';
+                  final stock = it['stock_level'] ?? it['quantity'] ?? 0;
+                  final store = it['default_store']?.toString();
+                  return '  - $name ($stock in stock${store != null ? ' · $store' : ''})';
+                })
+                .join('\n');
 
             final reply =
                 'Live Pantry Inventory Status:\n'
                 '• Total Tracked Items: ${items.length}\n'
-                '• Low Stock Alerts: ${lowItems.length} item(s)${lowItems.isNotEmpty ? ' ($lowNames)' : ''}\n'
-                '• Tip: Open Pantry Inventory from the menu to restock or convert low items into errands.';
+                '• Needs Restocking (${lowItems.length}):\n'
+                '${lowItems.isNotEmpty ? lowDetails : '  All items are well stocked!'}\n\n'
+                'Tip: You can say "Assign Sarah to buy ${lowItems.isNotEmpty ? lowItems.first['name'] : 'milk'}" to create a shopping errand right now.';
 
             setState(() {
               _aiMessages.add(
@@ -582,7 +693,71 @@ class _AiChatPageState extends State<AiChatPage> {
       } catch (_) {}
     }
 
-    // 3. Natural Language Errand & Chore Dispatcher (POST /v1/requests/parse-nlp)
+    // 3. Live Today's Errands / Tasks / Board Query
+    final isBoardQuestion =
+        (lower.contains('what') ||
+            lower.contains('which') ||
+            lower.contains('show') ||
+            lower.contains('list') ||
+            lower.contains('check') ||
+            lower.contains('status')) &&
+        (lower.contains('task') ||
+            lower.contains('errand') ||
+            lower.contains('chore') ||
+            lower.contains('today') ||
+            lower.contains('overdue') ||
+            lower.contains('due') ||
+            lower.contains('board'));
+
+    if (isBoardQuestion) {
+      try {
+        if (getIt.isRegistered<DioClient>()) {
+          final dio = getIt<DioClient>().dio;
+          final res = await dio.get<Map<String, dynamic>>('/v1/requests/board');
+          final data = res.data;
+          if (data != null && mounted) {
+            final overdue = (data['overdue'] as List?) ?? const [];
+            final dueToday = (data['due_today'] as List?) ?? const [];
+            final backlog = (data['backlog'] as List?) ?? const [];
+
+            final overdueLines = overdue
+                .map((e) => '  • ${(e as Map)['title']} (Urgent / Overdue)')
+                .join('\n');
+            final todayLines = dueToday
+                .map((e) {
+                  final m = (e as Map).cast<String, dynamic>();
+                  final assignee = (m['assignee'] is Map)
+                      ? m['assignee']['name']
+                      : 'Unassigned';
+                  final store = m['store_name'] != null
+                      ? ' @ ${m['store_name']}'
+                      : '';
+                  return '  • ${m['title']}$store ($assignee)';
+                })
+                .join('\n');
+
+            final reply =
+                'Live Household Errands & Tasks Board:\n'
+                '• Overdue (${overdue.length}):\n'
+                '${overdue.isNotEmpty ? overdueLines : '  None'}\n'
+                '• Due Today (${dueToday.length}):\n'
+                '${dueToday.isNotEmpty ? todayLines : '  None'}\n'
+                '• Backlog: ${backlog.length} item(s)';
+
+            setState(() {
+              _aiMessages.add(
+                AiChatMessage(text: reply, isUser: false, time: 'Live API'),
+              );
+              _isSending = false;
+            });
+            _scrollToBottom();
+            return;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 4. Natural Language Errand & Chore Dispatcher (POST /v1/requests/parse-nlp)
     try {
       if (getIt.isRegistered<DioClient>()) {
         final dio = getIt<DioClient>().dio;
@@ -604,6 +779,11 @@ class _AiChatPageState extends State<AiChatPage> {
           final priority = (parsed['priority'] as String? ?? 'normal')
               .toUpperCase();
           final dueHuman = parsed['due_human'] as String?;
+
+          // Refresh live RequestsBloc so Today & Errands screens show the new task immediately!
+          if (getIt.isRegistered<RequestsBloc>()) {
+            getIt<RequestsBloc>().add(const BoardRequested());
+          }
 
           setState(() {
             _aiMessages.add(
@@ -684,9 +864,11 @@ class _AiChatPageState extends State<AiChatPage> {
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Household Chat & Calls',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              Text(
+                _activeTab == 'ai'
+                    ? 'AI Dispatcher & Family Chat'
+                    : 'Household Chat & Calls',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
               ),
               Text(
                 '$_planLabel · Calls: ${_callsCap >= 9999 ? "$_callsUsed/∞" : "$_callsUsed/$_callsCap"} · Chat: ${_chatCap >= 9999 ? "$_chatUsed/∞" : "$_chatUsed/$_chatCap"}',
@@ -720,7 +902,7 @@ class _AiChatPageState extends State<AiChatPage> {
         ),
         body: Column(
           children: [
-            // Top Mode Switcher: Family Chat & Calls vs AI Dispatcher
+            // Top Mode Switcher: AI Dispatcher vs Family Chat & Calls
             Container(
               color: AppTheme.surface,
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
@@ -733,10 +915,10 @@ class _AiChatPageState extends State<AiChatPage> {
                   ),
                   segments: const [
                     ButtonSegment(
-                      value: 'family',
-                      icon: Icon(Icons.forum_outlined, size: 16),
+                      value: 'ai',
+                      icon: Icon(Icons.auto_awesome, size: 16),
                       label: Text(
-                        'Family Chat & Calls',
+                        'AI Dispatcher',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -744,10 +926,10 @@ class _AiChatPageState extends State<AiChatPage> {
                       ),
                     ),
                     ButtonSegment(
-                      value: 'ai',
-                      icon: Icon(Icons.auto_awesome, size: 16),
+                      value: 'family',
+                      icon: Icon(Icons.forum_outlined, size: 16),
                       label: Text(
-                        'AI Dispatcher',
+                        'Family Chat & Calls',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -950,6 +1132,30 @@ class _AiChatPageState extends State<AiChatPage> {
                                 ),
                               ),
                             ),
+                          // Simulate Incoming Call button for single-phone testing
+                          if (_members.length > 1)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: ActionChip(
+                                visualDensity: VisualDensity.compact,
+                                avatar: const Icon(
+                                  Icons.ring_volume_rounded,
+                                  size: 14,
+                                  color: AppTheme.secondary,
+                                ),
+                                label: const Text(
+                                  'Test Incoming Call',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                onPressed: () => _initiateMemberCall(
+                                  _members.last,
+                                  isIncoming: true,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -997,13 +1203,15 @@ class _AiChatPageState extends State<AiChatPage> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      _promptChip(
-                        'Assign Sarah to buy organic milk at Whole Foods today 6pm',
-                      ),
-                      const SizedBox(width: 8),
                       _promptChip('What is our budget status?'),
                       const SizedBox(width: 8),
                       _promptChip('Check pantry stock'),
+                      const SizedBox(width: 8),
+                      _promptChip('What tasks are due today?'),
+                      const SizedBox(width: 8),
+                      _promptChip(
+                        'Assign Sarah to buy organic milk at Whole Foods today 6pm',
+                      ),
                     ],
                   ),
                 ),
@@ -1069,7 +1277,7 @@ class _AiChatPageState extends State<AiChatPage> {
                       decoration: InputDecoration(
                         hintText: _activeTab == 'family'
                             ? 'Message household members (${(_chatCap - _chatUsed).clamp(0, 9999)} left)...'
-                            : 'Dispatch an errand or ask live budget/pantry...',
+                            : 'Ask live budget/pantry/tasks or dispatch an errand...',
                         filled: true,
                         fillColor: AppTheme.canvas,
                         contentPadding: const EdgeInsets.symmetric(
@@ -1321,7 +1529,7 @@ class _AiChatPageState extends State<AiChatPage> {
                             }
                           },
                           child: const Text(
-                            'Open →',
+                            'View on Board →',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
@@ -1353,6 +1561,7 @@ class _ActiveHouseholdCallSheet extends StatefulWidget {
     required this.planLabel,
     required this.callsUsed,
     required this.callsCap,
+    this.isIncoming = false,
   });
 
   final String memberName;
@@ -1360,6 +1569,7 @@ class _ActiveHouseholdCallSheet extends StatefulWidget {
   final String planLabel;
   final int callsUsed;
   final int callsCap;
+  final bool isIncoming;
 
   @override
   State<_ActiveHouseholdCallSheet> createState() =>
@@ -1371,10 +1581,19 @@ class _ActiveHouseholdCallSheetState extends State<_ActiveHouseholdCallSheet> {
   int _seconds = 0;
   bool _muted = false;
   bool _speaker = true;
+  late bool _answered;
 
   @override
   void initState() {
     super.initState();
+    _answered = !widget.isIncoming;
+    if (_answered) {
+      _startTimer();
+    }
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _seconds++);
     });
@@ -1390,6 +1609,15 @@ class _ActiveHouseholdCallSheetState extends State<_ActiveHouseholdCallSheet> {
     final mins = (_seconds ~/ 60).toString().padLeft(2, '0');
     final secs = (_seconds % 60).toString().padLeft(2, '0');
     return '$mins:$secs';
+  }
+
+  Future<void> _dialCellular() async {
+    final cleanPhone = widget.memberPhone.replaceAll(RegExp(r'[^\d\+]'), '');
+    if (cleanPhone.isEmpty) return;
+    final uri = Uri(scheme: 'tel', path: cleanPhone);
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
   }
 
   @override
@@ -1427,7 +1655,9 @@ class _ActiveHouseholdCallSheetState extends State<_ActiveHouseholdCallSheet> {
           ),
           const SizedBox(height: 4),
           Text(
-            _seconds < 2
+            !_answered
+                ? 'Incoming Household Call…'
+                : _seconds < 2
                 ? 'Connecting household voice bridge…'
                 : 'Connected · $_formattedDuration',
             style: const TextStyle(
@@ -1437,31 +1667,59 @@ class _ActiveHouseholdCallSheetState extends State<_ActiveHouseholdCallSheet> {
             ),
           ),
           const SizedBox(height: 28),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _callControlButton(
-                icon: _muted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                label: _muted ? 'Muted' : 'Mute',
-                active: _muted,
-                onTap: () => setState(() => _muted = !_muted),
-              ),
-              _callControlButton(
-                icon: _speaker
-                    ? Icons.volume_up_rounded
-                    : Icons.hearing_outlined,
-                label: _speaker ? 'Speaker' : 'Earpiece',
-                active: _speaker,
-                onTap: () => setState(() => _speaker = !_speaker),
-              ),
-              _callControlButton(
-                icon: Icons.call_end_rounded,
-                label: 'End Call',
-                isDanger: true,
-                onTap: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
+          if (!_answered)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _callControlButton(
+                  icon: Icons.call_end_rounded,
+                  label: 'Decline',
+                  isDanger: true,
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+                _callControlButton(
+                  icon: Icons.call_rounded,
+                  label: 'Answer',
+                  isAccept: true,
+                  onTap: () {
+                    setState(() => _answered = true);
+                    _startTimer();
+                  },
+                ),
+              ],
+            )
+          else ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _callControlButton(
+                  icon: _muted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                  label: _muted ? 'Muted' : 'Mute',
+                  active: _muted,
+                  onTap: () => setState(() => _muted = !_muted),
+                ),
+                _callControlButton(
+                  icon: _speaker
+                      ? Icons.volume_up_rounded
+                      : Icons.hearing_outlined,
+                  label: _speaker ? 'Speaker' : 'Earpiece',
+                  active: _speaker,
+                  onTap: () => setState(() => _speaker = !_speaker),
+                ),
+                _callControlButton(
+                  icon: Icons.phone_forwarded_rounded,
+                  label: 'Cellular Dial',
+                  onTap: _dialCellular,
+                ),
+                _callControlButton(
+                  icon: Icons.call_end_rounded,
+                  label: 'End Call',
+                  isDanger: true,
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -1473,6 +1731,7 @@ class _ActiveHouseholdCallSheetState extends State<_ActiveHouseholdCallSheet> {
     required VoidCallback onTap,
     bool active = false,
     bool isDanger = false,
+    bool isAccept = false,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -1485,6 +1744,8 @@ class _ActiveHouseholdCallSheetState extends State<_ActiveHouseholdCallSheet> {
             decoration: BoxDecoration(
               color: isDanger
                   ? AppTheme.error
+                  : isAccept
+                  ? AppTheme.secondary
                   : active
                   ? Colors.white
                   : Colors.white.withValues(alpha: 0.14),
@@ -1492,7 +1753,7 @@ class _ActiveHouseholdCallSheetState extends State<_ActiveHouseholdCallSheet> {
             ),
             child: Icon(
               icon,
-              color: isDanger
+              color: isDanger || isAccept
                   ? Colors.white
                   : active
                   ? AppTheme.ink

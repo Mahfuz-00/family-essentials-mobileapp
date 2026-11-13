@@ -173,7 +173,9 @@ class AppRouter {
             path: '/chat',
             pageBuilder: (context, state) => _buildFadeSlidePage(
               key: state.pageKey,
-              child: const AiChatPage(),
+              child: AiChatPage(
+                initialTab: state.uri.queryParameters['tab'] ?? 'ai',
+              ),
             ),
           ),
 
