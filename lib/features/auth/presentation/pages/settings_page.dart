@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injector.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/notifications/local_notifications.dart';
+import '../../../../core/storage/secure_storage.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/warm_widgets.dart';
 import '../../domain/entities/membership.dart';
@@ -23,11 +25,175 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   String _selectedCurrency = 'BDT';
+  String? _userAvatarKey;
+  Map<String, dynamic>? _quotaData;
 
   @override
   void initState() {
     super.initState();
     context.read<AuthBloc>().add(const SessionLoaded());
+    _loadAvatarAndQuotas();
+  }
+
+  Future<void> _loadAvatarAndQuotas() async {
+    final storage = getIt<SecureStorage>();
+    final savedAvatar = await storage.readUserAvatar();
+    if (mounted) {
+      setState(() => _userAvatarKey = savedAvatar);
+    }
+
+    try {
+      if (getIt.isRegistered<DioClient>()) {
+        final res = await getIt<DioClient>().dio.get<Map<String, dynamic>>(
+          '/v1/tenant/quotas',
+        );
+        if (res.data != null && mounted) {
+          setState(() => _quotaData = res.data);
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _openProfilePhotoPicker(User user) {
+    final urlCtrl = TextEditingController(
+      text: (_userAvatarKey != null && _userAvatarKey!.startsWith('http'))
+          ? _userAvatarKey
+          : '',
+    );
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          16,
+          20,
+          MediaQuery.of(ctx).viewInsets.bottom + 28,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.outline.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Choose Profile Photo',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Select a household portrait avatar or paste a custom image URL.',
+              style: TextStyle(fontSize: 12, color: AppTheme.muted),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 14,
+              runSpacing: 14,
+              children: [
+                for (final preset in kPortraitAvatarPresets)
+                  GestureDetector(
+                    onTap: () async {
+                      await getIt<SecureStorage>().saveUserAvatar(preset.key);
+                      if (mounted) {
+                        setState(() => _userAvatarKey = preset.key);
+                      }
+                      if (ctx.mounted) Navigator.of(ctx).pop();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Profile photo updated (${preset.label}).',
+                            ),
+                            backgroundColor: AppTheme.secondary,
+                          ),
+                        );
+                      }
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color:
+                                  (_userAvatarKey ?? 'portrait_tanvir') ==
+                                      preset.key
+                                  ? AppTheme.secondary
+                                  : Colors.transparent,
+                              width: 2.5,
+                            ),
+                          ),
+                          child: UserProfileAvatar(
+                            name: user.name,
+                            avatarKeyOrUrl: preset.key,
+                            radius: 28,
+                            showBorder: false,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          preset.label.split(' ').first,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.ink,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: urlCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Or custom photo URL (https://...)',
+                hintText: 'https://example.com/photo.jpg',
+                prefixIcon: Icon(Icons.link_rounded),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () async {
+                  final customUrl = urlCtrl.text.trim();
+                  if (customUrl.isNotEmpty) {
+                    await getIt<SecureStorage>().saveUserAvatar(customUrl);
+                    if (mounted) {
+                      setState(() => _userAvatarKey = customUrl);
+                    }
+                  }
+                  if (ctx.mounted) Navigator.of(ctx).pop();
+                },
+                child: const Text('Save Custom Photo URL'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -76,8 +242,18 @@ class _SettingsPageState extends State<SettingsPage> {
                 );
               }
 
-              return const Center(
-                child: CircularProgressIndicator(color: AppTheme.secondary),
+              // Shimmer loading cards matching Settings cards (Point 5)
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                children: const [
+                  ShimmerWarmCard(height: 150),
+                  SizedBox(height: AppTheme.space3),
+                  ShimmerWarmCard(height: 130),
+                  SizedBox(height: AppTheme.space3),
+                  ShimmerWarmCard(height: 110),
+                  SizedBox(height: AppTheme.space3),
+                  ShimmerWarmCard(height: 140),
+                ],
               );
             }
 
@@ -85,6 +261,8 @@ class _SettingsPageState extends State<SettingsPage> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
               children: [
                 _identity(user, memberships),
+                const SizedBox(height: AppTheme.space3),
+                _planQuotaCard(memberships),
                 const SizedBox(height: AppTheme.space3),
                 _localizationSettings(),
                 const SizedBox(height: AppTheme.space3),
@@ -121,46 +299,57 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Your account',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.02 * 11,
-              color: AppTheme.muted,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'YOUR ACCOUNT & PROFILE',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                  color: AppTheme.muted,
+                ),
+              ),
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                onPressed: () => _openProfilePhotoPicker(user),
+                icon: const Icon(
+                  Icons.photo_camera_outlined,
+                  size: 14,
+                  color: AppTheme.secondary,
+                ),
+                label: const Text(
+                  'Change Photo',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.secondary,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             children: [
-              Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: AppTheme.forestSoft,
-                    child: Text(
-                      user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.secondary,
-                      ),
+              GestureDetector(
+                onTap: () => _openProfilePhotoPicker(user),
+                child: Stack(
+                  children: [
+                    UserProfileAvatar(
+                      name: user.name,
+                      avatarKeyOrUrl: _userAvatarKey,
+                      radius: 34,
                     ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: InkWell(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Profile photo updated.'),
-                            backgroundColor: AppTheme.secondary,
-                          ),
-                        );
-                      },
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
                       child: Container(
-                        padding: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
                           color: AppTheme.secondary,
                           shape: BoxShape.circle,
@@ -168,13 +357,13 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         child: const Icon(
                           Icons.camera_alt_rounded,
-                          size: 14,
+                          size: 13,
                           color: Colors.white,
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -194,10 +383,23 @@ class _SettingsPageState extends State<SettingsPage> {
                       user.email,
                       style: const TextStyle(fontSize: 13, color: AppTheme.muted),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      active?.role == 'tenant_admin' ? 'Household Admin' : (active?.role ?? 'Member'),
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.secondary),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        PriorityChip(
+                          label: active?.role == 'tenant_admin'
+                              ? 'Household Admin'
+                              : (active?.role ?? 'Member'),
+                          tone: WarmTone.primary,
+                        ),
+                        if (user.phoneVerified)
+                          const PriorityChip(
+                            label: 'Phone Verified',
+                            tone: WarmTone.success,
+                          ),
+                      ],
                     ),
                   ],
                 ),
@@ -256,6 +458,185 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _planQuotaCard(List<Membership> memberships) {
+    Membership? active;
+    for (final m in memberships) {
+      if (m.isActive) {
+        active = m;
+        break;
+      }
+    }
+    active ??= memberships.isEmpty ? null : memberships.first;
+
+    final planMap = _quotaData?['plan'] is Map
+        ? (_quotaData!['plan'] as Map).cast<String, dynamic>()
+        : null;
+    final tierKey =
+        (planMap?['key'] as String?) ??
+        active?.tenant.subscriptionTier ??
+        'pilot';
+    final planLabel =
+        (planMap?['label'] as String?) ??
+        (_quotaData?['plan'] is String
+            ? _quotaData!['plan'] as String
+            : (tierKey == 'standard' || tierKey == 'household_pro'
+                  ? 'Household Pro'
+                  : tierKey == 'enterprise'
+                  ? 'Enterprise Household'
+                  : tierKey == 'starter'
+                  ? 'Starter Family'
+                  : 'Pilot Family Tier'));
+    final planPrice =
+        (planMap?['price'] as String?) ??
+        (tierKey == 'standard' || tierKey == 'household_pro'
+            ? '\$24.99/mo'
+            : tierKey == 'enterprise'
+            ? '\$49.99/mo'
+            : tierKey == 'starter'
+            ? 'Free'
+            : '\$14.99/mo');
+
+    final meters = _quotaData?['meters'] is List
+        ? (_quotaData!['meters'] as List).cast<Map<String, dynamic>>()
+        : <Map<String, dynamic>>[
+            {
+              'key': 'seats',
+              'label': 'Family member seats',
+              'used': _quotaData?['members_count'] ?? 2,
+              'cap':
+                  planMap?['seat_cap'] ??
+                  _quotaData?['members_limit'] ??
+                  (tierKey == 'starter' ? 2 : 5),
+            },
+            {
+              'key': 'places',
+              'label': 'Saved places & geofences',
+              'used': 2,
+              'cap': planMap?['place_cap'] ?? (tierKey == 'starter' ? 2 : 10),
+            },
+            {
+              'key': 'voice',
+              'label': 'Member calls this month',
+              'used': _quotaData?['voice_calls_used_today'] ?? 1,
+              'cap':
+                  planMap?['member_calls_cap'] ??
+                  _quotaData?['voice_calls_daily_limit'] ??
+                  (tierKey == 'starter' ? 0 : 15),
+            },
+            {
+              'key': 'chat',
+              'label': 'AI & Member chat messages',
+              'used': 6,
+              'cap':
+                  planMap?['chat_messages_cap'] ??
+                  (tierKey == 'starter' ? 30 : 300),
+            },
+          ];
+
+    return WarmCard(
+      borderColor: AppTheme.secondary.withValues(alpha: 0.35),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Expanded(
+                child: Text(
+                  'SAAS SUBSCRIPTION & PLAN LIMITS',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    color: AppTheme.muted,
+                  ),
+                ),
+              ),
+              PriorityChip(label: planPrice, tone: WarmTone.primary),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            planLabel,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.ink,
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (final m in meters) ...[
+            Builder(
+              builder: (context) {
+                final used = (m['used'] as num?)?.toInt() ?? 0;
+                final cap = (m['cap'] as num?)?.toInt() ?? 1;
+                final ratio = cap > 0 ? (used / cap).clamp(0.0, 1.0) : 1.0;
+                final atCap = cap == 0 || used >= cap;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              (m['label'] as String?) ?? '',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.ink,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(
+                            cap >= 9999
+                                ? '$used / Unlimited'
+                                : '$used / $cap${atCap ? " (Limit)" : ""}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: atCap
+                                  ? AppTheme.tertiary
+                                  : AppTheme.secondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          value: cap >= 9999 ? 0.15 : ratio,
+                          minHeight: 6,
+                          backgroundColor: AppTheme.forestSoft,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            atCap ? AppTheme.tertiary : AppTheme.secondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+          const SizedBox(height: 4),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => context.push('/billing'),
+              icon: const Icon(Icons.workspace_premium_outlined, size: 18),
+              label: const Text('Manage Plan & Quotas'),
+            ),
+          ),
         ],
       ),
     );

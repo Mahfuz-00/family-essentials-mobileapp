@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/warm_widgets.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_event.dart';
 import '../../features/auth/presentation/bloc/auth_state.dart';
@@ -142,11 +143,9 @@ class HouseholdAppDrawer extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: isAdmin ? AppTheme.secondary : AppTheme.primaryContainer,
-            foregroundColor: Colors.white,
+          UserProfileAvatar(
+            name: name,
             radius: 20,
-            child: Text(name.isNotEmpty ? name[0] : 'U', style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -212,14 +211,9 @@ class HouseholdAppDrawer extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
+                        UserProfileAvatar(
+                          name: userName,
                           radius: 26,
-                          backgroundColor: AppTheme.secondary,
-                          foregroundColor: Colors.white,
-                          child: Text(
-                            userName.isNotEmpty ? userName[0].toUpperCase() : 'F',
-                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                          ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(

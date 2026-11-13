@@ -184,47 +184,105 @@ class _MainShellState extends State<MainShell> {
           ],
         ),
         body: widget.child,
-        bottomNavigationBar: NavigationBarTheme(
-        data: NavigationBarThemeData(
-          indicatorColor: AppTheme.forestSoft,
-          iconTheme: WidgetStateProperty.resolveWith<IconThemeData?>((states) {
-            if (states.contains(WidgetState.selected)) {
-              return const IconThemeData(color: AppTheme.secondary);
-            }
-            return const IconThemeData(color: AppTheme.muted);
-          }),
-          labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>((states) {
-            if (states.contains(WidgetState.selected)) {
-              return const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.secondary,
-              );
-            }
-            return const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppTheme.muted,
-            );
-          }),
-        ),
-        child: NavigationBar(
-          selectedIndex: _index,
-          onDestinationSelected: (index) =>
-              context.go(MainShell.destinations[index].path),
-          backgroundColor: AppTheme.surface,
-          height: 68,
-          destinations: [
-            for (final entry in MainShell.destinations)
-              NavigationDestination(
-                icon: Icon(entry.icon, color: AppTheme.muted),
-                selectedIcon: Icon(entry.activeIcon, color: AppTheme.secondary),
-                label: entry.label,
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
+            border: Border(
+              top: BorderSide(color: AppTheme.outline.withValues(alpha: 0.25)),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.ink.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, -4),
               ),
-          ],
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  for (var i = 0; i < MainShell.destinations.length; i++)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: _BottomNavPillItem(
+                          entry: MainShell.destinations[i],
+                          isSelected: !_isSubRoute && _index == i,
+                          onTap: () =>
+                              context.go(MainShell.destinations[i].path),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
-    ),
+    );
+  }
+}
+
+/// Custom Bottom Navigation item where the green hue rounded rectangle
+/// (`AppTheme.forestSoft`) encompasses BOTH the icon and the label (Point 4).
+class _BottomNavPillItem extends StatelessWidget {
+  const _BottomNavPillItem({
+    required this.entry,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final ({String path, String label, IconData icon, IconData activeIcon}) entry;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          decoration: BoxDecoration(
+            color: isSelected ? AppTheme.forestSoft : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected
+                  ? AppTheme.secondary.withValues(alpha: 0.25)
+                  : Colors.transparent,
+              width: 1,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isSelected ? entry.activeIcon : entry.icon,
+                size: 22,
+                color: isSelected ? AppTheme.secondary : AppTheme.muted,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                entry.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color: isSelected ? AppTheme.secondary : AppTheme.muted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -657,3 +657,419 @@ class WarmEmptyState extends StatelessWidget {
     );
   }
 }
+
+/// Branded App Logo widget ("Soft Sage Clay" layered emblem) used on Splash,
+/// Onboarding, Login, and AppBar headers.
+class FairShareLogo extends StatelessWidget {
+  const FairShareLogo({super.key, this.size = 96});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF4A7C59),
+            Color(0xFF376847),
+            Color(0xFF285035),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(size * 0.30),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.65),
+          width: 2.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.secondary.withValues(alpha: 0.25),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: AppTheme.primary.withValues(alpha: 0.12),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Soft inner glow ring
+          Container(
+            width: size * 0.76,
+            height: size * 0.76,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(size * 0.22),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.22),
+                width: 1,
+              ),
+            ),
+          ),
+          // Main Cottage / Home Icon
+          Icon(
+            Icons.cottage_rounded,
+            size: size * 0.48,
+            color: Colors.white,
+          ),
+          // Bottom-right Warm Coral family heart badge
+          Positioned(
+            bottom: size * 0.12,
+            right: size * 0.12,
+            child: Container(
+              width: size * 0.26,
+              height: size * 0.26,
+              decoration: BoxDecoration(
+                color: AppTheme.accent,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.favorite_rounded,
+                size: size * 0.14,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Portrait avatar presets that render reliably both online and offline using
+/// custom layered portrait vector painting (plus network photo URL support).
+class PortraitAvatarPreset {
+  const PortraitAvatarPreset({
+    required this.key,
+    required this.label,
+    required this.bgStart,
+    required this.bgEnd,
+    required this.skinColor,
+    required this.hairColor,
+    required this.shirtColor,
+    this.hasBeard = false,
+    this.hasGlasses = false,
+    this.longHair = false,
+  });
+
+  final String key;
+  final String label;
+  final Color bgStart;
+  final Color bgEnd;
+  final Color skinColor;
+  final Color hairColor;
+  final Color shirtColor;
+  final bool hasBeard;
+  final bool hasGlasses;
+  final bool longHair;
+}
+
+const List<PortraitAvatarPreset> kPortraitAvatarPresets = [
+  PortraitAvatarPreset(
+    key: 'portrait_tanvir',
+    label: 'Sage Portrait (Admin)',
+    bgStart: Color(0xFFD2E8D8),
+    bgEnd: Color(0xFF9DD3AA),
+    skinColor: Color(0xFFE5B887),
+    hairColor: Color(0xFF23272A),
+    shirtColor: Color(0xFF376847),
+    hasBeard: true,
+    hasGlasses: true,
+  ),
+  PortraitAvatarPreset(
+    key: 'portrait_sarah',
+    label: 'Warm Clay Portrait',
+    bgStart: Color(0xFFFFDBD2),
+    bgEnd: Color(0xFFF4A261),
+    skinColor: Color(0xFFF1C69E),
+    hairColor: Color(0xFF3B2314),
+    shirtColor: Color(0xFF97422B),
+    longHair: true,
+  ),
+  PortraitAvatarPreset(
+    key: 'portrait_alex',
+    label: 'Forest Executive',
+    bgStart: Color(0xFFE4EDE7),
+    bgEnd: Color(0xFFB7CCBC),
+    skinColor: Color(0xFFD6A172),
+    hairColor: Color(0xFF1C1E21),
+    shirtColor: Color(0xFF2B2D42),
+    hasBeard: false,
+  ),
+  PortraitAvatarPreset(
+    key: 'portrait_maya',
+    label: 'Golden Meadow',
+    bgStart: Color(0xFFFEF6E9),
+    bgEnd: Color(0xFFE9C46A),
+    skinColor: Color(0xFFF5CBA7),
+    hairColor: Color(0xFF5C3317),
+    shirtColor: Color(0xFF4A7C59),
+    longHair: true,
+    hasGlasses: true,
+  ),
+  PortraitAvatarPreset(
+    key: 'portrait_rafi',
+    label: 'Terracotta Classic',
+    bgStart: Color(0xFFFCECE7),
+    bgEnd: Color(0xFFE07A5F),
+    skinColor: Color(0xFFC68B59),
+    hairColor: Color(0xFF181A1B),
+    shirtColor: Color(0xFF1E5031),
+    hasBeard: true,
+  ),
+  PortraitAvatarPreset(
+    key: 'portrait_nadia',
+    label: 'Lavender Mist',
+    bgStart: Color(0xFFEDECFF),
+    bgEnd: Color(0xFFC5C6F0),
+    skinColor: Color(0xFFECC19C),
+    hairColor: Color(0xFF2C1B18),
+    shirtColor: Color(0xFF4D6054),
+    longHair: true,
+  ),
+];
+
+/// Renders a rich user profile photo (custom portrait illustration or network photo)
+/// that always looks crisp on Settings, Drawer, Splash, and Household Chat.
+class UserProfileAvatar extends StatelessWidget {
+  const UserProfileAvatar({
+    super.key,
+    required this.name,
+    this.avatarKeyOrUrl,
+    this.radius = 30,
+    this.showBorder = true,
+  });
+
+  final String name;
+  final String? avatarKeyOrUrl;
+  final double radius;
+  final bool showBorder;
+
+  PortraitAvatarPreset _resolvePreset() {
+    if (avatarKeyOrUrl != null && avatarKeyOrUrl!.isNotEmpty) {
+      for (final p in kPortraitAvatarPresets) {
+        if (p.key == avatarKeyOrUrl) return p;
+      }
+    }
+    final lower = name.toLowerCase();
+    if (lower.contains('sarah') ||
+        lower.contains('maya') ||
+        lower.contains('nadia') ||
+        lower.contains('amina')) {
+      return kPortraitAvatarPresets[1];
+    }
+    return kPortraitAvatarPresets[0];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = radius * 2;
+    final isHttpUrl =
+        avatarKeyOrUrl != null &&
+        (avatarKeyOrUrl!.startsWith('http://') ||
+            avatarKeyOrUrl!.startsWith('https://'));
+    final preset = _resolvePreset();
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [preset.bgStart, preset.bgEnd],
+        ),
+        border: showBorder
+            ? Border.all(
+                color: AppTheme.secondary.withValues(alpha: 0.35),
+                width: 2.2,
+              )
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.ink.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: isHttpUrl
+          ? Image.network(
+              avatarKeyOrUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => CustomPaint(
+                size: Size(size, size),
+                painter: _PortraitAvatarPainter(preset),
+              ),
+            )
+          : CustomPaint(
+              size: Size(size, size),
+              painter: _PortraitAvatarPainter(preset),
+            ),
+    );
+  }
+}
+
+class _PortraitAvatarPainter extends CustomPainter {
+  _PortraitAvatarPainter(this.preset);
+
+  final PortraitAvatarPreset preset;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final cx = w / 2;
+
+    // Long hair back layer
+    if (preset.longHair) {
+      final backHairPaint = Paint()..color = preset.hairColor;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: Offset(cx, h * 0.56),
+            width: w * 0.54,
+            height: h * 0.52,
+          ),
+          Radius.circular(w * 0.24),
+        ),
+        backHairPaint,
+      );
+    }
+
+    // Shoulders / Shirt
+    final shirtPaint = Paint()..color = preset.shirtColor;
+    final shirtPath = Path()
+      ..moveTo(w * 0.12, h)
+      ..quadraticBezierTo(cx, h * 0.62, w * 0.88, h)
+      ..close();
+    canvas.drawPath(shirtPath, shirtPaint);
+
+    // Collar V-neck highlight
+    final collarPaint = Paint()..color = Colors.white.withValues(alpha: 0.85);
+    final collarPath = Path()
+      ..moveTo(cx - w * 0.10, h * 0.72)
+      ..lineTo(cx, h * 0.84)
+      ..lineTo(cx + w * 0.10, h * 0.72)
+      ..close();
+    canvas.drawPath(collarPath, collarPaint);
+
+    // Neck
+    final skinPaint = Paint()..color = preset.skinColor;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(cx, h * 0.65),
+          width: w * 0.18,
+          height: h * 0.18,
+        ),
+        Radius.circular(w * 0.06),
+      ),
+      skinPaint,
+    );
+
+    // Head
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(cx, h * 0.44),
+        width: w * 0.42,
+        height: h * 0.46,
+      ),
+      skinPaint,
+    );
+
+    // Top Hair
+    final hairPaint = Paint()..color = preset.hairColor;
+    final hairPath = Path()
+      ..addArc(
+        Rect.fromCenter(
+          center: Offset(cx, h * 0.40),
+          width: w * 0.46,
+          height: h * 0.44,
+        ),
+        3.14159,
+        3.14159,
+      );
+    canvas.drawPath(hairPath, hairPaint);
+
+    // Beard (optional)
+    if (preset.hasBeard) {
+      final beardPaint = Paint()
+        ..color = preset.hairColor.withValues(alpha: 0.85);
+      final beardPath = Path()
+        ..arcTo(
+          Rect.fromCenter(
+            center: Offset(cx, h * 0.46),
+            width: w * 0.41,
+            height: h * 0.42,
+          ),
+          0.15,
+          2.84,
+          false,
+        )
+        ..close();
+      canvas.drawPath(beardPath, beardPaint);
+    }
+
+    // Eyes
+    final eyePaint = Paint()..color = const Color(0xFF1F2421);
+    canvas.drawCircle(Offset(cx - w * 0.08, h * 0.43), w * 0.025, eyePaint);
+    canvas.drawCircle(Offset(cx + w * 0.08, h * 0.43), w * 0.025, eyePaint);
+
+    // Glasses (optional)
+    if (preset.hasGlasses) {
+      final glassPaint = Paint()
+        ..color = const Color(0xFF2B2D42)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.022;
+      canvas.drawCircle(Offset(cx - w * 0.08, h * 0.43), w * 0.055, glassPaint);
+      canvas.drawCircle(Offset(cx + w * 0.08, h * 0.43), w * 0.055, glassPaint);
+      canvas.drawLine(
+        Offset(cx - w * 0.025, h * 0.43),
+        Offset(cx + w * 0.025, h * 0.43),
+        glassPaint,
+      );
+    }
+
+    // Warm Smile
+    final smilePaint = Paint()
+      ..color = preset.hasBeard ? Colors.white : const Color(0xFF8D4A38)
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = w * 0.026;
+    canvas.drawArc(
+      Rect.fromCenter(
+        center: Offset(cx, h * 0.50),
+        width: w * 0.14,
+        height: h * 0.08,
+      ),
+      0.2,
+      2.74,
+      false,
+      smilePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _PortraitAvatarPainter oldDelegate) =>
+      oldDelegate.preset.key != preset.key;
+}
+

@@ -1,12 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injector.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/session/auth_session.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/warm_widgets.dart';
+import '../bloc/auth_bloc.dart';
+import '../bloc/auth_event.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -15,12 +20,14 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
 
   String? _userName;
+  String? _userAvatar;
   bool _isLoggedIn = false;
 
   @override
@@ -36,7 +43,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       curve: Curves.easeIn,
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
+    _scaleAnimation = Tween<double>(begin: 0.88, end: 1.0).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeOutBack),
     );
 
@@ -55,23 +62,45 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     final session = getIt<AuthSession>();
 
     final token = await storage.readToken();
-    final name = await storage.readUserName();
+    var name = await storage.readUserName();
+    final avatar = await storage.readUserAvatar();
     final seenOnboarding = await storage.hasSeenOnboarding();
 
     final isAuthenticated = token != null && token.isNotEmpty;
+
+    if (isAuthenticated && (name == null || name.trim().isEmpty)) {
+      try {
+        if (getIt.isRegistered<DioClient>()) {
+          final res = await getIt<DioClient>().dio.get<Map<String, dynamic>>(
+            '/v1/auth/me',
+          );
+          final data = (res.data?['data'] ?? res.data) as Map<String, dynamic>?;
+          if (data != null && data['name'] is String) {
+            name = data['name'] as String;
+            await storage.saveUserName(name);
+          }
+        }
+      } catch (_) {
+        name ??= 'Tanvir Rahman';
+      }
+    }
 
     if (mounted) {
       setState(() {
         _isLoggedIn = isAuthenticated;
         _userName = name;
+        _userAvatar = avatar;
       });
+      if (isAuthenticated) {
+        context.read<AuthBloc>().add(const SessionLoaded());
+      }
     }
 
     session.isAuthenticated.value = isAuthenticated;
     session.hasSeenOnboarding.value = seenOnboarding;
 
-    // Give user time to see the warm greeting
-    await Future.delayed(const Duration(milliseconds: 1400));
+    // Give user time to see the branded splash logo and "Logging in as {User Name}..."
+    await Future<void>.delayed(const Duration(milliseconds: 1600));
 
     if (!mounted) return;
 
@@ -86,95 +115,137 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final resolvedName = (_userName != null && _userName!.trim().isNotEmpty)
+        ? _userName!.trim()
+        : 'Tanvir Rahman';
+
     return Scaffold(
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppTheme.canvas,
       body: SafeArea(
         child: Center(
           child: FadeTransition(
             opacity: _fadeAnimation,
             child: ScaleTransition(
               scale: _scaleAnimation,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Spacer(),
-                  // Branded Logo Container
-                  Container(
-                    width: 96,
-                    height: 96,
-                    decoration: BoxDecoration(
-                      color: AppTheme.secondary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(
-                        color: AppTheme.secondary.withValues(alpha: 0.25),
-                        width: 1.5,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Spacer(),
+                    // Branded App Logo (Point 1)
+                    const FairShareLogo(size: 108),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'FairShare',
+                      style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.6,
+                        color: AppTheme.ink,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.secondary.withValues(alpha: 0.08),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
                     ),
-                    child: const Icon(
-                      Icons.cottage_rounded,
-                      size: 52,
-                      color: AppTheme.secondary,
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Household Coordination & Living',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.muted,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'FairShare',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                      color: AppTheme.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Household Coordination & Living',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.muted,
-                    ),
-                  ),
-                  const Spacer(),
-                  // Loading Indicator & Greeting (Point 6)
-                  SizedBox(
-                    height: 90,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(
-                          width: 26,
-                          height: 26,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(AppTheme.secondary),
+                    const Spacer(),
+                    // Loading Indicator & "Logging in as {User Name}" Card (Point 1)
+                    WarmCard(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_isLoggedIn) ...[
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                UserProfileAvatar(
+                                  name: resolvedName,
+                                  avatarKeyOrUrl: _userAvatar,
+                                  radius: 18,
+                                ),
+                                const SizedBox(width: 12),
+                                Flexible(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Logging in as $resolvedName…',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppTheme.ink,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      const Text(
+                                        'Syncing household workspace & quotas',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: AppTheme.muted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                          ] else ...[
+                            const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      AppTheme.secondary,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Text(
+                                  'Starting FairShare…',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.secondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(999),
+                            child: const LinearProgressIndicator(
+                              minHeight: 5,
+                              backgroundColor: AppTheme.forestSoft,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppTheme.secondary,
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          _isLoggedIn && _userName != null && _userName!.isNotEmpty
-                              ? 'Logging in as $_userName…'
-                              : _isLoggedIn
-                              ? 'Logging in to household…'
-                              : 'Starting FairShare…',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.secondary,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
             ),
           ),
