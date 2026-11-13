@@ -65,29 +65,9 @@ class RecurringRepositoryImpl implements RecurringRepository {
     try {
       return await action();
     } on DioException catch (error) {
-      throw AppFailure(_messageFrom(error));
+      throw AppFailure(extractErrorMessage(error));
+    } catch (error) {
+      throw AppFailure(extractErrorMessage(error));
     }
-  }
-
-  String _messageFrom(DioException error) {
-    final data = error.response?.data;
-
-    if (data is Map) {
-      final errors = data['errors'];
-
-      if (errors is Map && errors.isNotEmpty) {
-        final first = errors.values.first;
-
-        if (first is List && first.isNotEmpty) {
-          return first.first.toString();
-        }
-      }
-
-      if (data['message'] is String) {
-        return data['message'] as String;
-      }
-    }
-
-    return 'Something went wrong. Please try again.';
   }
 }

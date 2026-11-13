@@ -37,7 +37,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
       _user = user;
       _session.isAuthenticated.value = true;
-      emit(AuthAuthenticated(user));
+      await _emitMemberships(emit, user);
     } on AuthFailure catch (failure) {
       emit(AuthFailureState(failure.message));
     }
@@ -56,11 +56,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         phone: event.phone,
         password: event.password,
         passwordConfirmation: event.passwordConfirmation,
+        householdName: event.householdName,
+        currency: event.currency,
+        monthlyBudgetMinor: event.monthlyBudgetMinor,
+        yearlyBudgetMinor: event.yearlyBudgetMinor,
       );
 
       _user = user;
       _session.isAuthenticated.value = true;
-      emit(AuthAuthenticated(user));
+      await _emitMemberships(emit, user);
     } on AuthFailure catch (failure) {
       emit(AuthFailureState(failure.message));
     }
@@ -70,7 +74,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     SessionLoaded event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoading());
+    if (_user == null) {
+      emit(const AuthLoading());
+    }
 
     try {
       final user = await _repository.me();
@@ -89,6 +95,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
 
       emit(AuthFailureState(failure.message));
+      if (_user != null) {
+        await _emitMemberships(emit, _user!);
+      }
     }
   }
 
@@ -118,6 +127,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _emitMemberships(emit, user);
     } on AuthFailure catch (failure) {
       emit(AuthFailureState(failure.message));
+      if (_user != null) {
+        await _emitMemberships(emit, _user!);
+      }
     }
   }
 
@@ -125,8 +137,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     VoiceConsentChanged event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoading());
-
     try {
       await _repository.updateVoiceConsent(event.optIn);
 
@@ -135,6 +145,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _emitMemberships(emit, user);
     } on AuthFailure catch (failure) {
       emit(AuthFailureState(failure.message));
+      if (_user != null) {
+        await _emitMemberships(emit, _user!);
+      }
     }
   }
 
@@ -142,8 +155,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     LocationConsentChanged event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoading());
-
     try {
       await _repository.updateLocationConsent(event.optIn);
 
@@ -152,6 +163,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _emitMemberships(emit, user);
     } on AuthFailure catch (failure) {
       emit(AuthFailureState(failure.message));
+      if (_user != null) {
+        await _emitMemberships(emit, _user!);
+      }
     }
   }
 
@@ -159,8 +173,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AlertStyleChanged event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoading());
-
     try {
       await _repository.updateAlertStyle(event.style);
 
@@ -169,6 +181,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _emitMemberships(emit, user);
     } on AuthFailure catch (failure) {
       emit(AuthFailureState(failure.message));
+      if (_user != null) {
+        await _emitMemberships(emit, _user!);
+      }
     }
   }
 
@@ -216,8 +231,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _emitMemberships(Emitter<AuthState> emit, User user) async {
     try {
       final memberships = await _repository.memberships();
-      emit(AuthMembershipsLoaded(user, memberships));
-    } on AuthFailure {
+      if (memberships.isNotEmpty) {
+        emit(AuthMembershipsLoaded(user, memberships));
+      } else {
+        emit(AuthAuthenticated(user));
+      }
+    } catch (_) {
       emit(AuthAuthenticated(user));
     }
   }

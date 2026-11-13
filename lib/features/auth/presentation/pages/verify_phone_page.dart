@@ -25,13 +25,37 @@ class _VerifyPhonePageState extends State<VerifyPhonePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Verify your phone')),
-      body: SafeArea(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/today');
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Verify your phone'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/today');
+              }
+            },
+          ),
+        ),
+        body: SafeArea(
         child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
-            if (state is AuthAuthenticated) {
-              context.go('/home');
+            if (state is AuthAuthenticated || state is AuthMembershipsLoaded) {
+              context.go('/today');
             } else if (state is AuthCodeSent) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -41,7 +65,7 @@ class _VerifyPhonePageState extends State<VerifyPhonePage> {
             } else if (state is AuthFailureState) {
               ScaffoldMessenger.of(
                 context,
-              ).showSnackBar(SnackBar(content: Text(state.message)));
+              ).showSnackBar(AppTheme.errorSnackBar(state.message));
             }
           },
           child: Padding(
@@ -90,13 +114,14 @@ class _VerifyPhonePageState extends State<VerifyPhonePage> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () => context.go('/home'),
+                  onPressed: () => context.go('/today'),
                   child: const Text('Continue to dashboard'),
                 ),
               ],
             ),
           ),
         ),
+      ),
       ),
     );
   }

@@ -4,12 +4,16 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/settings_page.dart';
+import '../../features/auth/presentation/pages/splash_screen.dart';
 import '../../features/auth/presentation/pages/verify_phone_page.dart';
+import '../../features/billing/presentation/pages/billing_page.dart';
 import '../../features/feedback/presentation/pages/feedback_page.dart';
+import '../../features/ledger/presentation/pages/ledger_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/pantry/presentation/pages/pantry_page.dart';
 import '../../features/places/presentation/pages/places_page.dart';
 import '../../features/recurring/presentation/pages/recurring_page.dart';
+import '../../features/requests/presentation/pages/ai_chat_page.dart';
 import '../../features/requests/presentation/pages/quick_add_page.dart';
 import '../../features/requests/presentation/pages/receipt_scan_page.dart';
 import '../../features/requests/presentation/pages/request_detail_page.dart';
@@ -50,18 +54,21 @@ CustomTransitionPage<void> _buildFadeSlidePage({
 class AppRouter {
   AppRouter(AuthSession session)
     : router = GoRouter(
-        initialLocation: '/today',
+        initialLocation: '/splash',
         refreshListenable: Listenable.merge([
           session.isAuthenticated,
           session.hasSeenOnboarding,
         ]),
         redirect: (context, state) {
+          final isSplash = state.matchedLocation == '/splash';
+          if (isSplash) return null;
+
           final loggedIn = session.isAuthenticated.value;
           final seenOnboarding = session.hasSeenOnboarding.value;
           final isAuthRoute =
               state.matchedLocation == '/login' ||
-              state.matchedLocation == '/register' ||
-              state.matchedLocation == '/verify-phone';
+              state.matchedLocation == '/register';
+          final isVerifyPhone = state.matchedLocation == '/verify-phone';
           final isOnboardingRoute = state.matchedLocation == '/onboarding';
 
           // First launch: must see the onboarding carousel
@@ -75,11 +82,11 @@ class AppRouter {
           }
 
           // Unauthenticated users must log in
-          if (!loggedIn && !isAuthRoute) {
+          if (!loggedIn && !isAuthRoute && !isVerifyPhone) {
             return '/login';
           }
 
-          // Authenticated users skipping auth routes
+          // Authenticated users skipping login/register routes
           if (loggedIn && isAuthRoute) {
             return '/today';
           }
@@ -87,6 +94,13 @@ class AppRouter {
           return null;
         },
         routes: [
+          GoRoute(
+            path: '/splash',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const SplashScreen(),
+            ),
+          ),
           GoRoute(
             path: '/onboarding',
             pageBuilder: (context, state) => _buildFadeSlidePage(
@@ -154,6 +168,26 @@ class AppRouter {
             ),
           ),
 
+          // Household Chat & AI Dispatcher
+          GoRoute(
+            path: '/chat',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: AiChatPage(
+                initialTab: state.uri.queryParameters['tab'] ?? 'ai',
+              ),
+            ),
+          ),
+
+          // Billing & Plan Management
+          GoRoute(
+            path: '/billing',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const BillingPage(),
+            ),
+          ),
+
           // Tab shell: Today · Shopping · Places · Settings.
           ShellRoute(
             builder: (context, state, child) =>
@@ -176,6 +210,17 @@ class AppRouter {
                   key: state.pageKey,
                   child: const ShoppingPage(),
                 ),
+              ),
+              GoRoute(
+                path: '/budget',
+                pageBuilder: (context, state) => _buildFadeSlidePage(
+                  key: state.pageKey,
+                  child: const LedgerPage(),
+                ),
+              ),
+              GoRoute(
+                path: '/ledger',
+                redirect: (context, state) => '/budget',
               ),
               GoRoute(
                 path: '/pantry',

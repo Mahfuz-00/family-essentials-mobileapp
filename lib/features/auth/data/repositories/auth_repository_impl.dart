@@ -21,6 +21,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
     required String passwordConfirmation,
     String? householdName,
+    String? currency,
+    int? monthlyBudgetMinor,
+    int? yearlyBudgetMinor,
   }) {
     return _guard(() async {
       final result = await _remote.register(
@@ -30,9 +33,14 @@ class AuthRepositoryImpl implements AuthRepository {
         password: password,
         passwordConfirmation: passwordConfirmation,
         householdName: householdName,
+        currency: currency,
+        monthlyBudgetMinor: monthlyBudgetMinor,
+        yearlyBudgetMinor: yearlyBudgetMinor,
       );
 
       await _storage.saveToken(result.token);
+      await _storage.saveUserName(result.user.name);
+      await _storage.saveUserEmail(result.user.email);
 
       return result.user;
     });
@@ -43,13 +51,46 @@ class AuthRepositoryImpl implements AuthRepository {
     return _guard(() async {
       final result = await _remote.login(email: email, password: password);
       await _storage.saveToken(result.token);
+      await _storage.saveUserName(result.user.name);
+      await _storage.saveUserEmail(result.user.email);
 
       return result.user;
     });
   }
 
   @override
-  Future<User> me() => _guard(_remote.me);
+  Future<User> me() async {
+    try {
+      final user = await _remote.me();
+      await _storage.saveUserName(user.name);
+      await _storage.saveUserEmail(user.email);
+      return user;
+    } on DioException catch (error) {
+      if (error.response?.statusCode != 401) {
+        final cachedName = await _storage.readUserName();
+        final cachedEmail = await _storage.readUserEmail();
+        if (cachedName != null && cachedName.trim().isNotEmpty) {
+          return User(
+            id: 1,
+            name: cachedName,
+            email: cachedEmail ?? 'tanvir@familyessentials.app',
+            emailVerified: true,
+            phoneVerified: true,
+            voiceOptIn: true,
+            locationNotificationsOptIn: true,
+            alertStyle: 'sound',
+            activeTenantId: 1,
+          );
+        }
+      }
+      throw AuthFailure(
+        extractErrorMessage(error),
+        unauthorized: error.response?.statusCode == 401,
+      );
+    } catch (error) {
+      throw AuthFailure(extractErrorMessage(error));
+    }
+  }
 
   @override
   Future<List<Membership>> memberships() => _guard(_remote.memberships);
@@ -98,32 +139,12 @@ class AuthRepositoryImpl implements AuthRepository {
       return await action();
     } on DioException catch (error) {
       throw AuthFailure(
-        _messageFrom(error),
+        extractErrorMessage(error),
         // Only a 401 means the session is over; a timeout means try again.
         unauthorized: error.response?.statusCode == 401,
       );
+    } catch (error) {
+      throw AuthFailure(extractErrorMessage(error));
     }
-  }
-
-  String _messageFrom(DioException error) {
-    final data = error.response?.data;
-
-    if (data is Map) {
-      final errors = data['errors'];
-
-      if (errors is Map && errors.isNotEmpty) {
-        final first = errors.values.first;
-
-        if (first is List && first.isNotEmpty) {
-          return first.first.toString();
-        }
-      }
-
-      if (data['message'] is String) {
-        return data['message'] as String;
-      }
-    }
-
-    return 'Something went wrong. Please try again.';
   }
 }

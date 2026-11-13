@@ -12,6 +12,23 @@ const String cueByTime = 'time';
 const String cueOnArrival = 'enter';
 const String cueOnLeaving = 'exit';
 
+/// Household member choice for assignment sheets.
+class MemberChoice {
+  final int? userId;
+  final String name;
+  const MemberChoice(this.userId, this.name);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MemberChoice &&
+          runtimeType == other.runtimeType &&
+          userId == other.userId;
+
+  @override
+  int get hashCode => userId.hashCode;
+}
+
 /// A sheet that lists options and ticks the current one.
 ///
 /// Extracted so every "choose one of these" in the request flow — member, shop,

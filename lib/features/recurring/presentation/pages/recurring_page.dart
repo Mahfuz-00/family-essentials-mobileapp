@@ -84,17 +84,6 @@ class _RecurringView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.canvas,
-      appBar: AppBar(
-        title: const Text('Recurring rules'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: () =>
-                context.read<RecurringBloc>().add(const RecurringRulesRequested()),
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _add(context),
         backgroundColor: AppTheme.secondary,
@@ -111,17 +100,23 @@ class _RecurringView extends StatelessWidget {
             context.read<RecurringBloc>().add(const RecurringRulesRequested());
           } else if (state is RecurringFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: AppTheme.coralSoft,
-              ),
+              AppTheme.errorSnackBar(state.message),
             );
           }
         },
         builder: (context, state) {
           if (state is RecurringLoading || state is RecurringInitial) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppTheme.secondary),
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              children: const [
+                ShimmerWarmCard(height: 118),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 118),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 118),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 118),
+              ],
             );
           }
 

@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../places/domain/entities/place.dart';
 import '../../../places/domain/repositories/places_repository.dart';
 import '../../domain/entities/service_request.dart';
+import '../../domain/repositories/requests_repository.dart';
 import '../bloc/requests_bloc.dart';
 import '../bloc/requests_event.dart';
 import '../bloc/requests_state.dart';
@@ -35,9 +36,19 @@ class _QuickAddForm extends StatefulWidget {
   State<_QuickAddForm> createState() => _QuickAddFormState();
 }
 
+class _ItemRow {
+  final TextEditingController name = TextEditingController();
+  final TextEditingController quantity = TextEditingController();
+
+  void dispose() {
+    name.dispose();
+    quantity.dispose();
+  }
+}
+
 class _QuickAddFormState extends State<_QuickAddForm> {
   final TextEditingController _title = TextEditingController();
-  final TextEditingController _quantity = TextEditingController();
+  final List<_ItemRow> _items = [_ItemRow()];
 
   List<HouseholdMember> _members = const [];
   List<Place> _places = const [];
@@ -55,6 +66,18 @@ class _QuickAddFormState extends State<_QuickAddForm> {
     super.initState();
     context.read<RequestsBloc>().add(const BoardRequested());
     _loadPlaces();
+    _loadMembers();
+  }
+
+  Future<void> _loadMembers() async {
+    try {
+      final members = await getIt<RequestsRepository>().members();
+      if (mounted) {
+        setState(() => _members = members);
+      }
+    } catch (_) {
+      // Non-fatal
+    }
   }
 
   Future<void> _loadPlaces() async {
@@ -71,8 +94,24 @@ class _QuickAddFormState extends State<_QuickAddForm> {
   @override
   void dispose() {
     _title.dispose();
-    _quantity.dispose();
+    for (final item in _items) {
+      item.dispose();
+    }
     super.dispose();
+  }
+
+  void _addItem() {
+    setState(() {
+      _items.add(_ItemRow());
+    });
+  }
+
+  void _removeItem(int index) {
+    if (_items.length <= 1) return;
+    setState(() {
+      final removed = _items.removeAt(index);
+      removed.dispose();
+    });
   }
 
   Future<void> _pickDue() async {
@@ -89,14 +128,22 @@ class _QuickAddFormState extends State<_QuickAddForm> {
   }
 
   Future<void> _pickMember() async {
-    final chosen = await showChoiceSheet<HouseholdMember>(
+    final choices = [
+      const MemberChoice(null, 'Anyone in household (Unassigned)'),
+      ..._members.map((m) => MemberChoice(m.userId, m.name)),
+    ];
+
+    final currentChoice = choices.firstWhere(
+      (c) => c.userId == _assigneeId,
+      orElse: () => choices.first,
+    );
+
+    final chosen = await showChoiceSheet<MemberChoice>(
       context: context,
-      title: 'Who is it for?',
-      options: _members,
-      label: (member) => member.name,
-      current: _members
-          .where((member) => member.userId == _assigneeId)
-          .firstOrNull,
+      title: 'Assign chore to',
+      options: choices,
+      label: (choice) => choice.name,
+      current: currentChoice,
     );
 
     if (chosen != null) {
@@ -127,16 +174,28 @@ class _QuickAddFormState extends State<_QuickAddForm> {
       : '${place.name} · ${place.kindLabel}';
 
   void _submit() {
-    if (_title.text.trim().isEmpty) {
-      return;
+    final validItems = _items
+        .map((r) => {
+              'name': r.name.text.trim(),
+              'quantity_asked': r.quantity.text.trim().isEmpty ? null : r.quantity.text.trim(),
+            })
+        .where((m) => (m['name'] as String).isNotEmpty)
+        .toList();
+
+    var title = _title.text.trim();
+    if (title.isEmpty) {
+      if (validItems.isEmpty) return;
+      title = validItems.map((i) => i['name'] as String).join(', ');
     }
 
     final byTime = _remind == cueByTime;
+    final primaryQty = validItems.isNotEmpty ? validItems.first['quantity_asked'] : null;
 
     context.read<RequestsBloc>().add(
       RequestSubmitted(
-        title: _title.text.trim(),
-        quantity: _quantity.text.trim().isEmpty ? null : _quantity.text.trim(),
+        title: title,
+        quantity: primaryQty,
+        items: validItems.isNotEmpty ? validItems : null,
         dueAt: _dueAt,
         assigneeId: _assigneeId,
         placeId: _shopId,
@@ -151,8 +210,32 @@ class _QuickAddFormState extends State<_QuickAddForm> {
     final member = _members.where((m) => m.userId == _assigneeId).firstOrNull;
     final shop = _places.where((p) => p.id == _shopId).firstOrNull;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('New request')),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/today');
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('New request'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/today');
+              }
+            },
+          ),
+        ),
       backgroundColor: AppTheme.canvas,
       body: SafeArea(
         child: BlocConsumer<RequestsBloc, RequestsState>(
@@ -178,33 +261,144 @@ class _QuickAddFormState extends State<_QuickAddForm> {
               children: [
                 TextField(
                   controller: _title,
-                  autofocus: true,
                   textCapitalization: TextCapitalization.sentences,
-                  style: const TextStyle(fontSize: 18, color: AppTheme.ink),
+                  style: const TextStyle(fontSize: 16, color: AppTheme.ink),
                   decoration: const InputDecoration(
-                    hintText: 'What do you need?',
-                    hintStyle: TextStyle(fontSize: 18, color: AppTheme.muted),
-                  ),
-                ),
-                const SizedBox(height: AppTheme.space3),
-                TextField(
-                  controller: _quantity,
-                  decoration: const InputDecoration(
-                    labelText: 'How much? (optional)',
+                    labelText: 'Task / Errand Title (optional)',
+                    hintText: 'e.g. Grocery run or Hardware store',
+                    hintStyle: TextStyle(fontSize: 14, color: AppTheme.muted),
                   ),
                 ),
                 const SizedBox(height: AppTheme.space4),
 
-                // For · Where · By — each one tap, opening a sheet.
+                // Multi-item section
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Items to pick up',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.ink,
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: _addItem,
+                      icon: const Icon(Icons.add, size: 16, color: AppTheme.secondary),
+                      label: const Text(
+                        'Add item',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.secondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppTheme.space2),
+                for (var i = 0; i < _items.length; i++) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppTheme.space2),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TextField(
+                            controller: _items[i].name,
+                            autofocus: i == 0,
+                            textCapitalization: TextCapitalization.sentences,
+                            decoration: InputDecoration(
+                              hintText: 'Item name (e.g. Milk)',
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppTheme.space2),
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: _items[i].quantity,
+                            decoration: const InputDecoration(
+                              hintText: 'Asked qty (e.g. 2L)',
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            ),
+                          ),
+                        ),
+                        if (_items.length > 1) ...[
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 18, color: AppTheme.muted),
+                            visualDensity: VisualDensity.compact,
+                            tooltip: 'Remove item',
+                            onPressed: () => _removeItem(i),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppTheme.space3),
+
+                // Dedicated Chore Assignment Card
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    border: Border.all(color: AppTheme.outline.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: _assigneeId != null
+                            ? AppTheme.secondary.withValues(alpha: 0.15)
+                            : AppTheme.sageSoft,
+                        child: Icon(
+                          _assigneeId != null ? Icons.person : Icons.group_outlined,
+                          size: 20,
+                          color: _assigneeId != null ? AppTheme.secondary : AppTheme.muted,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Assign chore to',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.muted),
+                            ),
+                            Text(
+                              member?.name ?? 'Anyone in household (Open to all)',
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.ink),
+                            ),
+                          ],
+                        ),
+                      ),
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        ),
+                        onPressed: _pickMember,
+                        child: Text(_assigneeId == null ? 'Assign' : 'Change'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppTheme.space3),
+
+                // Where · By — each one tap, opening a sheet.
                 Wrap(
                   spacing: AppTheme.space2,
                   runSpacing: AppTheme.space2,
                   children: [
-                    _choiceChip(
-                      icon: Icons.person_outline,
-                      label: member?.name ?? 'For anyone',
-                      onTap: _pickMember,
-                    ),
                     _choiceChip(
                       icon: Icons.storefront_outlined,
                       label: shop?.name ?? 'Any shop',
@@ -253,6 +447,7 @@ class _QuickAddFormState extends State<_QuickAddForm> {
           },
         ),
       ),
+    ),
     );
   }
 

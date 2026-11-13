@@ -7,6 +7,8 @@ class ServiceRequest extends Equatable {
     required this.status,
     required this.priority,
     this.quantity,
+    this.quantityGot,
+    this.items = const [],
     this.notes,
     this.category,
     this.storeName,
@@ -31,6 +33,8 @@ class ServiceRequest extends Equatable {
   final String status;
   final String priority;
   final String? quantity;
+  final String? quantityGot;
+  final List<RequestItem> items;
   final String? notes;
   final String? category;
   final String? storeName;
@@ -84,6 +88,8 @@ class ServiceRequest extends Equatable {
     status,
     priority,
     quantity,
+    quantityGot,
+    items,
     notes,
     category,
     storeName,
@@ -102,6 +108,51 @@ class ServiceRequest extends Equatable {
     history,
     voiceCalls,
   ];
+}
+
+class RequestItem extends Equatable {
+  const RequestItem({
+    required this.name,
+    this.quantityAsked,
+    this.quantityGot,
+    this.isPicked = false,
+  });
+
+  final String name;
+  final String? quantityAsked;
+  final String? quantityGot;
+  final bool isPicked;
+
+  RequestItem copyWith({
+    String? name,
+    String? quantityAsked,
+    String? quantityGot,
+    bool? isPicked,
+  }) {
+    return RequestItem(
+      name: name ?? this.name,
+      quantityAsked: quantityAsked ?? this.quantityAsked,
+      quantityGot: quantityGot ?? this.quantityGot,
+      isPicked: isPicked ?? this.isPicked,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    if (quantityAsked != null) 'quantity_asked': quantityAsked,
+    if (quantityGot != null) 'quantity_got': quantityGot,
+    'is_picked': isPicked,
+  };
+
+  factory RequestItem.fromJson(Map<String, dynamic> json) => RequestItem(
+    name: (json['name'] ?? '').toString(),
+    quantityAsked: json['quantity_asked']?.toString() ?? json['quantity']?.toString(),
+    quantityGot: json['quantity_got']?.toString(),
+    isPicked: json['is_picked'] == true,
+  );
+
+  @override
+  List<Object?> get props => [name, quantityAsked, quantityGot, isPicked];
 }
 
 class VoiceCallEntry extends Equatable {

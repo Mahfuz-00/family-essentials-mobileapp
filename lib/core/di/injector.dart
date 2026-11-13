@@ -16,6 +16,11 @@ import '../../features/places/data/repositories/places_repository_impl.dart';
 import '../../features/places/domain/repositories/places_repository.dart';
 import '../../features/places/location_arrival_check.dart';
 import '../../features/places/presentation/bloc/places_bloc.dart';
+import '../../features/ledger/data/datasources/ledger_remote_datasource.dart';
+import '../../features/ledger/data/repositories/ledger_repository_impl.dart';
+import '../../features/ledger/domain/repositories/ledger_repository.dart';
+import '../../features/ledger/presentation/bloc/ledger_bloc.dart';
+import '../../features/finances/data/datasources/finances_remote_datasource.dart';
 import '../../features/pantry/data/datasources/pantry_remote_datasource.dart';
 import '../../features/pantry/data/repositories/pantry_repository_impl.dart';
 import '../../features/pantry/domain/repositories/pantry_repository.dart';
@@ -81,11 +86,20 @@ Future<void> configureDependencies() async {
     ..registerLazySingleton<FeedbackRepository>(
       () => FeedbackRepositoryImpl(getIt()),
     )
+    ..registerLazySingleton<FinancesRemoteDataSource>(
+      () => FinancesRemoteDataSource(getIt()),
+    )
     ..registerLazySingleton<RecurringRemoteDataSource>(
       () => RecurringRemoteDataSource(getIt()),
     )
     ..registerLazySingleton<RecurringRepository>(
       () => RecurringRepositoryImpl(getIt()),
+    )
+    ..registerLazySingleton<LedgerRemoteDataSource>(
+      () => LedgerRemoteDataSource(getIt()),
+    )
+    ..registerLazySingleton<LedgerRepository>(
+      () => LedgerRepositoryImpl(getIt()),
     )
     ..registerLazySingleton<LocationProvider>(
       () => const GeolocatorLocationProvider(),
@@ -127,5 +141,6 @@ Future<void> configureDependencies() async {
     ..registerFactory<PlacesBloc>(() => PlacesBloc(getIt(), getIt()))
     ..registerFactory<PantryBloc>(() => PantryBloc(getIt()))
     ..registerFactory<FeedbackBloc>(() => FeedbackBloc(getIt()))
-    ..registerFactory<RecurringBloc>(() => RecurringBloc(getIt()));
+    ..registerFactory<RecurringBloc>(() => RecurringBloc(getIt()))
+    ..registerFactory<LedgerBloc>(() => LedgerBloc(getIt()));
 }

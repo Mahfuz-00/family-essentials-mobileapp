@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -50,9 +51,33 @@ class _FeedbackViewState extends State<_FeedbackView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.canvas,
-      appBar: AppBar(title: const Text('Help & feedback')),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/today');
+          }
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.canvas,
+        appBar: AppBar(
+          title: const Text('Help & Feedback'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/today');
+              }
+            },
+          ),
+        ),
       body: SafeArea(
         child: BlocConsumer<FeedbackBloc, FeedbackState>(
           listener: (context, state) {
@@ -66,7 +91,7 @@ class _FeedbackViewState extends State<_FeedbackView> {
             } else if (state is FeedbackFailure) {
               ScaffoldMessenger.of(
                 context,
-              ).showSnackBar(SnackBar(content: Text(state.message)));
+              ).showSnackBar(AppTheme.errorSnackBar(state.message));
             }
           },
           builder: (context, state) {
@@ -81,16 +106,13 @@ class _FeedbackViewState extends State<_FeedbackView> {
                 const SizedBox(height: AppTheme.space4),
                 SectionHeader(title: 'Your reports', count: reports.length),
                 const SizedBox(height: AppTheme.space3),
-                if (state is FeedbackLoading)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(
-                        color: AppTheme.secondary,
-                      ),
-                    ),
-                  )
-                else if (reports.isEmpty)
+                if (state is FeedbackLoading) ...[
+                  const ShimmerWarmCard(height: 92),
+                  const SizedBox(height: AppTheme.space2),
+                  const ShimmerWarmCard(height: 92),
+                  const SizedBox(height: AppTheme.space2),
+                  const ShimmerWarmCard(height: 92),
+                ] else if (reports.isEmpty)
                   const WarmEmptyState(
                     title: 'Nothing sent yet',
                     description:
@@ -108,6 +130,7 @@ class _FeedbackViewState extends State<_FeedbackView> {
             );
           },
         ),
+      ),
       ),
     );
   }

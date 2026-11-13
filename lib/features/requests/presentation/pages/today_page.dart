@@ -123,10 +123,7 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
               context.read<RequestsBloc>().add(const BoardRequested());
             } else if (state is RequestsFailure) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(state.message),
-                  backgroundColor: AppTheme.coralSoft,
-                ),
+                AppTheme.errorSnackBar(state.message),
               );
             } else if (state is RequestsBoardLoaded) {
               // Keep device-local reminders in step with the board.
@@ -149,8 +146,25 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
 
   Widget _body(BuildContext context, RequestsState state) {
     if (state is RequestsLoading || state is RequestsInitial) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppTheme.secondary),
+      return ListView(
+        padding: const EdgeInsets.all(AppTheme.space4),
+        children: const [
+          ShimmerWarmCard(height: 84),
+          SizedBox(height: AppTheme.space3),
+          Row(
+            children: [
+              Expanded(child: ShimmerStatCard()),
+              SizedBox(width: 8),
+              Expanded(child: ShimmerStatCard()),
+              SizedBox(width: 8),
+              Expanded(child: ShimmerStatCard()),
+            ],
+          ),
+          SizedBox(height: AppTheme.space3),
+          ShimmerWarmCard(height: 110),
+          SizedBox(height: AppTheme.space3),
+          ShimmerWarmCard(height: 110),
+        ],
       );
     }
 
@@ -181,6 +195,40 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
           _HouseholdGreetingHeader(board: board),
+          Row(
+            children: [
+              Expanded(
+                child: SoftStatCard(
+                  label: 'Due Today',
+                  value: '${today.length}',
+                  icon: Icons.today_rounded,
+                  tone: WarmTone.primary,
+                  badgeLabel: 'Assigned & Due',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SoftStatCard(
+                  label: 'Overdue',
+                  value: '${board.overdue.length}',
+                  icon: Icons.warning_amber_rounded,
+                  tone: board.overdue.isNotEmpty ? WarmTone.danger : WarmTone.success,
+                  badgeLabel: board.overdue.isNotEmpty ? 'Needs action' : 'All clear',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SoftStatCard(
+                  label: 'Done Today',
+                  value: '${board.completedToday.length}',
+                  icon: Icons.task_alt_rounded,
+                  tone: WarmTone.success,
+                  badgeLabel: '${board.backlog.length} in backlog',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.space4),
           if (widget.focusedPlaceId != null) ...[
             LocationNeedsCard(placeId: widget.focusedPlaceId!),
             const SizedBox(height: AppTheme.space4),
@@ -329,43 +377,50 @@ class _HouseholdGreetingHeader extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.sageSoft,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusPill),
-                      border: Border.all(
-                        color: AppTheme.secondary.withValues(alpha: 0.15),
-                        width: 1,
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.sageSoft,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+                        border: Border.all(
+                          color: AppTheme.secondary.withValues(alpha: 0.15),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: AppTheme.secondary,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              householdLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.2,
+                                color: AppTheme.secondary,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: AppTheme.secondary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          householdLabel,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.2,
-                            color: AppTheme.secondary,
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
+                  const SizedBox(width: 8),
                   const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

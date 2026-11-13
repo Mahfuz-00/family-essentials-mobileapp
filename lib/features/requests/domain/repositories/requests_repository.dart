@@ -17,6 +17,9 @@ abstract class RequestsRepository {
     int? placeId,
     int? triggerPlaceId,
     String? triggerDirection,
+    List<Map<String, dynamic>>? items,
+    int? ledgerId,
+    int? amountMinor,
   });
 
   /// Change the member's reminder cue on an existing task. Passing null for both
@@ -28,6 +31,8 @@ abstract class RequestsRepository {
   });
 
   Future<void> act(int id, String action, {Map<String, dynamic>? payload});
+
+  Future<void> assign(int id, int? assigneeId);
 
   Future<void> triggerVoiceCall(int requestId);
 }

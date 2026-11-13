@@ -16,6 +16,10 @@ class EssentialModel extends Essential {
     super.daysUntilDue,
     super.isDue,
     super.dueReason,
+    super.unitPriceMinor,
+    super.lastSpentMinor,
+    super.totalSpentMinor,
+    super.projectedRestockMinor,
   });
 
   factory EssentialModel.fromJson(Map<String, dynamic> json) {
@@ -34,6 +38,10 @@ class EssentialModel extends Essential {
       daysUntilDue: (json['days_until_due'] as num?)?.toInt(),
       isDue: json['is_due'] as bool? ?? false,
       dueReason: json['due_reason'] as String?,
+      unitPriceMinor: (json['unit_price_minor'] as num?)?.toInt() ?? 350,
+      lastSpentMinor: (json['last_spent_minor'] as num?)?.toInt() ?? 0,
+      totalSpentMinor: (json['total_spent_minor'] as num?)?.toInt() ?? 0,
+      projectedRestockMinor: (json['projected_restock_minor'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -54,6 +62,8 @@ class PantrySnapshotModel extends PantrySnapshot {
         due: (summary['due'] as num?)?.toInt() ?? 0,
         safetyStock: (summary['safety_stock'] as num?)?.toInt() ?? 0,
         cadence: (summary['cadence'] as num?)?.toInt() ?? 0,
+        totalSpentMinor: (summary['total_spent_minor'] as num?)?.toInt() ?? 0,
+        projectedRestockMinor: (summary['projected_restock_minor'] as num?)?.toInt() ?? 0,
       ),
       items: (json['data'] as List? ?? const [])
           .cast<Map<String, dynamic>>()

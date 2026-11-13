@@ -46,17 +46,6 @@ class _PantryView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.canvas,
-      appBar: AppBar(
-        title: const Text('Pantry & essentials'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: () =>
-                context.read<PantryBloc>().add(const PantryRequested()),
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _add(context),
         backgroundColor: AppTheme.secondary,
@@ -74,13 +63,30 @@ class _PantryView extends StatelessWidget {
           } else if (state is PantryFailure) {
             ScaffoldMessenger.of(
               context,
-            ).showSnackBar(SnackBar(content: Text(state.message)));
+            ).showSnackBar(AppTheme.errorSnackBar(state.message));
           }
         },
         builder: (context, state) {
           if (state is PantryLoading || state is PantryInitial) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppTheme.secondary),
+            return ListView(
+              padding: const EdgeInsets.all(AppTheme.space4),
+              children: const [
+                Row(
+                  children: [
+                    Expanded(child: ShimmerStatCard()),
+                    SizedBox(width: 8),
+                    Expanded(child: ShimmerStatCard()),
+                    SizedBox(width: 8),
+                    Expanded(child: ShimmerStatCard()),
+                  ],
+                ),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 110),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 140),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 140),
+              ],
             );
           }
 
@@ -155,50 +161,46 @@ class _PantryView extends StatelessWidget {
   }
 
   Widget _pulse(PantrySummary summary) {
-    return WarmCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.insights, size: 18, color: AppTheme.primary),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Pantry pulse',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.ink,
-                  ),
-                ),
+    final inStockCount = (summary.total - summary.due).clamp(0, 9999);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: SoftStatCard(
+                label: 'Restock Due',
+                value: '${summary.due}',
+                icon: Icons.warning_amber_rounded,
+                tone: summary.due > 0 ? WarmTone.danger : WarmTone.success,
+                badgeLabel: summary.safetyStock > 0
+                    ? '${summary.safetyStock} critical'
+                    : 'Healthy',
               ),
-              PriorityChip(
-                label: summary.due == 0 ? 'All stocked' : '${summary.due} due',
-                tone: summary.due == 0 ? WarmTone.success : WarmTone.danger,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SoftStatCard(
+                label: 'In Stock',
+                value: '$inStockCount',
+                icon: Icons.inventory_2_outlined,
+                tone: WarmTone.success,
+                badgeLabel: '${summary.total} tracked',
               ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.space3),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              StatPill(value: summary.total, label: 'Tracked'),
-              StatPill(
-                value: summary.safetyStock,
-                label: 'Below stock',
-                tone: WarmTone.danger,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SoftStatCard(
+                label: 'Est. Restock',
+                value: formatMoneyMinor(summary.projectedRestockMinor),
+                icon: Icons.shopping_cart_checkout_rounded,
+                tone: WarmTone.primary,
+                badgeLabel: 'Spent: ${formatMoneyMinor(summary.totalSpentMinor)}',
               ),
-              StatPill(
-                value: summary.cadence,
-                label: 'Due on cadence',
-                tone: WarmTone.warning,
-              ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -209,10 +211,104 @@ class _EssentialCard extends StatelessWidget {
   final Essential essential;
   final bool actionable;
 
+  void _showRestockDialog(BuildContext context, Essential essential) {
+    final qtyCtrl = TextEditingController(text: '1');
+    final unitPrice = (essential.unitPriceMinor / 100);
+    final spendCtrl = TextEditingController(text: unitPrice.toStringAsFixed(2));
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Restock ${essential.name}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.ink),
+                  ),
+                ),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(ctx).pop()),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: qtyCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Quantity Restocked', prefixIcon: Icon(Icons.inventory_2_outlined)),
+              onChanged: (val) {
+                final q = int.tryParse(val) ?? 1;
+                spendCtrl.text = (q * unitPrice).toStringAsFixed(2);
+              },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: spendCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Amount Spent (\$)', prefixIcon: Icon(Icons.payments_outlined)),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () async {
+                  final qty = int.tryParse(qtyCtrl.text.trim()) ?? 1;
+                  final spendMinor = ((double.tryParse(spendCtrl.text.trim()) ?? 0) * 100).round();
+                  Navigator.of(ctx).pop();
+                  try {
+                    if (getIt.isRegistered<DioClient>()) {
+                      final dio = getIt<DioClient>().dio;
+                      await dio.post<dynamic>(
+                        '/v1/essentials/${essential.id}/restock',
+                        data: {
+                          'quantity_added': qty,
+                          'spend_amount_minor': spendMinor,
+                        },
+                      );
+                    }
+                    if (context.mounted) {
+                      context.read<PantryBloc>().add(const PantryRequested());
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Restocked ${essential.name} (Spent: \$${(spendMinor / 100).toStringAsFixed(2)})'),
+                          backgroundColor: AppTheme.secondary,
+                        ),
+                      );
+                    }
+                  } catch (_) {
+                    if (context.mounted) {
+                      context.read<PantryBloc>().add(EssentialRestocked(id: essential.id, quantity: qty));
+                    }
+                  }
+                },
+                child: const Text('Log Restock & Record Expense'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final bloc = context.read<PantryBloc>();
-
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.space3),
       child: WarmCard(
@@ -225,7 +321,7 @@ class _EssentialCard extends StatelessWidget {
                   child: Text(
                     essential.name,
                     style: const TextStyle(
-                      fontSize: 15,
+                      fontSize: 16,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.ink,
                     ),
@@ -252,62 +348,104 @@ class _EssentialCard extends StatelessWidget {
               style: const TextStyle(fontSize: 12, color: AppTheme.muted),
             ),
             const SizedBox(height: AppTheme.space3),
+
+            // Spend & Stock Metric Container (Point 9)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppTheme.canvas,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.outline.withValues(alpha: 0.15)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Stock: ${essential.stockLevel}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.ink),
+                      ),
+                      Text(
+                        'Alert at ≤ ${essential.threshold}',
+                        style: const TextStyle(fontSize: 11, color: AppTheme.muted),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '\$${(essential.unitPriceMinor / 100).toStringAsFixed(2)} / unit',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.secondary),
+                      ),
+                      Text(
+                        'Total spent: \$${(essential.totalSpentMinor / 100).toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 11, color: AppTheme.muted),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppTheme.space3),
+
+            // Action Buttons
             Row(
               children: [
-                Text(
-                  'Stock ${essential.stockLevel} · alert at ${essential.threshold}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.onSurfaceVariant,
-                  ),
-                ),
-                const Spacer(),
                 if (essential.isDue) ...[
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.add_shopping_cart, size: 16),
-                    onPressed: () async {
-                      try {
-                        if (getIt.isRegistered<DioClient>()) {
-                          final dio = getIt<DioClient>().dio;
-                          await dio.post<dynamic>(
-                            '/v1/essentials/${essential.id}/create-errand',
-                          );
-                        }
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Added "${essential.name}" to Household Errands!',
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.add_shopping_cart, size: 16),
+                      onPressed: () async {
+                        try {
+                          if (getIt.isRegistered<DioClient>()) {
+                            final dio = getIt<DioClient>().dio;
+                            await dio.post<dynamic>(
+                              '/v1/essentials/${essential.id}/create-errand',
+                            );
+                          }
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Added "${essential.name}" to Household Errands!',
+                                ),
                               ),
-                            ),
-                          );
-                        }
-                      } catch (_) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Could not create errand. Please try again.',
+                            );
+                          }
+                        } catch (_) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Could not create errand. Please try again.',
+                                ),
                               ),
-                            ),
-                          );
+                            );
+                          }
                         }
-                      }
-                    },
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 40),
-                      visualDensity: VisualDensity.compact,
+                      },
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 40),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Add Errand')),
                     ),
-                    label: const Text('Add Errand'),
                   ),
                   const SizedBox(width: 8),
                 ],
-                FilledButton.tonal(
-                  onPressed: () => bloc.add(
-                    EssentialRestocked(id: essential.id, quantity: 1),
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    icon: const Icon(Icons.add, size: 16),
+                    onPressed: () => _showRestockDialog(context, essential),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 40),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Restock & Spend')),
                   ),
-                  style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
-                  child: const Text('+ Restock'),
                 ),
               ],
             ),
@@ -343,16 +481,32 @@ class _AddEssentialSheetState extends State<_AddEssentialSheet> {
   final _name = TextEditingController();
   final _store = TextEditingController();
   final _packSize = TextEditingController();
+  final _unitPrice = TextEditingController(text: '3.50');
 
   int _cadenceDays = 14;
   int _threshold = 1;
   int _stock = 0;
+  String _category = 'dairy_eggs';
+
+  static const _pantryCategories = <(String key, String label)>[
+    ('dairy_eggs', 'Dairy & Eggs'),
+    ('produce', 'Fresh Produce'),
+    ('bakery', 'Bakery & Bread'),
+    ('meat_seafood', 'Meat & Seafood'),
+    ('pantry_staples', 'Grains, Oil & Spices'),
+    ('beverages', 'Coffee, Tea & Drinks'),
+    ('snacks', 'Snacks & Breakfast'),
+    ('household_cleaning', 'Cleaning & Laundry'),
+    ('personal_care', 'Baby & Personal Care'),
+    ('medicine', 'Health & First Aid'),
+  ];
 
   @override
   void dispose() {
     _name.dispose();
     _store.dispose();
     _packSize.dispose();
+    _unitPrice.dispose();
     super.dispose();
   }
 
@@ -402,6 +556,19 @@ class _AddEssentialSheetState extends State<_AddEssentialSheet> {
               decoration: const InputDecoration(labelText: 'Item name'),
             ),
             const SizedBox(height: AppTheme.space3),
+            DropdownButtonFormField<String>(
+              initialValue: _category,
+              decoration: const InputDecoration(
+                labelText: 'Household Category',
+                prefixIcon: Icon(Icons.category_outlined),
+              ),
+              items: [
+                for (final c in _pantryCategories)
+                  DropdownMenuItem(value: c.$1, child: Text(c.$2)),
+              ],
+              onChanged: (v) => setState(() => _category = v ?? 'dairy_eggs'),
+            ),
+            const SizedBox(height: AppTheme.space3),
             Row(
               children: [
                 Expanded(
@@ -418,6 +585,16 @@ class _AddEssentialSheetState extends State<_AddEssentialSheet> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: AppTheme.space3),
+            TextField(
+              controller: _unitPrice,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Estimated unit price (\$)',
+                hintText: 'e.g. 3.50',
+                prefixIcon: Icon(Icons.attach_money_rounded),
+              ),
             ),
 
             const SizedBox(height: AppTheme.space4),
@@ -458,27 +635,51 @@ class _AddEssentialSheetState extends State<_AddEssentialSheet> {
                 const SizedBox(width: AppTheme.space3),
                 Expanded(
                   child: FilledButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (_name.text.trim().isEmpty) {
                         return;
                       }
 
-                      context.read<PantryBloc>().add(
-                        EssentialCreated(
-                          name: _name.text.trim(),
-                          defaultStore: _store.text.trim().isEmpty
-                              ? null
-                              : _store.text.trim(),
-                          packSize: _packSize.text.trim().isEmpty
-                              ? null
-                              : _packSize.text.trim(),
-                          cadenceDays: _cadenceDays,
-                          threshold: _threshold,
-                          stockLevel: _stock,
-                        ),
-                      );
+                      final priceMinor = ((double.tryParse(_unitPrice.text.trim()) ?? 3.50) * 100).round();
+                      try {
+                        if (getIt.isRegistered<DioClient>()) {
+                          final dio = getIt<DioClient>().dio;
+                          await dio.post<dynamic>(
+                            '/v1/essentials',
+                            data: {
+                              'name': _name.text.trim(),
+                              'category': _category,
+                              'default_store': _store.text.trim().isEmpty ? null : _store.text.trim(),
+                              'pack_size': _packSize.text.trim().isEmpty ? null : _packSize.text.trim(),
+                              'cadence_days': _cadenceDays,
+                              'threshold': _threshold,
+                              'stock_level': _stock,
+                              'unit_price_minor': priceMinor,
+                            },
+                          );
+                        }
+                      } catch (_) {
+                        if (context.mounted) {
+                          context.read<PantryBloc>().add(
+                            EssentialCreated(
+                              name: _name.text.trim(),
+                              defaultStore: _store.text.trim().isEmpty
+                                  ? null
+                                  : _store.text.trim(),
+                              packSize: _packSize.text.trim().isEmpty
+                                  ? null
+                                  : _packSize.text.trim(),
+                              cadenceDays: _cadenceDays,
+                              threshold: _threshold,
+                              stockLevel: _stock,
+                            ),
+                          );
+                        }
+                      }
 
-                      Navigator.of(context).pop(true);
+                      if (context.mounted) {
+                        Navigator.of(context).pop(true);
+                      }
                     },
                     child: const Text('Save essential'),
                   ),

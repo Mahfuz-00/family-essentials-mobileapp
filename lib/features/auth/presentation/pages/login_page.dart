@@ -39,12 +39,12 @@ class _LoginPageState extends State<LoginPage> {
       body: SafeArea(
         child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
-            if (state is AuthAuthenticated) {
-              context.go('/home');
+            if (state is AuthAuthenticated || state is AuthMembershipsLoaded) {
+              context.go('/today');
             } else if (state is AuthFailureState) {
               ScaffoldMessenger.of(
                 context,
-              ).showSnackBar(SnackBar(content: Text(state.message)));
+              ).showSnackBar(AppTheme.errorSnackBar(state.message));
             }
           },
           child: Center(
@@ -118,6 +118,30 @@ class _LoginPageState extends State<LoginPage> {
                     TextButton(
                       onPressed: () => context.go('/register'),
                       child: const Text('Create an account'),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        context.read<AuthBloc>().add(
+                          const LoginRequested(
+                            email: 'tanvir@familyessentials.app',
+                            password: 'password',
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.explore_outlined, size: 18),
+                      label: const Text('Explore Demo Household (Seeded Data)'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primary,
+                        side: const BorderSide(color: AppTheme.primary),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Demo account: tanvir@familyessentials.app / password',
+                      style: TextStyle(fontSize: 11, color: AppTheme.muted),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),

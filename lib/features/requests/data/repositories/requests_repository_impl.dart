@@ -41,9 +41,12 @@ class RequestsRepositoryImpl implements RequestsRepository {
     int? placeId,
     int? triggerPlaceId,
     String? triggerDirection,
+    List<Map<String, dynamic>>? items,
+    int? ledgerId,
+    int? amountMinor,
   }) {
     return _guard(() async {
-      final data = await _remote.create({
+      final payload = <String, dynamic>{
         'title': title,
         'quantity': quantity,
         'store_name': storeName,
@@ -53,7 +56,15 @@ class RequestsRepositoryImpl implements RequestsRepository {
         'place_id': placeId,
         'location_trigger_place_id': triggerPlaceId,
         'location_trigger_direction': triggerDirection,
-      });
+        'ledger_id': ledgerId,
+        'amount_minor': amountMinor,
+      }..removeWhere((_, value) => value == null);
+
+      if (items != null && items.isNotEmpty) {
+        payload['items'] = items;
+      }
+
+      final data = await _remote.create(payload);
 
       return ServiceRequestModel.fromJson(
         (data['data'] as Map).cast<String, dynamic>(),
@@ -84,6 +95,10 @@ class RequestsRepositoryImpl implements RequestsRepository {
       _guard(() => _remote.act(id, action, payload: payload));
 
   @override
+  Future<void> assign(int id, int? assigneeId) =>
+      _guard(() => _remote.assign(id, assigneeId));
+
+  @override
   Future<void> triggerVoiceCall(int requestId) =>
       _guard(() => _remote.triggerVoiceCall(requestId));
 
@@ -91,29 +106,9 @@ class RequestsRepositoryImpl implements RequestsRepository {
     try {
       return await action();
     } on DioException catch (error) {
-      throw AppFailure(_messageFrom(error));
+      throw AppFailure(extractErrorMessage(error));
+    } catch (error) {
+      throw AppFailure(extractErrorMessage(error));
     }
-  }
-
-  String _messageFrom(DioException error) {
-    final data = error.response?.data;
-
-    if (data is Map) {
-      final errors = data['errors'];
-
-      if (errors is Map && errors.isNotEmpty) {
-        final first = errors.values.first;
-
-        if (first is List && first.isNotEmpty) {
-          return first.first.toString();
-        }
-      }
-
-      if (data['message'] is String) {
-        return data['message'] as String;
-      }
-    }
-
-    return 'Something went wrong. Please try again.';
   }
 }

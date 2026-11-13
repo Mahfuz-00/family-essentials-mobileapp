@@ -12,6 +12,16 @@ abstract class PlacesRepository {
     String? category,
   });
 
+  Future<Place> update(
+    int id, {
+    String? name,
+    double? latitude,
+    double? longitude,
+    int? radiusMeters,
+    String? address,
+    String? category,
+  });
+
   Future<void> remove(int id);
 
   Future<GeofenceEvaluation> reportPosition({

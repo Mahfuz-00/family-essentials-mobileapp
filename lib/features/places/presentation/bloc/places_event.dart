@@ -44,3 +44,31 @@ class PlaceDeleted extends PlacesEvent {
   @override
   List<Object?> get props => [id];
 }
+
+class PlaceUpdated extends PlacesEvent {
+  const PlaceUpdated({
+    required this.id,
+    this.name,
+    this.latitude,
+    this.longitude,
+    this.radiusMeters,
+    this.category,
+  });
+
+  final int id;
+  final String? name;
+  final double? latitude;
+  final double? longitude;
+  final int? radiusMeters;
+  final String? category;
+
+  @override
+  List<Object?> get props => [
+    id,
+    name,
+    latitude,
+    longitude,
+    radiusMeters,
+    category,
+  ];
+}
