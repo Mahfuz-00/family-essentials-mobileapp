@@ -13,195 +13,6 @@ class HouseholdAppDrawer extends StatelessWidget {
 
   final String currentLocation;
 
-  void _showMembersSheet(BuildContext context) {
-    Navigator.of(context).pop(); // Close drawer
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppTheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppTheme.outline.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Family Members',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.ink),
-                  ),
-                  Text('2 Active', style: TextStyle(fontSize: 13, color: AppTheme.muted)),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _memberTile(
-                context: context,
-                sheetCtx: ctx,
-                name: 'Tanvir Rahman',
-                email: 'tanvir@familyessentials.app',
-                role: 'Household Admin',
-                isAdmin: true,
-              ),
-              const SizedBox(height: 10),
-              _memberTile(
-                context: context,
-                sheetCtx: ctx,
-                name: 'Sarah Rahman',
-                email: 'sarah@familyessentials.app',
-                role: 'Household Member',
-                isAdmin: false,
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    _showInviteDialog(context);
-                  },
-                  icon: const Icon(Icons.person_add_alt_1, size: 18),
-                  label: const Text('Invite Family Member'),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showInviteDialog(BuildContext context) {
-    final emailCtrl = TextEditingController();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Invite to Household'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Enter their email address to send a secure household invitation link.',
-              style: TextStyle(fontSize: 13, color: AppTheme.muted),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Family member email',
-                hintText: 'e.g. alex@example.com',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Invitation sent! They can join using the link.'),
-                  backgroundColor: AppTheme.secondary,
-                ),
-              );
-            },
-            child: const Text('Send Invite'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static Widget _memberTile({
-    required BuildContext context,
-    required BuildContext sheetCtx,
-    required String name,
-    required String email,
-    required String role,
-    required bool isAdmin,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.canvas,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.outline.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          UserProfileAvatar(
-            name: name,
-            radius: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                Text(email, style: const TextStyle(fontSize: 12, color: AppTheme.muted), overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isAdmin ? AppTheme.forestSoft : AppTheme.sageSoft,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    role,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: isAdmin ? AppTheme.secondary : AppTheme.muted,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Chat with $name',
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 19, color: AppTheme.secondary),
-            onPressed: () {
-              Navigator.of(sheetCtx).pop();
-              context.push('/chat');
-            },
-          ),
-          IconButton(
-            tooltip: 'Call $name',
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.call_outlined, size: 19, color: AppTheme.secondary),
-            onPressed: () {
-              Navigator.of(sheetCtx).pop();
-              context.push('/chat');
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Drawer(
@@ -346,6 +157,12 @@ class HouseholdAppDrawer extends StatelessWidget {
                     ),
                     _drawerItem(
                       context,
+                      icon: Icons.ring_volume_outlined,
+                      label: 'Voice Escalations',
+                      path: '/voice-escalations',
+                    ),
+                    _drawerItem(
+                      context,
                       icon: Icons.add_task_rounded,
                       label: 'Add Request / Errand',
                       path: '/requests/new',
@@ -389,11 +206,11 @@ class HouseholdAppDrawer extends StatelessWidget {
 
                     const Divider(height: 16),
                     _sectionLabel('PEOPLE & RULES'),
-                    ListTile(
-                      leading: const Icon(Icons.group_outlined, size: 22, color: AppTheme.ink),
-                      title: const Text('Family Members', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                      onTap: () => _showMembersSheet(context),
-                      dense: true,
+                    _drawerItem(
+                      context,
+                      icon: Icons.group_outlined,
+                      label: 'Family & Access',
+                      path: '/household',
                     ),
                     _drawerItem(
                       context,
@@ -501,6 +318,8 @@ class HouseholdAppDrawer extends StatelessWidget {
                 path == '/receipt/scan' ||
                 path == '/chat' ||
                 path == '/feedback' ||
+                path == '/household' ||
+                path == '/voice-escalations' ||
                 path == '/pantry' ||
                 path == '/recurring') {
               context.push(path);

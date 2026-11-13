@@ -1,6 +1,11 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/di/injector.dart';
 import '../../../../core/network/dio_client.dart';
@@ -27,6 +32,10 @@ class _SettingsPageState extends State<SettingsPage> {
   String _selectedCurrency = 'BDT';
   String? _userAvatarKey;
   Map<String, dynamic>? _quotaData;
+  Map<String, dynamic>? _calendarFeed;
+  bool _quietHoursEnabled = false;
+  TimeOfDay _quietStart = const TimeOfDay(hour: 22, minute: 0);
+  TimeOfDay _quietEnd = const TimeOfDay(hour: 7, minute: 0);
 
   @override
   void initState() {
@@ -50,6 +59,43 @@ class _SettingsPageState extends State<SettingsPage> {
         if (res.data != null && mounted) {
           setState(() => _quotaData = res.data);
         }
+
+        try {
+          final tenantRes = await getIt<DioClient>().dio.get<Map<String, dynamic>>(
+            '/v1/tenant',
+          );
+          final payload = tenantRes.data?['data'] is Map
+              ? (tenantRes.data!['data'] as Map).cast<String, dynamic>()
+              : tenantRes.data;
+          final settings = payload?['settings'] is Map
+              ? (payload!['settings'] as Map).cast<String, dynamic>()
+              : <String, dynamic>{};
+          final quiet = settings['quiet_hours'] is Map
+              ? (settings['quiet_hours'] as Map).cast<String, dynamic>()
+              : <String, dynamic>{};
+
+          if (mounted) {
+            setState(() {
+              _selectedCurrency =
+                  settings['currency']?.toString() ?? _selectedCurrency;
+              _quietHoursEnabled = quiet['enabled'] == true;
+              _quietStart = _parseTime(quiet['start']?.toString()) ?? _quietStart;
+              _quietEnd = _parseTime(quiet['end']?.toString()) ?? _quietEnd;
+            });
+          }
+        } catch (_) {}
+
+        try {
+          final feedRes = await getIt<DioClient>().dio.get<Map<String, dynamic>>(
+            '/v1/calendar/feed-url',
+          );
+          if (feedRes.data?['data'] is Map && mounted) {
+            setState(
+              () => _calendarFeed =
+                  (feedRes.data!['data'] as Map).cast<String, dynamic>(),
+            );
+          }
+        } catch (_) {}
       }
     } catch (_) {}
   }
@@ -268,6 +314,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: AppTheme.space3),
                 _notifications(user),
                 const SizedBox(height: AppTheme.space3),
+                _calendarSync(),
+                const SizedBox(height: AppTheme.space3),
                 _alerts(user),
                 const SizedBox(height: AppTheme.space3),
                 _householdDataVault(),
@@ -403,6 +451,22 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ],
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.space2),
+          Wrap(
+            spacing: 8,
+            children: [
+              TextButton.icon(
+                onPressed: () => _editProfile(user),
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: const Text('Edit profile'),
+              ),
+              TextButton.icon(
+                onPressed: _changePassword,
+                icon: const Icon(Icons.lock_outline_rounded, size: 16),
+                label: const Text('Change password'),
               ),
             ],
           ),
@@ -680,18 +744,27 @@ class _SettingsPageState extends State<SettingsPage> {
             onChanged: (val) {
               if (val != null) {
                 setState(() => _selectedCurrency = val);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Household currency updated to $val'),
-                    backgroundColor: AppTheme.secondary,
-                  ),
-                );
+                _saveCurrency(val);
               }
             },
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _saveCurrency(String currency) async {
+    try {
+      await getIt<DioClient>().dio.patch<Map<String, dynamic>>(
+        '/v1/tenant',
+        data: {
+          'settings': {'currency': currency},
+        },
+      );
+      _snack('Household currency updated to $currency.');
+    } catch (error) {
+      _snack(_message(error), error: true);
+    }
   }
 
   Widget _notifications(User user) {
@@ -741,14 +814,414 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
           ],
-          const SizedBox(height: AppTheme.space3),
+          const Divider(height: 24),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _quietHoursEnabled,
+            activeThumbColor: AppTheme.secondary,
+            title: const Text('Household quiet hours'),
+            subtitle: Text(
+              _quietHoursEnabled
+                  ? 'No calls between ${_labelTime(_quietStart)} and ${_labelTime(_quietEnd)}.'
+                  : 'Off — automated calls may arrive at any hour.',
+              style: const TextStyle(fontSize: 12, color: AppTheme.muted),
+            ),
+            onChanged: (value) {
+              setState(() => _quietHoursEnabled = value);
+              _saveQuietHours();
+            },
+          ),
+          if (_quietHoursEnabled)
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _pickQuietHour(start: true),
+                    icon: const Icon(Icons.bedtime_outlined, size: 16),
+                    label: Text('Starts ${_labelTime(_quietStart)}'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _pickQuietHour(start: false),
+                    icon: const Icon(Icons.wb_sunny_outlined, size: 16),
+                    label: Text('Ends ${_labelTime(_quietEnd)}'),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _calendarSync() {
+    final feedUrl = _calendarFeed?['feed_url']?.toString();
+    final webcalUrl = _calendarFeed?['webcal_url']?.toString();
+
+    return WarmCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.calendar_month_outlined, size: 20, color: AppTheme.secondary),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Calendar sync',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
           const Text(
-            'Quiet hours are a household-level setting and are configured from the web dashboard.',
+            'Subscribe to your errands from Google Calendar, Apple Calendar or Outlook. The feed is read-only and private to your household.',
             style: TextStyle(fontSize: 12, color: AppTheme.muted),
+          ),
+          const SizedBox(height: AppTheme.space3),
+          if (feedUrl == null || feedUrl.isEmpty)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _loadCalendarFeed,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Load calendar feed'),
+              ),
+            )
+          else ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.canvas,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.outline.withValues(alpha: 0.2)),
+              ),
+              child: SelectableText(
+                feedUrl,
+                style: const TextStyle(fontSize: 11, color: AppTheme.ink),
+              ),
+            ),
+            const SizedBox(height: AppTheme.space2),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _copyText(feedUrl, 'Calendar feed URL copied.'),
+                    icon: const Icon(Icons.copy_rounded, size: 16),
+                    label: const Text('Copy'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: () => _openCalendar(webcalUrl ?? feedUrl),
+                    icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                    label: const Text('Subscribe'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _loadCalendarFeed() async {
+    try {
+      final response = await getIt<DioClient>().dio.get<Map<String, dynamic>>(
+        '/v1/calendar/feed-url',
+      );
+      if (response.data?['data'] is Map && mounted) {
+        setState(
+          () => _calendarFeed =
+              (response.data!['data'] as Map).cast<String, dynamic>(),
+        );
+      }
+    } catch (error) {
+      _snack(_message(error), error: true);
+    }
+  }
+
+  Future<void> _openCalendar(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+        mounted) {
+      _snack('No calendar app accepted the subscription link.', error: true);
+    }
+  }
+
+  Future<void> _pickQuietHour({required bool start}) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: start ? _quietStart : _quietEnd,
+    );
+    if (picked == null) return;
+
+    setState(() {
+      if (start) {
+        _quietStart = picked;
+      } else {
+        _quietEnd = picked;
+      }
+    });
+    _saveQuietHours();
+  }
+
+  Future<void> _saveQuietHours() async {
+    try {
+      await getIt<DioClient>().dio.patch<Map<String, dynamic>>(
+        '/v1/tenant',
+        data: {
+          'settings': {
+            'quiet_hours': {
+              'enabled': _quietHoursEnabled,
+              'start': _formatTime(_quietStart),
+              'end': _formatTime(_quietEnd),
+            },
+          },
+        },
+      );
+      _snack(_quietHoursEnabled ? 'Quiet hours saved.' : 'Quiet hours disabled.');
+    } catch (error) {
+      _snack(_message(error), error: true);
+    }
+  }
+
+  Future<void> _editProfile(User user) async {
+    final name = TextEditingController(text: user.name);
+    final email = TextEditingController(text: user.email);
+    final phone = TextEditingController(text: user.phone ?? '');
+
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit profile'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: 'Name'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: email,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Email'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: phone,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Phone (optional)',
+                  hintText: '+880...',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final nextName = name.text.trim();
+              final nextEmail = email.text.trim();
+              if (nextName.isEmpty || nextEmail.isEmpty) return;
+
+              Navigator.of(ctx).pop({
+                'name': nextName,
+                'email': nextEmail,
+                'phone': phone.text.trim(),
+              });
+            },
+            child: const Text('Save'),
           ),
         ],
       ),
     );
+
+    name.dispose();
+    email.dispose();
+    phone.dispose();
+
+    if (result == null) return;
+
+    try {
+      await getIt<DioClient>().dio.patch<Map<String, dynamic>>(
+        '/v1/auth/me',
+        data: result,
+      );
+      if (mounted) {
+        context.read<AuthBloc>().add(const SessionLoaded());
+        _snack('Profile updated.');
+      }
+    } catch (error) {
+      _snack(_message(error), error: true);
+    }
+  }
+
+  Future<void> _changePassword() async {
+    final current = TextEditingController();
+    final next = TextEditingController();
+    final confirm = TextEditingController();
+
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Change password'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: current,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Current password'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: next,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'New password',
+                  helperText: 'At least 8 characters',
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: confirm,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Confirm new password'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (current.text.isEmpty ||
+                  next.text.length < 8 ||
+                  next.text != confirm.text) {
+                return;
+              }
+
+              Navigator.of(ctx).pop({
+                'current_password': current.text,
+                'password': next.text,
+                'password_confirmation': confirm.text,
+              });
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+
+    current.dispose();
+    next.dispose();
+    confirm.dispose();
+
+    if (result == null) return;
+
+    try {
+      await getIt<DioClient>().dio.post<Map<String, dynamic>>(
+        '/v1/auth/me/password',
+        data: result,
+      );
+      _snack('Password updated.');
+    } catch (error) {
+      _snack(_message(error), error: true);
+    }
+  }
+
+  Future<void> _copyHouseholdVault() async {
+    try {
+      final response = await getIt<DioClient>().dio.get<dynamic>(
+        '/v1/tenant/export',
+      );
+      final text = const JsonEncoder.withIndent('  ').convert(response.data);
+
+      await Clipboard.setData(ClipboardData(text: text));
+      _snack('Household vault copied to clipboard (${text.length} chars).');
+    } catch (error) {
+      _snack(_message(error), error: true);
+    }
+  }
+
+  Future<void> _copyText(String value, String message) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    _snack(message);
+  }
+
+  TimeOfDay? _parseTime(String? value) {
+    if (value == null || !value.contains(':')) return null;
+
+    final parts = value.split(':');
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return null;
+
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  String _formatTime(TimeOfDay time) {
+    final hour = time.hour.toString().padLeft(2, '0');
+    final minute = time.minute.toString().padLeft(2, '0');
+
+    return '$hour:$minute';
+  }
+
+  String _labelTime(TimeOfDay time) {
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final suffix = time.period == DayPeriod.am ? 'AM' : 'PM';
+
+    return '$hour:$minute $suffix';
+  }
+
+  void _snack(String message, {bool error = false}) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      error ? AppTheme.errorSnackBar(message) : AppTheme.successSnackBar(message),
+    );
+  }
+
+  String _message(Object error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map && data['message'] is String) {
+        return data['message'] as String;
+      }
+
+      return error.message ?? 'Request failed.';
+    }
+
+    if (error is Exception) {
+      return error.toString().replaceFirst('Exception: ', '');
+    }
+
+    return 'Something went wrong.';
   }
 
   /// One card for everything about interruption: how it announces itself, what
@@ -907,14 +1380,7 @@ class _SettingsPageState extends State<SettingsPage> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Household data vault (.json) exported successfully!'),
-                    backgroundColor: AppTheme.secondary,
-                  ),
-                );
-              },
+              onPressed: _copyHouseholdVault,
               icon: const Icon(Icons.download_rounded, size: 18),
               label: const Text('Export Household Vault (.json)'),
             ),

@@ -428,7 +428,11 @@ class _BillingPageState extends State<BillingPage> {
   }
 
   void _showRefundDialog() {
+    final invoice = _invoices.isNotEmpty ? _invoices.first : null;
     final reasonCtrl = TextEditingController();
+    final amountCtrl = TextEditingController(
+      text: invoice == null ? '' : (invoice.amountCents / 100).toStringAsFixed(2),
+    );
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -456,6 +460,16 @@ class _BillingPageState extends State<BillingPage> {
               _policyBullet('Cancellation Lockout', 'Cancelling logs out immediately. Access is restricted to Billing until resubscribed.'),
               const SizedBox(height: 14),
               TextField(
+                controller: amountCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Amount to refund',
+                  prefixText: '${invoice?.currency ?? 'USD'} ',
+                  hintText: '0.00',
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
                 controller: reasonCtrl,
                 maxLines: 2,
                 decoration: const InputDecoration(
@@ -472,14 +486,60 @@ class _BillingPageState extends State<BillingPage> {
             child: const Text('Close'),
           ),
           FilledButton(
-            onPressed: () {
+            onPressed: () async {
+              final amount = (double.tryParse(amountCtrl.text.trim()) ?? 0) * 100;
+              if (amount < 100) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  AppTheme.errorSnackBar('Enter a refund amount of at least 1.00.'),
+                );
+                return;
+              }
+
               Navigator.of(ctx).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Refund request logged. Review timeline is 1-2 business days.'),
-                  backgroundColor: AppTheme.secondary,
-                ),
-              );
+
+              try {
+                if (!getIt.isRegistered<DioClient>()) {
+                  throw Exception('Billing is unavailable offline.');
+                }
+
+                await getIt<DioClient>().dio.post<Map<String, dynamic>>(
+                  '/v1/billing/refund-request',
+                  data: {
+                    'invoice_id': invoice?.id,
+                    'amount_cents': amount.round(),
+                    'currency': invoice?.currency ?? 'USD',
+                    'reason': reasonCtrl.text.trim().isEmpty
+                        ? 'Refund requested from the mobile app.'
+                        : reasonCtrl.text.trim(),
+                  },
+                );
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    AppTheme.successSnackBar(
+                      'Refund request submitted. Review timeline is 1-2 business days.',
+                    ),
+                  );
+                }
+              } on DioException catch (error) {
+                final data = error.response?.data;
+                final message = data is Map && data['message'] is String
+                    ? data['message'] as String
+                    : 'Could not submit the refund request.';
+                if (mounted) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(AppTheme.errorSnackBar(message));
+                }
+              } catch (error) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    AppTheme.errorSnackBar(
+                      error.toString().replaceFirst('Exception: ', ''),
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('Submit Request'),
           ),

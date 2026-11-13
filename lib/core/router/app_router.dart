@@ -13,7 +13,9 @@ import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/pantry/presentation/pages/pantry_page.dart';
 import '../../features/places/presentation/pages/places_page.dart';
 import '../../features/recurring/presentation/pages/recurring_page.dart';
+import '../../features/household/presentation/pages/household_page.dart';
 import '../../features/requests/presentation/pages/ai_chat_page.dart';
+import '../../features/voice/presentation/pages/voice_escalations_page.dart';
 import '../../features/requests/presentation/pages/quick_add_page.dart';
 import '../../features/requests/presentation/pages/receipt_scan_page.dart';
 import '../../features/requests/presentation/pages/request_detail_page.dart';
@@ -148,6 +150,24 @@ class AppRouter {
               child: RequestDetailPage(
                 id: int.parse(state.pathParameters['id']!),
               ),
+            ),
+          ),
+
+          // Voice escalation quota and call history.
+          GoRoute(
+            path: '/voice-escalations',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const VoiceEscalationsPage(),
+            ),
+          ),
+
+          // Household administration: members, roles and invitations.
+          GoRoute(
+            path: '/household',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const HouseholdPage(),
             ),
           ),
 

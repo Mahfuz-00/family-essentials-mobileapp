@@ -9,6 +9,9 @@ class Ledger extends Equatable {
     this.weeklyBudgetMinor,
     this.yearlyBudgetMinor,
     this.isDefault = false,
+    this.myRole,
+    this.ownerId,
+    this.memberCount = 0,
     this.createdAt,
   });
 
@@ -19,7 +22,14 @@ class Ledger extends Equatable {
   final int? weeklyBudgetMinor;
   final int? yearlyBudgetMinor;
   final bool isDefault;
+
+  /// owner | manager | summary — the caller's own membership in this ledger.
+  final String? myRole;
+  final int? ownerId;
+  final int memberCount;
   final DateTime? createdAt;
+
+  bool get canManageMembers => myRole == 'owner';
 
   @override
   List<Object?> get props => [
@@ -30,6 +40,9 @@ class Ledger extends Equatable {
     weeklyBudgetMinor,
     yearlyBudgetMinor,
     isDefault,
+    myRole,
+    ownerId,
+    memberCount,
     createdAt,
   ];
 }
