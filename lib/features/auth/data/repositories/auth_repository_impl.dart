@@ -21,6 +21,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
     required String passwordConfirmation,
     String? householdName,
+    String? currency,
+    int? monthlyBudgetMinor,
+    int? yearlyBudgetMinor,
   }) {
     return _guard(() async {
       final result = await _remote.register(
@@ -30,6 +33,9 @@ class AuthRepositoryImpl implements AuthRepository {
         password: password,
         passwordConfirmation: passwordConfirmation,
         householdName: householdName,
+        currency: currency,
+        monthlyBudgetMinor: monthlyBudgetMinor,
+        yearlyBudgetMinor: yearlyBudgetMinor,
       );
 
       await _storage.saveToken(result.token);

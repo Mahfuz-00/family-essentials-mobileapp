@@ -17,6 +17,9 @@ class AuthRemoteDataSource {
     required String password,
     required String passwordConfirmation,
     String? householdName,
+    String? currency,
+    int? monthlyBudgetMinor,
+    int? yearlyBudgetMinor,
   }) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '/v1/auth/register',
@@ -28,6 +31,10 @@ class AuthRemoteDataSource {
         'password_confirmation': passwordConfirmation,
         if (householdName != null && householdName.isNotEmpty)
           'household_name': householdName,
+        if (currency != null && currency.isNotEmpty)
+          'currency': currency,
+        'monthly_budget_minor': ?monthlyBudgetMinor,
+        'yearly_budget_minor': ?yearlyBudgetMinor,
         'device_name': 'flutter-mobile',
       },
     );

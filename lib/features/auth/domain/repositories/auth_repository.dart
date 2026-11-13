@@ -9,6 +9,9 @@ abstract class AuthRepository {
     required String password,
     required String passwordConfirmation,
     String? householdName,
+    String? currency,
+    int? monthlyBudgetMinor,
+    int? yearlyBudgetMinor,
   });
 
   Future<User> login({required String email, required String password});

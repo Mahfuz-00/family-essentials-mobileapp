@@ -12,6 +12,7 @@ import '../../domain/entities/service_request.dart';
 import '../bloc/requests_bloc.dart';
 import '../bloc/requests_event.dart';
 import '../bloc/requests_state.dart';
+import '../widgets/fulfill_sheet.dart';
 
 /// M-06 — Shopping mode. Open requests grouped by store, optimised for
 /// one-handed use in a shop: large targets, strike-through on completion.
@@ -281,6 +282,16 @@ class _StoreGroup extends StatelessWidget {
   Widget build(BuildContext context) {
     final bloc = context.read<RequestsBloc>();
 
+    void openFulfill(ServiceRequest request) {
+      FulfillRequestSheet.show(
+        context,
+        request: request,
+        onComplete: (payload) {
+          bloc.add(ActionRequested(id: request.id, action: 'complete', payload: payload));
+        },
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.space5),
       child: Column(
@@ -321,9 +332,7 @@ class _StoreGroup extends StatelessWidget {
                       button: true,
                       label: 'Mark ${request.title} as picked up',
                       child: InkResponse(
-                        onTap: () => bloc.add(
-                          ActionRequested(id: request.id, action: 'complete'),
-                        ),
+                        onTap: () => openFulfill(request),
                         radius: 24,
                         child: SizedBox(
                           width: 44,
@@ -346,31 +355,48 @@ class _StoreGroup extends StatelessWidget {
                     ),
                     const SizedBox(width: AppTheme.space2),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            request.title,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.ink,
-                            ),
-                          ),
-                          if (request.quantity != null ||
-                              request.assigneeName != null)
+                      child: InkWell(
+                        onTap: () => openFulfill(request),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              [
-                                if (request.quantity != null) request.quantity!,
-                                if (request.assigneeName != null)
-                                  'for ${request.assigneeName}',
-                              ].join(' · '),
+                              request.title,
                               style: const TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.muted,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.ink,
                               ),
                             ),
-                        ],
+                            if (request.items.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                '${request.items.length} item${request.items.length == 1 ? '' : 's'}: ${request.items.map((i) => i.name).join(', ')}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.secondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                            if (request.quantity != null ||
+                                request.assigneeName != null)
+                              Text(
+                                [
+                                  if (request.quantity != null) 'Asked: ${request.quantity}',
+                                  if (request.quantityGot != null) 'Got: ${request.quantityGot}',
+                                  if (request.assigneeName != null)
+                                    'for ${request.assigneeName}',
+                                ].join(' · '),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.muted,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                     // M-06n: out-of-stock / substitution path. Flags the item
@@ -488,3 +514,4 @@ class _PantryPulseCard extends StatelessWidget {
     );
   }
 }
+

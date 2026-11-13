@@ -7,6 +7,8 @@ class ServiceRequestModel extends ServiceRequest {
     required super.status,
     required super.priority,
     super.quantity,
+    super.quantityGot,
+    super.items,
     super.notes,
     super.category,
     super.storeName,
@@ -39,6 +41,11 @@ class ServiceRequestModel extends ServiceRequest {
       status: json['status'] as String,
       priority: json['priority'] as String,
       quantity: json['quantity'] as String?,
+      quantityGot: json['quantity_got'] as String?,
+      items: (json['items'] as List? ?? const [])
+          .whereType<Map>()
+          .map((item) => RequestItem.fromJson(Map<String, dynamic>.from(item)))
+          .toList(),
       notes: json['notes'] as String?,
       category: json['category'] as String?,
       storeName: json['store_name'] as String?,

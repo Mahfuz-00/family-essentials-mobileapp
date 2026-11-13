@@ -41,9 +41,12 @@ class RequestsRepositoryImpl implements RequestsRepository {
     int? placeId,
     int? triggerPlaceId,
     String? triggerDirection,
+    List<Map<String, dynamic>>? items,
+    int? ledgerId,
+    int? amountMinor,
   }) {
     return _guard(() async {
-      final data = await _remote.create({
+      final payload = <String, dynamic>{
         'title': title,
         'quantity': quantity,
         'store_name': storeName,
@@ -53,7 +56,15 @@ class RequestsRepositoryImpl implements RequestsRepository {
         'place_id': placeId,
         'location_trigger_place_id': triggerPlaceId,
         'location_trigger_direction': triggerDirection,
-      });
+        'ledger_id': ledgerId,
+        'amount_minor': amountMinor,
+      }..removeWhere((_, value) => value == null);
+
+      if (items != null && items.isNotEmpty) {
+        payload['items'] = items;
+      }
+
+      final data = await _remote.create(payload);
 
       return ServiceRequestModel.fromJson(
         (data['data'] as Map).cast<String, dynamic>(),

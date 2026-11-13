@@ -17,6 +17,9 @@ abstract class RequestsRepository {
     int? placeId,
     int? triggerPlaceId,
     String? triggerDirection,
+    List<Map<String, dynamic>>? items,
+    int? ledgerId,
+    int? amountMinor,
   });
 
   /// Change the member's reminder cue on an existing task. Passing null for both

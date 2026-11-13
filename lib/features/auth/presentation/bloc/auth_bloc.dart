@@ -56,6 +56,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         phone: event.phone,
         password: event.password,
         passwordConfirmation: event.passwordConfirmation,
+        householdName: event.householdName,
+        currency: event.currency,
+        monthlyBudgetMinor: event.monthlyBudgetMinor,
+        yearlyBudgetMinor: event.yearlyBudgetMinor,
       );
 
       _user = user;

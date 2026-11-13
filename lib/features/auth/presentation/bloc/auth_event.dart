@@ -22,6 +22,10 @@ class RegisterRequested extends AuthEvent {
     required this.name,
     required this.email,
     required this.phone,
+    this.householdName,
+    this.currency = 'USD',
+    this.monthlyBudgetMinor,
+    this.yearlyBudgetMinor,
     required this.password,
     required this.passwordConfirmation,
   });
@@ -29,6 +33,10 @@ class RegisterRequested extends AuthEvent {
   final String name;
   final String email;
   final String phone;
+  final String? householdName;
+  final String currency;
+  final int? monthlyBudgetMinor;
+  final int? yearlyBudgetMinor;
   final String password;
   final String passwordConfirmation;
 
@@ -37,6 +45,10 @@ class RegisterRequested extends AuthEvent {
     name,
     email,
     phone,
+    householdName,
+    currency,
+    monthlyBudgetMinor,
+    yearlyBudgetMinor,
     password,
     passwordConfirmation,
   ];

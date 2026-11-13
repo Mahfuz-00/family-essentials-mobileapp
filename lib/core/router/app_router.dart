@@ -6,6 +6,7 @@ import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/settings_page.dart';
 import '../../features/auth/presentation/pages/verify_phone_page.dart';
 import '../../features/feedback/presentation/pages/feedback_page.dart';
+import '../../features/ledger/presentation/pages/ledger_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/pantry/presentation/pages/pantry_page.dart';
 import '../../features/places/presentation/pages/places_page.dart';
@@ -176,6 +177,17 @@ class AppRouter {
                   key: state.pageKey,
                   child: const ShoppingPage(),
                 ),
+              ),
+              GoRoute(
+                path: '/budget',
+                pageBuilder: (context, state) => _buildFadeSlidePage(
+                  key: state.pageKey,
+                  child: const LedgerPage(),
+                ),
+              ),
+              GoRoute(
+                path: '/ledger',
+                redirect: (context, state) => '/budget',
               ),
               GoRoute(
                 path: '/pantry',

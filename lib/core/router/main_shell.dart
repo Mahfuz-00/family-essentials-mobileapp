@@ -29,6 +29,12 @@ class MainShell extends StatefulWidget {
           activeIcon: Icons.shopping_basket,
         ),
         (
+          path: '/budget',
+          label: 'Budget',
+          icon: Icons.account_balance_wallet_outlined,
+          activeIcon: Icons.account_balance_wallet,
+        ),
+        (
           path: '/places',
           label: 'Places',
           icon: Icons.pin_drop_outlined,
@@ -55,8 +61,8 @@ class _MainShellState extends State<MainShell> {
   }
 
   /// Pantry is a sub-screen of the shopping tab, so it keeps Shopping lit;
-  /// recurring rules belong to Today.
-  static const _tabAliases = <String, int>{'/pantry': 1, '/recurring': 0};
+  /// recurring rules belong to Today; ledger alias keeps Budget lit.
+  static const _tabAliases = <String, int>{'/pantry': 1, '/recurring': 0, '/ledger': 2};
 
   int get _index {
     for (final alias in _tabAliases.entries) {

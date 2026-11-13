@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../config/app_config.dart';
 import '../storage/secure_storage.dart';
+import 'demo_mock_interceptor.dart';
 
 class DioClient {
   DioClient(this._storage) {
@@ -13,6 +14,8 @@ class DioClient {
         receiveTimeout: const Duration(seconds: 15),
       ),
     );
+
+    dio.interceptors.add(DemoMockInterceptor());
 
     dio.interceptors.add(
       InterceptorsWrapper(

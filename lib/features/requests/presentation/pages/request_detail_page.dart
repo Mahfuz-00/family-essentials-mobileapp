@@ -9,6 +9,7 @@ import '../../domain/entities/service_request.dart';
 import '../bloc/requests_bloc.dart';
 import '../bloc/requests_event.dart';
 import '../bloc/requests_state.dart';
+import '../widgets/fulfill_sheet.dart';
 import '../widgets/reminder_cue.dart';
 
 class RequestDetailPage extends StatelessWidget {
@@ -53,6 +54,18 @@ class _RequestDetailView extends StatelessWidget {
         ),
       );
     });
+  }
+
+  void _openFulfillSheet(BuildContext context, ServiceRequest request) {
+    FulfillRequestSheet.show(
+      context,
+      request: request,
+      onComplete: (payload) {
+        context.read<RequestsBloc>().add(
+              ActionRequested(id: request.id, action: 'complete', payload: payload),
+            );
+      },
+    );
   }
 
   @override
@@ -145,6 +158,47 @@ class _RequestDetailView extends StatelessWidget {
         ),
         const SizedBox(height: AppTheme.space3),
 
+        if (request.items.isNotEmpty) ...[
+          WarmCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SectionHeader(
+                  title: 'Items in this errand',
+                  count: request.items.length,
+                ),
+                const SizedBox(height: AppTheme.space3),
+                for (final item in request.items)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.ink,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          [
+                            if (item.quantityAsked != null) 'Asked: ${item.quantityAsked}',
+                            if (item.quantityGot != null) 'Got: ${item.quantityGot}',
+                          ].join(' · '),
+                          style: const TextStyle(fontSize: 13, color: AppTheme.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTheme.space3),
+        ],
+
         // The cue the member actually set, in one line, with a way to change it.
         WarmCard(
           child: Column(
@@ -194,11 +248,10 @@ class _RequestDetailView extends StatelessWidget {
                 child: const Text('Start'),
               ),
             if (request.isOpen)
-              FilledButton(
-                onPressed: () => context.read<RequestsBloc>().add(
-                  ActionRequested(id: request.id, action: 'complete'),
-                ),
-                child: const Text('Mark done'),
+              FilledButton.icon(
+                icon: const Icon(Icons.check_circle_outline, size: 18),
+                onPressed: () => _openFulfillSheet(context, request),
+                label: const Text('Fulfill & Complete'),
               ),
             if (request.isOpen)
               OutlinedButton(
@@ -297,7 +350,9 @@ class _RequestDetailView extends StatelessWidget {
   List<({String label, String value})> _facts(ServiceRequest request) {
     return [
       if (request.quantity != null)
-        (label: 'Quantity', value: request.quantity!),
+        (label: 'Quantity asked', value: request.quantity!),
+      if (request.quantityGot != null)
+        (label: 'Quantity got', value: request.quantityGot!),
       if (request.storeName != null)
         (label: 'Store', value: request.storeName!),
       if (request.assigneeName != null)

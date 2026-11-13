@@ -24,6 +24,9 @@ class RequestSubmitted extends RequestsEvent {
   const RequestSubmitted({
     required this.title,
     this.quantity,
+    this.items,
+    this.ledgerId,
+    this.amountMinor,
     this.storeName,
     this.priority = 'normal',
     this.dueAt,
@@ -35,6 +38,9 @@ class RequestSubmitted extends RequestsEvent {
 
   final String title;
   final String? quantity;
+  final List<Map<String, dynamic>>? items;
+  final int? ledgerId;
+  final int? amountMinor;
   final String? storeName;
   final String priority;
   final DateTime? dueAt;
@@ -51,6 +57,9 @@ class RequestSubmitted extends RequestsEvent {
   List<Object?> get props => [
     title,
     quantity,
+    items,
+    ledgerId,
+    amountMinor,
     storeName,
     priority,
     dueAt,

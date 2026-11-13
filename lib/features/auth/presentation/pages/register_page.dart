@@ -19,27 +19,51 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _name = TextEditingController();
   final TextEditingController _email = TextEditingController();
   final TextEditingController _phone = TextEditingController();
+  final TextEditingController _householdName = TextEditingController();
+  final TextEditingController _monthlyBudget = TextEditingController();
   final TextEditingController _password = TextEditingController();
   final TextEditingController _confirm = TextEditingController();
+  String _currency = 'USD';
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+
+  static const List<Map<String, String>> _currencies = [
+    {'code': 'USD', 'label': 'USD (\$) - US Dollar'},
+    {'code': 'EUR', 'label': 'EUR (€) - Euro'},
+    {'code': 'GBP', 'label': 'GBP (£) - British Pound'},
+    {'code': 'CAD', 'label': 'CAD (\$) - Canadian Dollar'},
+    {'code': 'AUD', 'label': 'AUD (\$) - Australian Dollar'},
+    {'code': 'JPY', 'label': 'JPY (¥) - Japanese Yen'},
+    {'code': 'INR', 'label': 'INR (₹) - Indian Rupee'},
+    {'code': 'BDT', 'label': 'BDT (৳) - Bangladeshi Taka'},
+  ];
 
   @override
   void dispose() {
     _name.dispose();
     _email.dispose();
     _phone.dispose();
+    _householdName.dispose();
+    _monthlyBudget.dispose();
     _password.dispose();
     _confirm.dispose();
     super.dispose();
   }
 
   void _submit() {
+    final budgetVal = double.tryParse(_monthlyBudget.text.trim());
+    final monthlyMinor = budgetVal != null ? (budgetVal * 100).round() : null;
+    final yearlyMinor = monthlyMinor != null ? monthlyMinor * 12 : null;
+
     context.read<AuthBloc>().add(
       RegisterRequested(
         name: _name.text.trim(),
         email: _email.text.trim(),
         phone: _phone.text.trim(),
+        householdName: _householdName.text.trim().isNotEmpty ? _householdName.text.trim() : null,
+        currency: _currency,
+        monthlyBudgetMinor: monthlyMinor,
+        yearlyBudgetMinor: yearlyMinor,
         password: _password.text,
         passwordConfirmation: _confirm.text,
       ),
@@ -101,6 +125,41 @@ class _RegisterPageState extends State<RegisterPage> {
                       keyboardType: TextInputType.phone,
                       decoration: const InputDecoration(
                         labelText: 'Phone number',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _householdName,
+                      decoration: const InputDecoration(
+                        labelText: 'Household name (optional)',
+                        hintText: 'e.g. Miller Family',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: _currency,
+                      decoration: const InputDecoration(
+                        labelText: 'Preferred currency',
+                      ),
+                      items: _currencies.map((c) {
+                        return DropdownMenuItem<String>(
+                          value: c['code'],
+                          child: Text(c['label']!),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => _currency = val);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _monthlyBudget,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Starting monthly budget (optional)',
+                        hintText: 'e.g. 2500',
                       ),
                     ),
                     const SizedBox(height: 12),

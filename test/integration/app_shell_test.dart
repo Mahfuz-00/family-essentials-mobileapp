@@ -35,7 +35,7 @@ void main() {
     );
   }
 
-  testWidgets('offers the four household tabs', (tester) async {
+  testWidgets('offers the household navigation tabs', (tester) async {
     await tester.pumpWidget(harness('/today'));
 
     for (final destination in MainShell.destinations) {
@@ -69,6 +69,17 @@ void main() {
     await tester.pumpWidget(harness('/places/42'));
 
     final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-    expect(bar.selectedIndex, 2);
+    final placesIndex = MainShell.destinations.indexWhere((d) => d.path == '/places');
+    expect(bar.selectedIndex, placesIndex);
+  });
+
+  testWidgets('lights the budget tab for budget route', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness('/budget'));
+
+    final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+    final budgetIndex = MainShell.destinations.indexWhere((d) => d.path == '/budget');
+    expect(bar.selectedIndex, budgetIndex);
   });
 }
