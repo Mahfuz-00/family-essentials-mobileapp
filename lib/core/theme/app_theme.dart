@@ -24,6 +24,7 @@ class AppTheme {
 
   static const Color tertiary = Color(0xFF97422B);
   static const Color onTertiary = Color(0xFFFFFFFF);
+  static const Color accent = Color(0xFFE76F51);
 
   static const Color canvas = Color(0xFFFDFCF7);
   static const Color surface = Color(0xFFFFFFFF);

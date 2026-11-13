@@ -21,6 +21,10 @@ class Essential extends Equatable {
     this.daysUntilDue,
     this.isDue = false,
     this.dueReason,
+    this.unitPriceMinor = 350,
+    this.lastSpentMinor = 0,
+    this.totalSpentMinor = 0,
+    this.projectedRestockMinor = 0,
   });
 
   final int id;
@@ -36,6 +40,10 @@ class Essential extends Equatable {
   final DateTime? nextDueAt;
   final int? daysUntilDue;
   final bool isDue;
+  final int unitPriceMinor;
+  final int lastSpentMinor;
+  final int totalSpentMinor;
+  final int projectedRestockMinor;
 
   /// 'safety_stock' or 'cadence' when due, otherwise null.
   final String? dueReason;
@@ -58,6 +66,10 @@ class Essential extends Equatable {
     daysUntilDue,
     isDue,
     dueReason,
+    unitPriceMinor,
+    lastSpentMinor,
+    totalSpentMinor,
+    projectedRestockMinor,
   ];
 }
 
@@ -68,15 +80,26 @@ class PantrySummary extends Equatable {
     this.due = 0,
     this.safetyStock = 0,
     this.cadence = 0,
+    this.totalSpentMinor = 0,
+    this.projectedRestockMinor = 0,
   });
 
   final int total;
   final int due;
   final int safetyStock;
   final int cadence;
+  final int totalSpentMinor;
+  final int projectedRestockMinor;
 
   @override
-  List<Object?> get props => [total, due, safetyStock, cadence];
+  List<Object?> get props => [
+        total,
+        due,
+        safetyStock,
+        cadence,
+        totalSpentMinor,
+        projectedRestockMinor,
+      ];
 }
 
 class PantrySnapshot extends Equatable {

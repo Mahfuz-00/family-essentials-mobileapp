@@ -10,6 +10,7 @@ class PlacesBloc extends Bloc<PlacesEvent, PlacesState> {
   PlacesBloc(this._repository, [this._geofenceManager]) : super(const PlacesInitial()) {
     on<PlacesRequested>(_onRequested);
     on<PlaceCreated>(_onCreated);
+    on<PlaceUpdated>(_onUpdated);
     on<PlaceDeleted>(_onDeleted);
   }
 
@@ -44,6 +45,25 @@ class PlacesBloc extends Bloc<PlacesEvent, PlacesState> {
       );
 
       emit(const PlacesActionSuccess('Place saved.'));
+    } on AppFailure catch (failure) {
+      emit(PlacesFailure(failure.message));
+    }
+  }
+
+  Future<void> _onUpdated(PlaceUpdated event, Emitter<PlacesState> emit) async {
+    emit(const PlacesLoading());
+
+    try {
+      await _repository.update(
+        event.id,
+        name: event.name,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        radiusMeters: event.radiusMeters,
+        category: event.category,
+      );
+
+      emit(const PlacesActionSuccess('Place updated.'));
     } on AppFailure catch (failure) {
       emit(PlacesFailure(failure.message));
     }

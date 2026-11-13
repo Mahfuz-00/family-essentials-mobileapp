@@ -24,6 +24,18 @@ class PlacesRemoteDataSource {
     return (response.data!['data'] as Map).cast<String, dynamic>();
   }
 
+  Future<Map<String, dynamic>> update(
+    int id,
+    Map<String, dynamic> payload,
+  ) async {
+    final response = await _dio.patch<Map<String, dynamic>>(
+      '/v1/places/$id',
+      data: payload,
+    );
+
+    return (response.data!['data'] as Map).cast<String, dynamic>();
+  }
+
   Future<void> remove(int id) => _dio.delete<void>('/v1/places/$id');
 
   Future<Map<String, dynamic>> reportPosition(

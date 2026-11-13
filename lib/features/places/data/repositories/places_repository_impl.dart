@@ -40,6 +40,30 @@ class PlacesRepositoryImpl implements PlacesRepository {
   }
 
   @override
+  Future<Place> update(
+    int id, {
+    String? name,
+    double? latitude,
+    double? longitude,
+    int? radiusMeters,
+    String? address,
+    String? category,
+  }) {
+    return _guard(() async {
+      final payload = <String, dynamic>{};
+      if (name != null) payload['name'] = name;
+      if (latitude != null) payload['latitude'] = latitude;
+      if (longitude != null) payload['longitude'] = longitude;
+      if (radiusMeters != null) payload['radius_meters'] = radiusMeters;
+      if (address != null) payload['address'] = address;
+      if (category != null) payload['category'] = category;
+
+      final data = await _remote.update(id, payload);
+      return PlaceModel.fromJson(data);
+    });
+  }
+
+  @override
   Future<void> remove(int id) => _guard(() => _remote.remove(id));
 
   @override

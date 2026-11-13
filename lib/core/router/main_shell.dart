@@ -166,21 +166,39 @@ class _MainShellState extends State<MainShell> {
         ],
       ),
       body: widget.child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (index) =>
-            context.go(MainShell.destinations[index].path),
-        backgroundColor: AppTheme.surface,
-        indicatorColor: AppTheme.forestSoft,
-        height: 68,
-        destinations: [
-          for (final entry in MainShell.destinations)
-            NavigationDestination(
-              icon: Icon(entry.icon, color: AppTheme.muted),
-              selectedIcon: Icon(entry.activeIcon, color: AppTheme.secondary),
-              label: entry.label,
-            ),
-        ],
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          indicatorColor: AppTheme.forestSoft,
+          labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.secondary,
+              );
+            }
+            return const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.muted,
+            );
+          }),
+        ),
+        child: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (index) =>
+              context.go(MainShell.destinations[index].path),
+          backgroundColor: AppTheme.surface,
+          height: 68,
+          destinations: [
+            for (final entry in MainShell.destinations)
+              NavigationDestination(
+                icon: Icon(entry.icon, color: AppTheme.muted),
+                selectedIcon: Icon(entry.activeIcon, color: AppTheme.secondary),
+                label: entry.label,
+              ),
+          ],
+        ),
       ),
     );
   }

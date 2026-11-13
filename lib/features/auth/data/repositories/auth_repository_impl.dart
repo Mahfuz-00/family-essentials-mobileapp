@@ -39,6 +39,8 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       await _storage.saveToken(result.token);
+      await _storage.saveUserName(result.user.name);
+      await _storage.saveUserEmail(result.user.email);
 
       return result.user;
     });
@@ -49,13 +51,20 @@ class AuthRepositoryImpl implements AuthRepository {
     return _guard(() async {
       final result = await _remote.login(email: email, password: password);
       await _storage.saveToken(result.token);
+      await _storage.saveUserName(result.user.name);
+      await _storage.saveUserEmail(result.user.email);
 
       return result.user;
     });
   }
 
   @override
-  Future<User> me() => _guard(_remote.me);
+  Future<User> me() => _guard(() async {
+        final user = await _remote.me();
+        await _storage.saveUserName(user.name);
+        await _storage.saveUserEmail(user.email);
+        return user;
+      });
 
   @override
   Future<List<Membership>> memberships() => _guard(_remote.memberships);

@@ -211,7 +211,20 @@ class _QuickAddFormState extends State<_QuickAddForm> {
     final shop = _places.where((p) => p.id == _shopId).firstOrNull;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('New request')),
+      appBar: AppBar(
+        title: const Text('New request'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/today');
+            }
+          },
+        ),
+      ),
       backgroundColor: AppTheme.canvas,
       body: SafeArea(
         child: BlocConsumer<RequestsBloc, RequestsState>(

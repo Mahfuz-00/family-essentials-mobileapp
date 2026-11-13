@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -52,7 +53,20 @@ class _FeedbackViewState extends State<_FeedbackView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.canvas,
-      appBar: AppBar(title: const Text('Help & feedback')),
+      appBar: AppBar(
+        title: const Text('Help & feedback'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/today');
+            }
+          },
+        ),
+      ),
       body: SafeArea(
         child: BlocConsumer<FeedbackBloc, FeedbackState>(
           listener: (context, state) {

@@ -149,8 +149,17 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
 
   Widget _body(BuildContext context, RequestsState state) {
     if (state is RequestsLoading || state is RequestsInitial) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppTheme.secondary),
+      return ListView(
+        padding: const EdgeInsets.all(AppTheme.space4),
+        children: const [
+          ShimmerWarmCard(height: 90),
+          SizedBox(height: AppTheme.space3),
+          ShimmerWarmCard(height: 110),
+          SizedBox(height: AppTheme.space3),
+          ShimmerWarmCard(height: 110),
+          SizedBox(height: AppTheme.space3),
+          ShimmerWarmCard(height: 110),
+        ],
       );
     }
 

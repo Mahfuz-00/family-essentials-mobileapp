@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injector.dart';
 import '../../../../core/network/dio_client.dart';
@@ -194,6 +195,17 @@ class _ReceiptScanPageState extends State<ReceiptScanPage> {
       backgroundColor: AppTheme.canvas,
       appBar: AppBar(
         title: const Text('Receipt Scanner (OCR)'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/today');
+            }
+          },
+        ),
       ),
       body: SafeArea(
         child: ListView(

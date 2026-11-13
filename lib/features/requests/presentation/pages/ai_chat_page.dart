@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/di/injector.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/theme/warm_widgets.dart';
 
 class ChatMessage {
   ChatMessage({
@@ -96,6 +95,32 @@ class _AiChatPageState extends State<AiChatPage> {
       return;
     }
 
+    if (lower.contains('pantry') || lower.contains('stock') || lower.contains('milk') || lower.contains('grocery') || lower.contains('groceries')) {
+      try {
+        if (getIt.isRegistered<DioClient>()) {
+          final dio = getIt<DioClient>().dio;
+          final res = await dio.get<Map<String, dynamic>>('/v1/essentials/summary');
+          if (res.data != null && mounted) {
+            final low = res.data!['low_stock_count'] ?? 0;
+            final totalSpent = (((res.data!['total_spent_minor'] ?? 0) as num) / 100).toStringAsFixed(2);
+            final restockCost = (((res.data!['projected_restock_minor'] ?? 0) as num) / 100).toStringAsFixed(2);
+            setState(() {
+              _messages.add(
+                ChatMessage(
+                  text: 'Pantry & Grocery Status:\n• Low Stock Items: $low alert(s)\n• Total Spent on Pantry: \$$totalSpent\n• Projected Restock Needed: \$$restockCost\nCheck the Pantry Pulse tab for individual unit levels.',
+                  isUser: false,
+                  time: 'Now',
+                ),
+              );
+              _isSending = false;
+            });
+            _scrollToBottom();
+            return;
+          }
+        }
+      } catch (_) {}
+    }
+
     try {
       if (getIt.isRegistered<DioClient>()) {
         final dio = getIt<DioClient>().dio;
@@ -148,6 +173,17 @@ class _AiChatPageState extends State<AiChatPage> {
     return Scaffold(
       backgroundColor: AppTheme.canvas,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/today');
+            }
+          },
+        ),
         title: const Row(
           children: [
             Icon(Icons.auto_awesome, color: AppTheme.secondary, size: 20),

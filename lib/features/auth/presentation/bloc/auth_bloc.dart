@@ -220,7 +220,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _emitMemberships(Emitter<AuthState> emit, User user) async {
     try {
       final memberships = await _repository.memberships();
-      if (memberships != null && memberships.isNotEmpty) {
+      if (memberships.isNotEmpty) {
         emit(AuthMembershipsLoaded(user, memberships));
       } else {
         emit(AuthAuthenticated(user));

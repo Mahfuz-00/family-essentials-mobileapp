@@ -57,8 +57,17 @@ class _ShoppingViewState extends State<_ShoppingView> {
         },
         builder: (context, state) {
           if (state is RequestsLoading || state is RequestsInitial) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppTheme.secondary),
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+              children: const [
+                ShimmerWarmCard(height: 80),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 120),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 120),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 120),
+              ],
             );
           }
 
@@ -81,7 +90,7 @@ class _ShoppingViewState extends State<_ShoppingView> {
           if (unique.isEmpty) {
             // M-06q: every item is picked up — offer the checkout hand-off.
             return ListView(
-              padding: const EdgeInsets.all(AppTheme.space4),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
               children: [
                 const _PantryPulseCard(),
                 const SizedBox(height: AppTheme.space4),

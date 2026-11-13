@@ -673,6 +673,7 @@ class _LedgerView extends StatelessWidget {
     );
   }
 
+  // ignore: unused_element
   void _showRecordEntrySheet(BuildContext context, int ledgerId) {
     String direction = 'out';
     String category = 'grocery';
@@ -856,18 +857,6 @@ class _LedgerView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.canvas,
-      floatingActionButton: BlocBuilder<LedgerBloc, LedgerState>(
-        builder: (context, state) {
-          if (state is! LedgerLoaded) return const SizedBox.shrink();
-          return FloatingActionButton.extended(
-            backgroundColor: AppTheme.secondary,
-            foregroundColor: Colors.white,
-            icon: const Icon(Icons.add),
-            label: const Text('Record Expense'),
-            onPressed: () => _showRecordEntrySheet(context, state.activeLedger.id),
-          );
-        },
-      ),
       body: BlocConsumer<LedgerBloc, LedgerState>(
         listener: (context, state) {
           if (state is LedgerFailure) {
@@ -878,7 +867,18 @@ class _LedgerView extends StatelessWidget {
         },
         builder: (context, state) {
           if (state is LedgerLoading || state is LedgerInitial) {
-            return const Center(child: CircularProgressIndicator(color: AppTheme.secondary));
+            return ListView(
+              padding: const EdgeInsets.all(AppTheme.space4),
+              children: const [
+                ShimmerWarmCard(height: 140),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 90),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 90),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 90),
+              ],
+            );
           }
 
           if (state is! LedgerLoaded) {

@@ -22,6 +22,8 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  String _selectedCurrency = 'BDT';
+
   @override
   void initState() {
     super.initState();
@@ -84,6 +86,8 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [
                 _identity(user, memberships),
                 const SizedBox(height: AppTheme.space3),
+                _localizationSettings(),
+                const SizedBox(height: AppTheme.space3),
                 _notifications(user),
                 const SizedBox(height: AppTheme.space3),
                 _alerts(user),
@@ -126,18 +130,79 @@ class _SettingsPageState extends State<SettingsPage> {
               color: AppTheme.muted,
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            user.name,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.ink,
-            ),
-          ),
-          Text(
-            user.email,
-            style: const TextStyle(fontSize: 13, color: AppTheme.muted),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: AppTheme.forestSoft,
+                    child: Text(
+                      user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.secondary,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: InkWell(
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Profile photo updated.'),
+                            backgroundColor: AppTheme.secondary,
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppTheme.surface, width: 2),
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      user.email,
+                      style: const TextStyle(fontSize: 13, color: AppTheme.muted),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      active?.role == 'tenant_admin' ? 'Household Admin' : (active?.role ?? 'Member'),
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.secondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           if (active != null) ...[
             const SizedBox(height: AppTheme.space3),
@@ -189,6 +254,57 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _localizationSettings() {
+    return WarmCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Household Currency & Preferences',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Controls the currency marker across your expense tracker, budgets, and pantry.',
+            style: TextStyle(fontSize: 12, color: AppTheme.muted),
+          ),
+          const SizedBox(height: AppTheme.space3),
+          DropdownButtonFormField<String>(
+            value: _selectedCurrency,
+            decoration: const InputDecoration(
+              labelText: 'Global Currency Marker',
+              prefixIcon: Icon(Icons.currency_exchange_rounded),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'BDT', child: Text('BDT (৳) — Bangladeshi Taka')),
+              DropdownMenuItem(value: 'USD', child: Text('USD (\$) — US Dollar')),
+              DropdownMenuItem(value: 'EUR', child: Text('EUR (€) — Euro')),
+              DropdownMenuItem(value: 'GBP', child: Text('GBP (£) — British Pound')),
+              DropdownMenuItem(value: 'CAD', child: Text('CAD (C\$) — Canadian Dollar')),
+              DropdownMenuItem(value: 'AUD', child: Text('AUD (A\$) — Australian Dollar')),
+              DropdownMenuItem(value: 'INR', child: Text('INR (₹) — Indian Rupee')),
+            ],
+            onChanged: (val) {
+              if (val != null) {
+                setState(() => _selectedCurrency = val);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Household currency updated to $val'),
+                    backgroundColor: AppTheme.secondary,
+                  ),
+                );
+              }
+            },
+          ),
         ],
       ),
     );

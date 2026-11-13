@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/settings_page.dart';
+import '../../features/auth/presentation/pages/splash_screen.dart';
 import '../../features/auth/presentation/pages/verify_phone_page.dart';
 import '../../features/billing/presentation/pages/billing_page.dart';
 import '../../features/feedback/presentation/pages/feedback_page.dart';
@@ -53,12 +54,15 @@ CustomTransitionPage<void> _buildFadeSlidePage({
 class AppRouter {
   AppRouter(AuthSession session)
     : router = GoRouter(
-        initialLocation: '/today',
+        initialLocation: '/splash',
         refreshListenable: Listenable.merge([
           session.isAuthenticated,
           session.hasSeenOnboarding,
         ]),
         redirect: (context, state) {
+          final isSplash = state.matchedLocation == '/splash';
+          if (isSplash) return null;
+
           final loggedIn = session.isAuthenticated.value;
           final seenOnboarding = session.hasSeenOnboarding.value;
           final isAuthRoute =
@@ -90,6 +94,13 @@ class AppRouter {
           return null;
         },
         routes: [
+          GoRoute(
+            path: '/splash',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const SplashScreen(),
+            ),
+          ),
           GoRoute(
             path: '/onboarding',
             pageBuilder: (context, state) => _buildFadeSlidePage(

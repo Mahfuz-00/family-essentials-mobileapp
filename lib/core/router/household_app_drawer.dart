@@ -476,7 +476,14 @@ class HouseholdAppDrawer extends StatelessWidget {
               : null,
           onTap: () {
             Navigator.of(context).pop(); // Close drawer
-            if (path.startsWith('/')) {
+            if (path == currentLocation) return;
+            if (path == '/requests/new' ||
+                path == '/billing' ||
+                path == '/receipt/scan' ||
+                path == '/chat' ||
+                path == '/feedback') {
+              context.push(path);
+            } else if (path.startsWith('/')) {
               context.go(path);
             }
           },
