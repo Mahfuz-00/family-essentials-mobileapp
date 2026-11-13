@@ -65,8 +65,24 @@ class _BillingPageState extends State<BillingPage> {
     setState(() => _isLoading = true);
 
     try {
+      final savedTier = await getIt<SecureStorage>().readActiveTier();
+      if (savedTier != null && savedTier.isNotEmpty) {
+        _activeTier = savedTier;
+      }
       if (getIt.isRegistered<DioClient>()) {
         final dio = getIt<DioClient>().dio;
+        try {
+          final quotaRes = await dio.get<Map<String, dynamic>>(
+            '/v1/tenant/quotas',
+          );
+          final planObj = quotaRes.data?['plan'];
+          if (planObj is Map && planObj['key'] is String) {
+            final serverKey = planObj['key'] as String;
+            _activeTier = serverKey == 'standard' ? 'household_pro' : serverKey;
+            await getIt<SecureStorage>().saveActiveTier(_activeTier);
+          }
+        } catch (_) {}
+
         final invRes = await dio.get<Map<String, dynamic>>('/v1/billing/invoices');
         final pmRes = await dio.get<Map<String, dynamic>>('/v1/billing/payment-methods');
 
@@ -245,6 +261,8 @@ class _BillingPageState extends State<BillingPage> {
       createdAt: DateTime.now().toIso8601String().split('T').first,
       paidAt: isCash ? null : DateTime.now().toIso8601String().split('T').first,
     );
+
+    await getIt<SecureStorage>().saveActiveTier(newTier);
 
     if (mounted) {
       setState(() {
@@ -527,7 +545,18 @@ class _BillingPageState extends State<BillingPage> {
           ),
         ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.secondary))
+          ? ListView(
+              padding: const EdgeInsets.all(AppTheme.space4),
+              children: const [
+                ShimmerWarmCard(height: 210),
+                SizedBox(height: AppTheme.space4),
+                ShimmerWarmCard(height: 150),
+                SizedBox(height: 12),
+                ShimmerWarmCard(height: 150),
+                SizedBox(height: 12),
+                ShimmerWarmCard(height: 150),
+              ],
+            )
           : RefreshIndicator(
               onRefresh: _fetchBillingData,
               color: AppTheme.secondary,

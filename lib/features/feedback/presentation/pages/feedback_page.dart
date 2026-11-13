@@ -106,16 +106,13 @@ class _FeedbackViewState extends State<_FeedbackView> {
                 const SizedBox(height: AppTheme.space4),
                 SectionHeader(title: 'Your reports', count: reports.length),
                 const SizedBox(height: AppTheme.space3),
-                if (state is FeedbackLoading)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(
-                        color: AppTheme.secondary,
-                      ),
-                    ),
-                  )
-                else if (reports.isEmpty)
+                if (state is FeedbackLoading) ...[
+                  const ShimmerWarmCard(height: 92),
+                  const SizedBox(height: AppTheme.space2),
+                  const ShimmerWarmCard(height: 92),
+                  const SizedBox(height: AppTheme.space2),
+                  const ShimmerWarmCard(height: 92),
+                ] else if (reports.isEmpty)
                   const WarmEmptyState(
                     title: 'Nothing sent yet',
                     description:

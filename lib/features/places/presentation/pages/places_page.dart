@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/di/injector.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/storage/secure_storage.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/warm_widgets.dart';
 import '../../domain/entities/place.dart';
@@ -44,6 +46,45 @@ class _PlacesViewState extends State<_PlacesView> {
   Place? _selectedPlace;
   double _editRadius = 300;
   LatLng? _droppedPin = const LatLng(23.8103, 90.4125);
+  int _placeCap = 10;
+  String _planLabel = 'Pilot Family';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlanPlaceCap();
+  }
+
+  Future<void> _loadPlanPlaceCap() async {
+    try {
+      final savedTier = await getIt<SecureStorage>().readActiveTier();
+      if (savedTier == 'starter') {
+        _placeCap = 2;
+        _planLabel = 'Starter Family';
+      } else if (savedTier == 'household_pro' || savedTier == 'standard') {
+        _placeCap = 25;
+        _planLabel = 'Household Pro';
+      } else if (savedTier == 'enterprise') {
+        _placeCap = 100;
+        _planLabel = 'Enterprise';
+      }
+      if (getIt.isRegistered<DioClient>()) {
+        final res = await getIt<DioClient>().dio.get<Map<String, dynamic>>(
+          '/v1/tenant/quotas',
+        );
+        final plan = res.data?['plan'];
+        if (plan is Map) {
+          if (plan['place_cap'] is num) {
+            _placeCap = (plan['place_cap'] as num).toInt();
+          }
+          if (plan['label'] is String) {
+            _planLabel = plan['label'] as String;
+          }
+        }
+      }
+      if (mounted) setState(() {});
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -587,6 +628,23 @@ class _PlacesViewState extends State<_PlacesView> {
                           onPressed: state is PlacesLoading
                               ? null
                               : () {
+                                  if (places.length >= _placeCap) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Plan Limit Reached: $_planLabel allows up to $_placeCap saved places. Upgrade your plan for more.',
+                                        ),
+                                        backgroundColor: AppTheme.tertiary,
+                                        action: SnackBarAction(
+                                          label: 'Upgrade',
+                                          textColor: Colors.white,
+                                          onPressed: () =>
+                                              context.push('/billing'),
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
                                   if (_name.text.trim().isEmpty) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(content: Text('Please enter a place name')),
@@ -606,7 +664,11 @@ class _PlacesViewState extends State<_PlacesView> {
                                   _name.clear();
                                 },
                           icon: const Icon(Icons.add_location_alt_outlined, size: 18),
-                          label: const Text('Save Place to Household'),
+                          label: Text(
+                            places.length >= _placeCap
+                                ? 'Plan Limit Reached (${places.length}/$_placeCap)'
+                                : 'Save Place to Household (${places.length}/$_placeCap)',
+                          ),
                         ),
                       ],
                     ),
@@ -693,33 +755,154 @@ class _PlaceTile extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  Future<void> _openOpenStreetMap(BuildContext context) async {
-    final lat = place.latitude;
-    final lon = place.longitude;
-    final uri = Uri.parse(
-      'https://www.openstreetmap.org/?mlat=$lat&mlon=$lon#map=16/$lat/$lon',
+  void _openInAppMapModal(BuildContext context) {
+    final point = LatLng(place.latitude, place.longitude);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.outline.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.map_rounded, color: AppTheme.secondary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        place.name,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.ink,
+                        ),
+                      ),
+                      Text(
+                        'In-App OpenStreetMap · ${place.radiusMeters}m geofence · ${place.latitude.toStringAsFixed(4)}, ${place.longitude.toStringAsFixed(4)}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 320,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: point,
+                    initialZoom: 15.5,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName:
+                          'com.familyessentials.family_essentials_mobile',
+                    ),
+                    CircleLayer(
+                      circles: [
+                        CircleMarker(
+                          point: point,
+                          radius: place.radiusMeters.toDouble(),
+                          useRadiusInMeter: true,
+                          color: AppTheme.secondary.withValues(alpha: 0.22),
+                          borderColor: AppTheme.secondary,
+                          borderStrokeWidth: 2,
+                        ),
+                      ],
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: point,
+                          width: 44,
+                          height: 44,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppTheme.secondary,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.location_on_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      onTap();
+                    },
+                    icon: const Icon(Icons.tune_rounded, size: 16),
+                    label: const Text('Adjust Radius on Page'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      _simulate(context);
+                    },
+                    icon: const Icon(Icons.my_location_rounded, size: 16),
+                    label: const Text('Simulate Arrival'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not open OpenStreetMap link')),
-          );
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open map: $e')),
-        );
-      }
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final point = LatLng(place.latitude, place.longitude);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.space3),
       child: InkWell(
@@ -730,10 +913,11 @@ class _PlaceTile extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(
             AppTheme.space4,
             AppTheme.space3,
-            AppTheme.space2,
+            AppTheme.space3,
             AppTheme.space3,
           ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
@@ -764,7 +948,7 @@ class _PlaceTile extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: const Text(
-                                  'ON MAP',
+                                  'ACTIVE ON MAP',
                                   style: TextStyle(
                                     fontSize: 9,
                                     fontWeight: FontWeight.bold,
@@ -790,9 +974,9 @@ class _PlaceTile extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Adjust on OpenStreetMap',
-                    icon: const Icon(Icons.edit_location_alt_outlined, color: AppTheme.secondary),
-                    onPressed: onTap,
+                    tooltip: 'Inspect on In-App OpenStreetMap',
+                    icon: const Icon(Icons.map_outlined, color: AppTheme.secondary),
+                    onPressed: () => _openInAppMapModal(context),
                   ),
                   IconButton(
                     tooltip: 'Simulate arriving here',
@@ -807,41 +991,110 @@ class _PlaceTile extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              InkWell(
-                onTap: () => _openOpenStreetMap(context),
-                borderRadius: BorderRadius.circular(6),
+              const SizedBox(height: 10),
+              // Embedded In-App OpenStreetMap Preview (Point 6 — no external browser URL link)
+              GestureDetector(
+                onTap: () => _openInAppMapModal(context),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  height: 112,
                   decoration: BoxDecoration(
-                    color: AppTheme.secondary.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppTheme.secondary.withValues(alpha: 0.15),
+                      color: AppTheme.secondary.withValues(alpha: 0.25),
                     ),
                   ),
-                  child: Row(
+                  clipBehavior: Clip.antiAlias,
+                  child: Stack(
                     children: [
-                      const Icon(
-                        Icons.place_outlined,
-                        size: 14,
-                        color: AppTheme.secondary,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          'OpenStreetMap: ${place.latitude.toStringAsFixed(4)}, ${place.longitude.toStringAsFixed(4)} (tap to open browser)',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.secondary,
-                            fontWeight: FontWeight.w500,
+                      IgnorePointer(
+                        child: FlutterMap(
+                          options: MapOptions(
+                            initialCenter: point,
+                            initialZoom: 15.0,
                           ),
+                          children: [
+                            TileLayer(
+                              urlTemplate:
+                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              userAgentPackageName:
+                                  'com.familyessentials.family_essentials_mobile',
+                            ),
+                            CircleLayer(
+                              circles: [
+                                CircleMarker(
+                                  point: point,
+                                  radius: place.radiusMeters.toDouble(),
+                                  useRadiusInMeter: true,
+                                  color: AppTheme.secondary.withValues(
+                                    alpha: 0.2,
+                                  ),
+                                  borderColor: AppTheme.secondary,
+                                  borderStrokeWidth: 1.5,
+                                ),
+                              ],
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: point,
+                                  width: 32,
+                                  height: 32,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.secondary,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.location_on_rounded,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                      const Icon(
-                        Icons.open_in_new,
-                        size: 12,
-                        color: AppTheme.secondary,
+                      Positioned(
+                        right: 8,
+                        bottom: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surface.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppTheme.secondary.withValues(alpha: 0.25),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.fullscreen_rounded,
+                                size: 14,
+                                color: AppTheme.secondary,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'In-App OpenStreetMap',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.secondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),

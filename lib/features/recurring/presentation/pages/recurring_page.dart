@@ -109,8 +109,17 @@ class _RecurringView extends StatelessWidget {
         },
         builder: (context, state) {
           if (state is RecurringLoading || state is RecurringInitial) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppTheme.secondary),
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              children: const [
+                ShimmerWarmCard(height: 118),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 118),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 118),
+                SizedBox(height: AppTheme.space3),
+                ShimmerWarmCard(height: 118),
+              ],
             );
           }
 

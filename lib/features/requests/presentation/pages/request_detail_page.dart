@@ -255,8 +255,15 @@ class _RequestDetailView extends StatelessWidget {
           },
           builder: (context, state) {
             if (state is RequestsLoading || state is RequestsInitial) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppTheme.secondary),
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                children: const [
+                  ShimmerWarmCard(height: 110),
+                  SizedBox(height: AppTheme.space3),
+                  ShimmerWarmCard(height: 160),
+                  SizedBox(height: AppTheme.space3),
+                  ShimmerWarmCard(height: 130),
+                ],
               );
             }
 

@@ -227,7 +227,27 @@ class _LedgerViewState extends State<_LedgerView> {
               future: getIt<FinancesRemoteDataSource>().getOverview(),
               builder: (futureCtx, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: AppTheme.secondary));
+                  return ListView(
+                    controller: scrollCtrl,
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                    children: const [
+                      Row(
+                        children: [
+                          Expanded(child: ShimmerStatCard()),
+                          SizedBox(width: 8),
+                          Expanded(child: ShimmerStatCard()),
+                          SizedBox(width: 8),
+                          Expanded(child: ShimmerStatCard()),
+                        ],
+                      ),
+                      SizedBox(height: 14),
+                      ShimmerWarmCard(height: 110),
+                      SizedBox(height: 12),
+                      ShimmerWarmCard(height: 110),
+                      SizedBox(height: 12),
+                      ShimmerWarmCard(height: 110),
+                    ],
+                  );
                 }
 
                 if (snapshot.hasError || !snapshot.hasData) {
