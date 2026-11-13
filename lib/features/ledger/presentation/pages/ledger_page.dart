@@ -1153,55 +1153,9 @@ class _LedgerViewState extends State<_LedgerView> {
               context.read<LedgerBloc>().add(const LedgerPageStarted());
             },
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
               children: [
-                // Top Action Bar: Active Ledger + Record Entry button (opens modal sheet)
-                Row(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              ledger.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.ink,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            tooltip: 'Finances: Net Worth, Goals, Loans & Taxes',
-                            icon: const Icon(Icons.query_stats, size: 18, color: AppTheme.secondary),
-                            onPressed: () => _showFinancesSheet(context),
-                          ),
-                        ],
-                      ),
-                    ),
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppTheme.secondary,
-                        foregroundColor: Colors.white,
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      ),
-                      onPressed: () => _showRecordEntrySheet(context, ledger.id),
-                      icon: const Icon(Icons.add, size: 16),
-                      label: const Text(
-                        'Record Entry',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // SUBMODULE NAVIGATION BAR (at top over This period)
+                // SUBMODULE NAVIGATION BAR (flush at top over This period)
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
@@ -1401,21 +1355,49 @@ class _LedgerViewState extends State<_LedgerView> {
                   ),
                   const SizedBox(height: AppTheme.space4),
 
-                  // Household Ledger Entries Heading (no in-between dates)
+                  // Household Ledger Entries Heading + Record Entry action
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Household Ledger Entries',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.ink,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Flexible(
+                              child: Text(
+                                'Household Ledger Entries',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.ink,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              tooltip: 'Finances: Net Worth, Goals, Loans & Taxes',
+                              icon: const Icon(Icons.query_stats, size: 18, color: AppTheme.secondary),
+                              onPressed: () => _showFinancesSheet(context),
+                            ),
+                          ],
                         ),
                       ),
-                      PriorityChip(
-                        label: '${periodEntries.length} entries',
-                        tone: WarmTone.neutral,
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 34),
+                          backgroundColor: AppTheme.secondary,
+                          foregroundColor: Colors.white,
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        ),
+                        onPressed: () => _showRecordEntrySheet(context, ledger.id),
+                        icon: const Icon(Icons.add, size: 15),
+                        label: const Text(
+                          'Record Entry',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
                       ),
                     ],
                   ),

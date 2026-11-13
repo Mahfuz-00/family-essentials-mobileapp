@@ -205,10 +205,12 @@ class AppTheme {
       ),
     ),
 
-    // Primary action: deep forest teal, 52pt tall, 14pt radius.
+    // Primary action: deep forest teal, 48pt tall, 14pt radius.
+    // Note: Do NOT use Size.fromHeight() here because width = double.infinity
+    // breaks any FilledButton/OutlinedButton placed inside a Row.
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(52),
+        minimumSize: const Size(64, 48),
         backgroundColor: secondary,
         foregroundColor: onSecondary,
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -218,7 +220,7 @@ class AppTheme {
 
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(48),
+        minimumSize: const Size(64, 48),
         foregroundColor: ink,
         backgroundColor: surface,
         side: const BorderSide(color: Color(0x8066796C)),

@@ -260,7 +260,7 @@ class _BillingPageState extends State<BillingPage> {
             }
           } catch (_) {}
 
-          final hostedGateways = ['stripe', 'paypal', 'razorpay'];
+          final hostedGateways = ['stripe', 'paypal', 'razorpay', 'sslcommerz'];
 
           if (activeGateway != null && hostedGateways.contains(activeGateway)) {
             try {
