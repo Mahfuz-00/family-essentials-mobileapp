@@ -7,6 +7,85 @@ class DemoMockInterceptor extends Interceptor {
   /// Latches to true when backend is offline so all subsequent requests
   /// respond with 0ms latency without waiting for timeouts.
   static bool isOfflineMode = false;
+  static String activePlanTier = 'pilot';
+  static int usedCallsThisMonth = 2;
+  static final List<Map<String, dynamic>> householdMessages = [
+    {
+      'id': 1,
+      'sender_id': 2,
+      'sender_name': 'Sarah Rahman',
+      'recipient_id': null,
+      'text': 'Hey! Are you heading past the grocery store on your way home today?',
+      'created_at': '2:15 PM',
+    },
+    {
+      'id': 2,
+      'sender_id': 1,
+      'sender_name': 'Tanvir Rahman',
+      'recipient_id': null,
+      'text': 'Yes! I checked the Pantry list—picking up milk, eggs, and sourdough.',
+      'created_at': '2:18 PM',
+    },
+  ];
+
+  static Map<String, dynamic> _planDetailsFor(String tier) {
+    switch (tier) {
+      case 'starter':
+        return {
+          'key': 'starter',
+          'label': 'Starter Family',
+          'price': '\$0',
+          'seat_cap': 2,
+          'place_cap': 2,
+          'monthly_requests': 50,
+          'pantry_items_cap': 20,
+          'member_calls_cap': 0,
+          'chat_messages_cap': 30,
+          'receipt_scans_cap': 5,
+        };
+      case 'household_pro':
+      case 'standard':
+        return {
+          'key': 'household_pro',
+          'label': 'Household Pro',
+          'price': '\$24.99/mo',
+          'seat_cap': 10,
+          'place_cap': 25,
+          'monthly_requests': 1000,
+          'pantry_items_cap': 500,
+          'member_calls_cap': 60,
+          'chat_messages_cap': 1500,
+          'receipt_scans_cap': 200,
+        };
+      case 'enterprise':
+        return {
+          'key': 'enterprise',
+          'label': 'Enterprise Household',
+          'price': '\$49.99/mo',
+          'seat_cap': 25,
+          'place_cap': 100,
+          'monthly_requests': 5000,
+          'pantry_items_cap': 2500,
+          'member_calls_cap': 9999,
+          'chat_messages_cap': 9999,
+          'receipt_scans_cap': 1000,
+        };
+      case 'pilot':
+      default:
+        return {
+          'key': 'pilot',
+          'label': 'Pilot Family Tier',
+          'price': '\$14.99/mo',
+          'seat_cap': 5,
+          'place_cap': 10,
+          'monthly_requests': 300,
+          'pantry_items_cap': 100,
+          'member_calls_cap': 15,
+          'chat_messages_cap': 300,
+          'receipt_scans_cap': 50,
+        };
+    }
+  }
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
@@ -141,12 +220,70 @@ class DemoMockInterceptor extends Interceptor {
 
     // Tenant Quotas
     if (path.contains('/tenant/quotas')) {
+      final plan = _planDetailsFor(activePlanTier);
+      final seatCap = plan['seat_cap'] as int;
+      final placeCap = plan['place_cap'] as int;
+      final reqCap = plan['monthly_requests'] as int;
+      final pantryCap = plan['pantry_items_cap'] as int;
+      final callCap = plan['member_calls_cap'] as int;
+      final chatCap = plan['chat_messages_cap'] as int;
       return {
-        'plan': 'Household Pro',
-        'members_limit': 10,
+        'plan': plan,
+        'enforced': true,
+        'members_limit': seatCap,
         'members_count': 2,
-        'voice_calls_daily_limit': 15,
-        'voice_calls_used_today': 1,
+        'voice_calls_daily_limit': callCap,
+        'voice_calls_used_today': usedCallsThisMonth,
+        'meters': [
+          {
+            'key': 'seats',
+            'label': 'Family member seats',
+            'used': 2,
+            'cap': seatCap,
+            'remaining': (seatCap - 2).clamp(0, 9999),
+            'at_cap': 2 >= seatCap,
+          },
+          {
+            'key': 'places',
+            'label': 'Saved places & geofences',
+            'used': 2,
+            'cap': placeCap,
+            'remaining': (placeCap - 2).clamp(0, 9999),
+            'at_cap': 2 >= placeCap,
+          },
+          {
+            'key': 'requests',
+            'label': 'Errands & tasks this month',
+            'used': 6,
+            'cap': reqCap,
+            'remaining': (reqCap - 6).clamp(0, 9999),
+            'at_cap': 6 >= reqCap,
+          },
+          {
+            'key': 'pantry',
+            'label': 'Tracked Pantry items',
+            'used': 6,
+            'cap': pantryCap,
+            'remaining': (pantryCap - 6).clamp(0, 9999),
+            'at_cap': 6 >= pantryCap,
+          },
+          {
+            'key': 'voice',
+            'label': 'Member calls this month',
+            'used': usedCallsThisMonth,
+            'cap': callCap,
+            'remaining': (callCap - usedCallsThisMonth).clamp(0, 9999),
+            'at_cap': callCap == 0 || usedCallsThisMonth >= callCap,
+          },
+          {
+            'key': 'chat',
+            'label': 'AI & Member chat messages',
+            'used': householdMessages.length,
+            'cap': chatCap,
+            'remaining': (chatCap - householdMessages.length).clamp(0, 9999),
+            'at_cap': householdMessages.length >= chatCap,
+          },
+        ],
       };
     }
 
@@ -1033,6 +1170,93 @@ class DemoMockInterceptor extends Interceptor {
             'created_at': '2026-11-13T15:00:00Z',
           },
         ],
+      };
+    }
+
+    // Billing plan upgrade
+    if (path.contains('/billing/upgrade') && method == 'POST') {
+      if (options.data is Map && options.data['tier'] is String) {
+        activePlanTier = options.data['tier'] as String;
+      }
+      return {
+        'status': 'success',
+        'tier': activePlanTier,
+      };
+    }
+
+    // Household Member Chat (GET & POST)
+    if (path.contains('/household/messages') && method == 'GET') {
+      final plan = _planDetailsFor(activePlanTier);
+      return {
+        'plan': {
+          'key': plan['key'],
+          'label': plan['label'],
+          'price': plan['price'],
+          'chat_cap': plan['chat_messages_cap'],
+          'chat_used': householdMessages.length,
+          'calls_cap': plan['member_calls_cap'],
+          'calls_used': usedCallsThisMonth,
+        },
+        'members': [
+          {
+            'id': 1,
+            'name': 'Tanvir Rahman',
+            'email': 'tanvir@familyessentials.app',
+            'phone': '+8801711000001',
+            'role': 'tenant_admin',
+            'online': true,
+          },
+          {
+            'id': 2,
+            'name': 'Sarah Rahman',
+            'email': 'sarah@familyessentials.app',
+            'phone': '+8801711000002',
+            'role': 'member',
+            'online': true,
+          },
+        ],
+        'messages': householdMessages,
+      };
+    }
+
+    if (path.contains('/household/messages') && method == 'POST') {
+      final plan = _planDetailsFor(activePlanTier);
+      final chatCap = plan['chat_messages_cap'] as int;
+      final text = options.data is Map
+          ? (options.data['text'] as String? ?? '')
+          : '';
+      final recipientId = options.data is Map
+          ? options.data['recipient_id'] as int?
+          : null;
+      final newMsg = {
+        'id': householdMessages.length + 1,
+        'sender_id': 1,
+        'sender_name': 'Tanvir Rahman',
+        'recipient_id': recipientId,
+        'text': text,
+        'created_at': 'Just now',
+      };
+      householdMessages.add(newMsg);
+      return {
+        'data': newMsg,
+        'chat_used': householdMessages.length,
+        'chat_cap': chatCap,
+        'remaining_messages': (chatCap - householdMessages.length).clamp(0, 9999),
+      };
+    }
+
+    // Direct household member call
+    if (path.contains('/members/') && path.endsWith('/call') && method == 'POST') {
+      final plan = _planDetailsFor(activePlanTier);
+      final callCap = plan['member_calls_cap'] as int;
+      usedCallsThisMonth++;
+      return {
+        'message': 'Call connected to household member.',
+        'phone': '+8801711000002',
+        'call_id': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        'remaining_calls': (callCap - usedCallsThisMonth).clamp(0, 9999),
+        'quota': callCap,
+        'used': usedCallsThisMonth,
       };
     }
 

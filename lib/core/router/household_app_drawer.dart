@@ -52,6 +52,8 @@ class HouseholdAppDrawer extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               _memberTile(
+                context: context,
+                sheetCtx: ctx,
                 name: 'Tanvir Rahman',
                 email: 'tanvir@familyessentials.app',
                 role: 'Household Admin',
@@ -59,6 +61,8 @@ class HouseholdAppDrawer extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               _memberTile(
+                context: context,
+                sheetCtx: ctx,
                 name: 'Sarah Rahman',
                 email: 'sarah@familyessentials.app',
                 role: 'Household Member',
@@ -129,6 +133,8 @@ class HouseholdAppDrawer extends StatelessWidget {
   }
 
   static Widget _memberTile({
+    required BuildContext context,
+    required BuildContext sheetCtx,
     required String name,
     required String email,
     required String role,
@@ -153,24 +159,43 @@ class HouseholdAppDrawer extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                Text(email, style: const TextStyle(fontSize: 12, color: AppTheme.muted)),
+                Text(email, style: const TextStyle(fontSize: 12, color: AppTheme.muted), overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isAdmin ? AppTheme.forestSoft : AppTheme.sageSoft,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    role,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: isAdmin ? AppTheme.secondary : AppTheme.muted,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: isAdmin ? AppTheme.forestSoft : AppTheme.sageSoft,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              role,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: isAdmin ? AppTheme.secondary : AppTheme.muted,
-              ),
-            ),
+          IconButton(
+            tooltip: 'Chat with $name',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 19, color: AppTheme.secondary),
+            onPressed: () {
+              Navigator.of(sheetCtx).pop();
+              context.push('/chat');
+            },
+          ),
+          IconButton(
+            tooltip: 'Call $name',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.call_outlined, size: 19, color: AppTheme.secondary),
+            onPressed: () {
+              Navigator.of(sheetCtx).pop();
+              context.push('/chat');
+            },
           ),
         ],
       ),
