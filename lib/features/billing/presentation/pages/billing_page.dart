@@ -248,47 +248,63 @@ class _BillingPageState extends State<BillingPage> {
         // invoice is only settled by the provider's signed webhook, so do not
         // fabricate a paid invoice here.
         if (!isCash) {
+          String? activeGateway;
+
           try {
-            final checkout = await dio.post<dynamic>(
-              '/v1/billing/checkout-session',
-              data: {'tier': newTier, 'gateway': 'stripe'},
-            );
+            final methods = await dio.get<dynamic>('/v1/billing/payment-methods');
+            final methodsPayload = methods.data;
+            final methodsData = methodsPayload is Map ? methodsPayload['data'] : null;
 
-            final payload = checkout.data;
-            final data = payload is Map ? payload['data'] : null;
-            final checkoutData = data is Map ? data['checkout'] : null;
-            final url = checkoutData is Map ? checkoutData['url'] : null;
-
-            if (url is String && url.isNotEmpty) {
-              final uri = Uri.parse(url);
-
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-
-              if (mounted) {
-                setState(() => _isLoading = false);
-              }
-
-              return;
+            if (methodsData is Map) {
+              activeGateway = methodsData['active_gateway']?.toString();
             }
-          } on DioException catch (error) {
-            // 422 means no provider keys are configured on this platform; keep
-            // the existing simulated flow for local development.
-            if (error.response?.statusCode != 422) {
-              if (mounted) {
-                setState(() => _isLoading = false);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      error.response?.data?['message']?.toString() ??
-                          'Could not start the checkout session.',
-                    ),
-                  ),
-                );
-              }
+          } catch (_) {}
 
-              return;
+          final hostedGateways = ['stripe', 'paypal'];
+
+          if (activeGateway != null && hostedGateways.contains(activeGateway)) {
+            try {
+              final checkout = await dio.post<dynamic>(
+                '/v1/billing/checkout-session',
+                data: {'tier': newTier, 'gateway': activeGateway},
+              );
+
+              final payload = checkout.data;
+              final data = payload is Map ? payload['data'] : null;
+              final checkoutData = data is Map ? data['checkout'] : null;
+              final url = checkoutData is Map ? checkoutData['url'] : null;
+
+              if (url is String && url.isNotEmpty) {
+                final uri = Uri.parse(url);
+
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+
+                if (mounted) {
+                  setState(() => _isLoading = false);
+                }
+
+                return;
+              }
+            } on DioException catch (error) {
+              // 422 means no provider keys are configured on this platform;
+              // keep the existing simulated flow for local development.
+              if (error.response?.statusCode != 422) {
+                if (mounted) {
+                  setState(() => _isLoading = false);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        error.response?.data?['message']?.toString() ??
+                            'Could not start the checkout session.',
+                      ),
+                    ),
+                  );
+                }
+
+                return;
+              }
             }
           }
         }
