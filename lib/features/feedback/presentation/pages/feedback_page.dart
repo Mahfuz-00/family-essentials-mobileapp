@@ -54,7 +54,7 @@ class _FeedbackViewState extends State<_FeedbackView> {
     return Scaffold(
       backgroundColor: AppTheme.canvas,
       appBar: AppBar(
-        title: const Text('Help & feedback'),
+        title: const Text('Help & Feedback'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Back',

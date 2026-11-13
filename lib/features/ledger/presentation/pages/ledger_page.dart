@@ -23,14 +23,62 @@ class LedgerPage extends StatelessWidget {
   }
 }
 
-class _LedgerView extends StatelessWidget {
+class _LedgerView extends StatefulWidget {
   const _LedgerView();
 
-  String _formatMoney(int minor, String currency) {
-    final symbol = currency == 'USD' ? '\$' : '$currency ';
-    final value = (minor / 100).toStringAsFixed(2);
-    return '$symbol$value';
-  }
+  @override
+  State<_LedgerView> createState() => _LedgerViewState();
+}
+
+class _LedgerViewState extends State<_LedgerView> {
+  String _activeSubModule = 'entries';
+
+  final List<Map<String, dynamic>> _recurringExpenses = [
+    {
+      'id': 1,
+      'title': 'Home Rent / Mortgage',
+      'category': 'rent',
+      'amount_minor': 120000,
+      'frequency': 'monthly',
+      'next_due_at': '2026-12-01',
+    },
+    {
+      'id': 2,
+      'title': 'High-Speed Fiber Internet',
+      'category': 'utility',
+      'amount_minor': 6500,
+      'frequency': 'monthly',
+      'next_due_at': '2026-11-25',
+    },
+    {
+      'id': 3,
+      'title': 'Electricity & Water Utility',
+      'category': 'utility',
+      'amount_minor': 14500,
+      'frequency': 'monthly',
+      'next_due_at': '2026-11-28',
+    },
+  ];
+
+  final List<Map<String, dynamic>> _memberAccess = [
+    {
+      'user_id': 1,
+      'name': 'Tanvir Rahman',
+      'role': 'Household Admin',
+      'can_view': true,
+      'can_record': true,
+    },
+    {
+      'user_id': 2,
+      'name': 'Sarah Rahman',
+      'role': 'Household Member',
+      'can_view': true,
+      'can_record': true,
+    },
+  ];
+
+  String _formatMoney(int minor, String currency) =>
+      formatMoneyMinor(minor, currency);
 
   void _showAdjustBudgetSheet(BuildContext context, Ledger ledger) {
     final monthlyCtrl = TextEditingController(
@@ -517,7 +565,7 @@ class _LedgerView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: type,
+                initialValue: type,
                 items: const [
                   DropdownMenuItem(value: 'savings', child: Text('Savings Account')),
                   DropdownMenuItem(value: 'investment', child: Text('Investments / Stocks')),
@@ -580,7 +628,7 @@ class _LedgerView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: type,
+                initialValue: type,
                 items: const [
                   DropdownMenuItem(value: 'mortgage', child: Text('Mortgage')),
                   DropdownMenuItem(value: 'loan', child: Text('Personal / Auto Loan')),
@@ -853,6 +901,159 @@ class _LedgerView extends StatelessWidget {
     );
   }
 
+  List<LedgerEntry> _filterEntriesForPeriod(
+    List<LedgerEntry> entries,
+    String periodType,
+    String? summaryFrom,
+    String? summaryTo,
+  ) {
+    DateTime fromDate;
+    DateTime toDate;
+    final now = DateTime.now();
+
+    if (summaryFrom != null &&
+        summaryTo != null &&
+        DateTime.tryParse(summaryFrom) != null &&
+        DateTime.tryParse(summaryTo) != null) {
+      final parsedFrom = DateTime.parse(summaryFrom);
+      final parsedTo = DateTime.parse(summaryTo);
+      fromDate = DateTime(parsedFrom.year, parsedFrom.month, parsedFrom.day);
+      toDate = DateTime(parsedTo.year, parsedTo.month, parsedTo.day, 23, 59, 59);
+    } else if (periodType == 'weekly') {
+      final diffToMonday = now.weekday - DateTime.monday;
+      final monday = now.subtract(Duration(days: diffToMonday));
+      fromDate = DateTime(monday.year, monday.month, monday.day);
+      final sunday = fromDate.add(const Duration(days: 6));
+      toDate = DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59);
+    } else if (periodType == 'yearly') {
+      fromDate = DateTime(now.year, 1, 1);
+      toDate = DateTime(now.year, 12, 31, 23, 59, 59);
+    } else {
+      fromDate = DateTime(now.year, now.month, 1);
+      toDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+    }
+
+    return entries.where((e) {
+      if (e.createdAt == null) return true;
+      return !e.createdAt!.isBefore(fromDate) && !e.createdAt!.isAfter(toDate);
+    }).toList();
+  }
+
+  void _showAddRecurringExpenseSheet(BuildContext context, String currency) {
+    final titleCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    String category = 'rent';
+    String frequency = 'monthly';
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+                left: 20,
+                right: 20,
+                top: 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Add Recurring Expense',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Title',
+                      hintText: 'e.g. Monthly Rent, Fiber Internet',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: amountCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Amount (${currencySymbolFor(currency)})',
+                      hintText: '1200.00',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: category,
+                          decoration: const InputDecoration(labelText: 'Category'),
+                          items: const [
+                            DropdownMenuItem(value: 'rent', child: Text('Rent & Housing')),
+                            DropdownMenuItem(value: 'utility', child: Text('Utility & Bills')),
+                            DropdownMenuItem(value: 'grocery', child: Text('Groceries')),
+                            DropdownMenuItem(value: 'household', child: Text('Household')),
+                            DropdownMenuItem(value: 'other', child: Text('Other')),
+                          ],
+                          onChanged: (v) => setSheetState(() => category = v ?? 'rent'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: frequency,
+                          decoration: const InputDecoration(labelText: 'Frequency'),
+                          items: const [
+                            DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+                            DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+                            DropdownMenuItem(value: 'yearly', child: Text('Yearly')),
+                          ],
+                          onChanged: (v) => setSheetState(() => frequency = v ?? 'monthly'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () {
+                        final amt = double.tryParse(amountCtrl.text.trim());
+                        if (titleCtrl.text.trim().isEmpty || amt == null || amt <= 0) return;
+                        setState(() {
+                          _recurringExpenses.insert(0, {
+                            'id': DateTime.now().millisecondsSinceEpoch,
+                            'title': titleCtrl.text.trim(),
+                            'category': category,
+                            'amount_minor': (amt * 100).round(),
+                            'frequency': frequency,
+                            'next_due_at': '2026-12-01',
+                          });
+                        });
+                        Navigator.of(ctx).pop();
+                      },
+                      child: const Text('Save Recurring Expense'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -870,19 +1071,32 @@ class _LedgerView extends StatelessWidget {
             return ListView(
               padding: const EdgeInsets.all(AppTheme.space4),
               children: const [
-                ShimmerWarmCard(height: 140),
+                // 1:1 Shimmer matching Submodule Bar + This period + 3 SoftStatCards + Entries
+                ShimmerWarmCard(height: 54),
                 SizedBox(height: AppTheme.space3),
-                ShimmerWarmCard(height: 90),
+                ShimmerWarmCard(height: 92),
                 SizedBox(height: AppTheme.space3),
-                ShimmerWarmCard(height: 90),
-                SizedBox(height: AppTheme.space3),
-                ShimmerWarmCard(height: 90),
+                Row(
+                  children: [
+                    Expanded(child: ShimmerStatCard()),
+                    SizedBox(width: 8),
+                    Expanded(child: ShimmerStatCard()),
+                    SizedBox(width: 8),
+                    Expanded(child: ShimmerStatCard()),
+                  ],
+                ),
+                SizedBox(height: AppTheme.space4),
+                ShimmerWarmCard(height: 82),
+                SizedBox(height: AppTheme.space2),
+                ShimmerWarmCard(height: 82),
+                SizedBox(height: AppTheme.space2),
+                ShimmerWarmCard(height: 82),
               ],
             );
           }
 
           if (state is! LedgerLoaded) {
-            return const Center(child: Text('Unable to load household budget.'));
+            return const Center(child: Text('Unable to load Expenses & Money.'));
           }
 
           final summary = state.summary;
@@ -894,6 +1108,21 @@ class _LedgerView extends StatelessWidget {
           final remainingMinor = summary.remainingBudgetMinor ?? 0;
           final percentUsed = summary.budgetPercentUsed;
           final isOver = summary.isOverBudget;
+          final periodEntries = _filterEntriesForPeriod(
+            state.entries,
+            state.periodType,
+            summary.from,
+            summary.to,
+          );
+
+          final subModules = <(String key, String label, IconData icon, int? count)>[
+            ('entries', 'Entries & Transactions', Icons.receipt_long_rounded, null),
+            ('budget', 'Budget & Limits', Icons.pie_chart_outline_rounded, null),
+            ('categories', 'Category Breakdown', Icons.donut_large_rounded, null),
+            ('periodic', 'Periodic Breakdown', Icons.bar_chart_rounded, null),
+            ('recurring', 'Recurring Expenses', Icons.autorenew_rounded, _recurringExpenses.length),
+            ('access', 'Member Access', Icons.group_outlined, _memberAccess.length),
+          ];
 
           return RefreshIndicator(
             color: AppTheme.secondary,
@@ -903,291 +1132,471 @@ class _LedgerView extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
               children: [
-                // Period Selector & Ledger Header
+                // Top Action Bar: Active Ledger + Record Entry button (opens modal sheet)
                 Row(
                   children: [
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          Text(
-                            ledger.name,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.ink,
-                            ),
-                          ),
-                          const Text(
-                            'Household Expense Tracker',
-                            style: TextStyle(fontSize: 12, color: AppTheme.muted),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: SegmentedButton<String>(
-                    showSelectedIcon: false,
-                    style: SegmentedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    segments: const [
-                      ButtonSegment(
-                        value: 'monthly',
-                        label: Text('Monthly', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                      ),
-                      ButtonSegment(
-                        value: 'weekly',
-                        label: Text('Weekly', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                      ),
-                      ButtonSegment(
-                        value: 'yearly',
-                        label: Text('Yearly', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                      ),
-                    ],
-                    selected: {state.periodType},
-                    onSelectionChanged: (val) {
-                      context.read<LedgerBloc>().add(LedgerPeriodChanged(val.first));
-                    },
-                  ),
-                ),
-                const SizedBox(height: 10),
-                InkWell(
-                  onTap: () => _showFinancesSheet(context),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.forestSoft,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.secondary.withValues(alpha: 0.2)),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Icon(Icons.query_stats, size: 16, color: AppTheme.secondary),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Finances: Net Worth, Goals, Loans & Taxes',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppTheme.secondary,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(Icons.chevron_right, size: 18, color: AppTheme.secondary),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppTheme.space4),
-
-                // Budget Limiter Card
-                WarmCard(
-                  borderColor: isOver ? AppTheme.tertiary : null,
-                  highlighted: isOver,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                isOver ? Icons.warning_amber_rounded : Icons.pie_chart_outline,
-                                size: 20,
-                                color: isOver ? AppTheme.tertiary : AppTheme.secondary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${isYearly ? "Yearly" : isWeekly ? "Weekly" : "Monthly"} Budget Limit',
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.ink,
-                                ),
-                              ),
-                            ],
-                          ),
-                          TextButton.icon(
-                            style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                            icon: const Icon(Icons.tune, size: 15, color: AppTheme.secondary),
-                            label: const Text(
-                              'Adjust',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.secondary),
-                            ),
-                            onPressed: () => _showAdjustBudgetSheet(context, ledger),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-
-                      if (summary.hasBudget) ...[
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Text(
-                              _formatMoney(summary.expenseMinor, currency),
+                          Flexible(
+                            child: Text(
+                              ledger.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
                                 color: AppTheme.ink,
                               ),
                             ),
-                            Text(
-                              'Cap: ${_formatMoney(budgetMinor, currency)}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.muted,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Progress Bar
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: LinearProgressIndicator(
-                            value: (percentUsed / 100).clamp(0.0, 1.0),
-                            minHeight: 10,
-                            backgroundColor: AppTheme.forestSoft,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              isOver
-                                  ? AppTheme.tertiary
-                                  : percentUsed > 80
-                                      ? Colors.amber.shade700
-                                      : AppTheme.secondary,
-                            ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            PriorityChip(
-                              label: isOver
-                                  ? 'Over Budget by ${_formatMoney(remainingMinor.abs(), currency)}'
-                                  : '${_formatMoney(remainingMinor, currency)} remaining',
-                              tone: isOver ? WarmTone.danger : WarmTone.neutral,
-                            ),
-                            Text(
-                              '$percentUsed% spent',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.muted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ] else ...[
-                        const Text(
-                          'No budget limit set for this period. Set a spending cap to receive alerts when your household is over budget.',
-                          style: TextStyle(fontSize: 13, color: AppTheme.muted),
-                        ),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.add, size: 16),
-                          label: Text('Set ${isWeekly ? "Weekly" : "Monthly"} Budget Cap'),
-                          onPressed: () => _showAdjustBudgetSheet(context, ledger),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppTheme.space3),
-
-                // Cashflow Metrics: Spent vs. Income vs. Net
-                Row(
-                  children: [
-                    Expanded(
-                      child: WarmCard(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Spent', style: TextStyle(fontSize: 11, color: AppTheme.muted)),
-                            const SizedBox(height: 2),
-                            Text(
-                              _formatMoney(summary.expenseMinor, currency),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.tertiary,
-                              ),
-                            ),
-                          ],
-                        ),
+                          const SizedBox(width: 6),
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            tooltip: 'Finances: Net Worth, Goals, Loans & Taxes',
+                            icon: const Icon(Icons.query_stats, size: 18, color: AppTheme.secondary),
+                            onPressed: () => _showFinancesSheet(context),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: WarmCard(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Income', style: TextStyle(fontSize: 11, color: AppTheme.muted)),
-                            const SizedBox(height: 2),
-                            Text(
-                              _formatMoney(summary.incomeMinor, currency),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.secondary,
-                              ),
-                            ),
-                          ],
-                        ),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.secondary,
+                        foregroundColor: Colors.white,
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: WarmCard(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Net', style: TextStyle(fontSize: 11, color: AppTheme.muted)),
-                            const SizedBox(height: 2),
-                            Text(
-                              _formatMoney(summary.netMinor, currency),
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: summary.netMinor >= 0 ? AppTheme.secondary : AppTheme.tertiary,
-                              ),
-                            ),
-                          ],
-                        ),
+                      onPressed: () => _showRecordEntrySheet(context, ledger.id),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text(
+                        'Record Entry',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 12),
+
+                // SUBMODULE NAVIGATION BAR (at top over This period)
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
+                    boxShadow: AppTheme.elev1,
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final tab in subModules) ...[
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: () => setState(() => _activeSubModule = tab.$1),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: _activeSubModule == tab.$1
+                                      ? AppTheme.primary
+                                      : AppTheme.canvas.withValues(alpha: 0.7),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      tab.$3,
+                                      size: 15,
+                                      color: _activeSubModule == tab.$1
+                                          ? Colors.white
+                                          : AppTheme.muted,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      tab.$2,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: _activeSubModule == tab.$1
+                                            ? Colors.white
+                                            : AppTheme.ink,
+                                      ),
+                                    ),
+                                    if (tab.$4 != null) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: _activeSubModule == tab.$1
+                                              ? Colors.white.withValues(alpha: 0.2)
+                                              : AppTheme.forestSoft,
+                                          borderRadius: BorderRadius.circular(999),
+                                        ),
+                                        child: Text(
+                                          '${tab.$4}',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            color: _activeSubModule == tab.$1
+                                                ? Colors.white
+                                                : AppTheme.secondary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
                 const SizedBox(height: AppTheme.space4),
 
-                // Spending by Category
-                if (summary.categories.isNotEmpty) ...[
+                // SUBMODULE 1: Entries & Transactions (has This period + Household Ledger Entries)
+                if (_activeSubModule == 'entries') ...[
+                  WarmCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'THIS PERIOD',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.6,
+                                    color: AppTheme.muted,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isYearly
+                                      ? 'Yearly Ledger'
+                                      : isWeekly
+                                          ? 'Weekly Ledger'
+                                          : 'Monthly Ledger',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.ink,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (summary.from != null && summary.to != null)
+                              PriorityChip(
+                                label: '${summary.from} → ${summary.to}',
+                                tone: WarmTone.neutral,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: SegmentedButton<String>(
+                            showSelectedIcon: false,
+                            style: SegmentedButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            segments: const [
+                              ButtonSegment(
+                                value: 'monthly',
+                                label: Text('Monthly', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                              ),
+                              ButtonSegment(
+                                value: 'weekly',
+                                label: Text('Weekly', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                              ),
+                              ButtonSegment(
+                                value: 'yearly',
+                                label: Text('Yearly', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                              ),
+                            ],
+                            selected: {state.periodType},
+                            onSelectionChanged: (val) {
+                              context.read<LedgerBloc>().add(LedgerPeriodChanged(val.first));
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.space3),
+
+                  // 3 SoftStatCards: Total Spent, Total Income, Net Outflow / Surplus
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SoftStatCard(
+                          label: 'Total Spent',
+                          value: _formatMoney(summary.expenseMinor, currency),
+                          icon: Icons.trending_down_rounded,
+                          tone: WarmTone.danger,
+                          badgeLabel: isYearly ? 'This Year' : isWeekly ? 'This Week' : 'This Month',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: SoftStatCard(
+                          label: 'Total Income',
+                          value: _formatMoney(summary.incomeMinor, currency),
+                          icon: Icons.trending_up_rounded,
+                          tone: WarmTone.success,
+                          badgeLabel: 'Inflows',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: SoftStatCard(
+                          label: summary.netMinor >= 0 ? 'Net Surplus' : 'Net Outflow',
+                          value: _formatMoney(summary.netMinor.abs(), currency),
+                          icon: Icons.account_balance_wallet_outlined,
+                          tone: summary.netMinor >= 0 ? WarmTone.success : WarmTone.warning,
+                          badgeLabel: summary.netMinor >= 0 ? 'Positive' : 'Deficit',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppTheme.space4),
+
+                  // Household Ledger Entries Heading (no in-between dates)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Household Ledger Entries',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.ink,
+                        ),
+                      ),
+                      PriorityChip(
+                        label: '${periodEntries.length} entries',
+                        tone: WarmTone.neutral,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppTheme.space3),
+
+                  if (periodEntries.isEmpty) ...[
+                    WarmCard(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Center(
+                          child: Text(
+                            'No transactions recorded for this ${state.periodType} period.\nTap "Record Entry" above to log an expense or income.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppTheme.muted, fontSize: 13),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    for (final entry in periodEntries)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppTheme.space2),
+                        child: WarmCard(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: entry.isIncome
+                                      ? AppTheme.secondary.withValues(alpha: 0.12)
+                                      : AppTheme.tertiary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(11),
+                                ),
+                                child: Icon(
+                                  entry.isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+                                  size: 18,
+                                  color: entry.isIncome ? AppTheme.secondary : AppTheme.tertiary,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      entry.description ?? entry.category.toUpperCase(),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.ink,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Wrap(
+                                      spacing: 6,
+                                      children: [
+                                        Text(
+                                          entry.category,
+                                          style: const TextStyle(fontSize: 11, color: AppTheme.muted),
+                                        ),
+                                        if (entry.source == 'request')
+                                          const Text('· from Errand', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.secondary)),
+                                        if (entry.source == 'recurring')
+                                          const Text('· Recurring', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.indigo)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '${entry.isIncome ? "+" : "-"}${_formatMoney(entry.amountMinor, currency)}',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: entry.isIncome ? AppTheme.secondary : AppTheme.ink,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
+
+                // SUBMODULE 2: Budget & Limits
+                if (_activeSubModule == 'budget') ...[
+                  WarmCard(
+                    borderColor: isOver ? AppTheme.tertiary : null,
+                    highlighted: isOver,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  isOver ? Icons.warning_amber_rounded : Icons.pie_chart_outline,
+                                  size: 20,
+                                  color: isOver ? AppTheme.tertiary : AppTheme.secondary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${isYearly ? "Yearly" : isWeekly ? "Weekly" : "Monthly"} Budget Limit',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.ink,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            TextButton.icon(
+                              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                              icon: const Icon(Icons.tune, size: 15, color: AppTheme.secondary),
+                              label: const Text(
+                                'Adjust Limits',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.secondary),
+                              ),
+                              onPressed: () => _showAdjustBudgetSheet(context, ledger),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        if (summary.hasBudget) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                _formatMoney(summary.expenseMinor, currency),
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppTheme.ink,
+                                ),
+                              ),
+                              Text(
+                                'Cap: ${_formatMoney(budgetMinor, currency)}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.muted,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: LinearProgressIndicator(
+                              value: (percentUsed / 100).clamp(0.0, 1.0),
+                              minHeight: 10,
+                              backgroundColor: AppTheme.forestSoft,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                isOver
+                                    ? AppTheme.tertiary
+                                    : percentUsed > 80
+                                        ? Colors.amber.shade700
+                                        : AppTheme.secondary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              PriorityChip(
+                                label: isOver
+                                    ? 'Over Budget by ${_formatMoney(remainingMinor.abs(), currency)}'
+                                    : '${_formatMoney(remainingMinor, currency)} remaining',
+                                tone: isOver ? WarmTone.danger : WarmTone.success,
+                              ),
+                              Text(
+                                '$percentUsed% spent',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.muted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          const Text(
+                            'No budget limit set for this period. Set a spending cap to receive alerts when your household is over budget.',
+                            style: TextStyle(fontSize: 13, color: AppTheme.muted),
+                          ),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.add, size: 16),
+                            label: Text('Set ${isWeekly ? "Weekly" : isYearly ? "Yearly" : "Monthly"} Budget Cap'),
+                            onPressed: () => _showAdjustBudgetSheet(context, ledger),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+
+                // SUBMODULE 3: Category Breakdown
+                if (_activeSubModule == 'categories') ...[
                   WarmCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1196,60 +1605,68 @@ class _LedgerView extends StatelessWidget {
                           'Spending by Category',
                           style: TextStyle(
                             fontSize: 15,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                             color: AppTheme.ink,
                           ),
                         ),
                         const SizedBox(height: 12),
-                        for (final cat in summary.categories) ...[
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 10.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      cat.effectiveName,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppTheme.ink,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${_formatMoney(cat.expenseMinor, currency)} · ${(cat.share * 100).round()}%',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppTheme.muted,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: LinearProgressIndicator(
-                                    value: cat.share.clamp(0.0, 1.0),
-                                    minHeight: 6,
-                                    backgroundColor: AppTheme.forestSoft,
-                                    valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.secondary),
-                                  ),
-                                ),
-                              ],
+                        if (summary.categories.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Text(
+                              'No category spending recorded for this period yet.',
+                              style: TextStyle(fontSize: 13, color: AppTheme.muted),
                             ),
-                          ),
-                        ],
+                          )
+                        else
+                          for (final cat in summary.categories) ...[
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 10.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        cat.effectiveName,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.ink,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${_formatMoney(cat.expenseMinor, currency)} · ${(cat.share * 100).round()}%',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppTheme.muted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: LinearProgressIndicator(
+                                      value: cat.share.clamp(0.0, 1.0),
+                                      minHeight: 6,
+                                      backgroundColor: AppTheme.forestSoft,
+                                      valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.secondary),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                       ],
                     ),
                   ),
-                  const SizedBox(height: AppTheme.space4),
                 ],
 
-                // 12-Month Annual Breakdown or Weekly Breakdown
-                if (summary.weeklyBreakdown.isNotEmpty) ...[
+                // SUBMODULE 4: Periodic Breakdown
+                if (_activeSubModule == 'periodic') ...[
                   WarmCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1260,166 +1677,237 @@ class _LedgerView extends StatelessWidget {
                             Text(
                               isYearly
                                   ? '12-Month Annual Breakdown'
-                                  : 'Weekly Breakdown',
+                                  : isWeekly
+                                      ? '7-Day Daily Breakdown'
+                                      : 'Weekly Breakdown',
                               style: const TextStyle(
                                 fontSize: 15,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w800,
                                 color: AppTheme.ink,
                               ),
                             ),
-                            Text(
-                              '${summary.weeklyBreakdown.length} ${isYearly ? "months" : "weeks"}',
-                              style: const TextStyle(fontSize: 12, color: AppTheme.muted),
+                            PriorityChip(
+                              label: '${summary.weeklyBreakdown.length} ${isYearly ? "months" : isWeekly ? "days" : "weeks"}',
+                              tone: WarmTone.neutral,
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        for (final b in summary.weeklyBreakdown) ...[
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    b.label,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.ink,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Row(
-                                  children: [
-                                    Text(
-                                      'Spent: ${_formatMoney(b.expenseMinor, currency)}',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppTheme.tertiary,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'In: ${_formatMoney(b.incomeMinor, currency)}',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppTheme.secondary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                        if (summary.weeklyBreakdown.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Text(
+                              'No periodic breakdown data recorded yet.',
+                              style: TextStyle(fontSize: 13, color: AppTheme.muted),
                             ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.space4),
-                ],
-
-                // Transactions List
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Recent Transactions',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.ink,
-                      ),
-                    ),
-                    Text(
-                      '${state.entries.length} entries',
-                      style: const TextStyle(fontSize: 12, color: AppTheme.muted),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppTheme.space2),
-
-                if (state.entries.isEmpty) ...[
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(
-                      child: Text(
-                        'No transactions recorded yet in this ledger.\nTap "+ Record Expense" to log rent, utility bills, or groceries.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: AppTheme.muted, fontSize: 13),
-                      ),
-                    ),
-                  ),
-                ] else ...[
-                  for (final entry in state.entries)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppTheme.space2),
-                      child: WarmCard(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 38,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                color: entry.isIncome
-                                    ? AppTheme.secondary.withValues(alpha: 0.12)
-                                    : AppTheme.tertiary.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                entry.isIncome ? Icons.arrow_downward : Icons.arrow_upward,
-                                size: 18,
-                                color: entry.isIncome ? AppTheme.secondary : AppTheme.tertiary,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                          )
+                        else
+                          for (final b in summary.weeklyBreakdown) ...[
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 10.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    entry.description ?? entry.category.toUpperCase(),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.ink,
+                                  Expanded(
+                                    child: Text(
+                                      b.label,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.ink,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
-                                  Wrap(
-                                    spacing: 6,
+                                  Row(
                                     children: [
                                       Text(
-                                        entry.category,
-                                        style: const TextStyle(fontSize: 11, color: AppTheme.muted),
+                                        'Spent: ${_formatMoney(b.expenseMinor, currency)}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppTheme.tertiary,
+                                        ),
                                       ),
-                                      if (entry.source == 'request')
-                                        const Text('· from Errand', style: TextStyle(fontSize: 11, color: AppTheme.secondary)),
-                                      if (entry.source == 'recurring')
-                                        const Text('· Recurring', style: TextStyle(fontSize: 11, color: Colors.indigo)),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'In: ${_formatMoney(b.incomeMinor, currency)}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppTheme.secondary,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ],
                               ),
                             ),
-                            Text(
-                              '${entry.isIncome ? "+" : "-"}${_formatMoney(entry.amountMinor, currency)}',
+                          ],
+                      ],
+                    ),
+                  ),
+                ],
+
+                // SUBMODULE 5: Recurring Expenses
+                if (_activeSubModule == 'recurring') ...[
+                  WarmCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Recurring Expenses',
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
-                                color: entry.isIncome ? AppTheme.secondary : AppTheme.ink,
+                                color: AppTheme.ink,
                               ),
+                            ),
+                            FilledButton.tonalIcon(
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              onPressed: () => _showAddRecurringExpenseSheet(context, currency),
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('Add Rule', style: TextStyle(fontSize: 12)),
                             ),
                           ],
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                        for (final item in _recurringExpenses)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.canvas,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: AppTheme.outline.withValues(alpha: 0.2)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item['title'] as String,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppTheme.ink,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${(item['frequency'] as String).toUpperCase()} · Next: ${item['next_due_at']}',
+                                          style: const TextStyle(fontSize: 11, color: AppTheme.muted),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    _formatMoney(item['amount_minor'] as int, currency),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.ink,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    icon: const Icon(Icons.delete_outline, size: 18, color: AppTheme.tertiary),
+                                    onPressed: () {
+                                      setState(() {
+                                        _recurringExpenses.removeWhere((e) => e['id'] == item['id']);
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
+                  ),
+                ],
+
+                // SUBMODULE 6: Member Access
+                if (_activeSubModule == 'access') ...[
+                  WarmCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Household Member Access',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Control which family members can view or record transactions in this ledger.',
+                          style: TextStyle(fontSize: 12, color: AppTheme.muted),
+                        ),
+                        const SizedBox(height: 12),
+                        for (final member in _memberAccess)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.canvas,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: AppTheme.outline.withValues(alpha: 0.2)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          member['name'] as String,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppTheme.ink,
+                                          ),
+                                        ),
+                                        Text(
+                                          member['role'] as String,
+                                          style: const TextStyle(fontSize: 11, color: AppTheme.muted),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  FilterChip(
+                                    label: const Text('View', style: TextStyle(fontSize: 11)),
+                                    selected: member['can_view'] == true,
+                                    onSelected: (v) {
+                                      setState(() => member['can_view'] = v);
+                                    },
+                                  ),
+                                  const SizedBox(width: 6),
+                                  FilterChip(
+                                    label: const Text('Record', style: TextStyle(fontSize: 11)),
+                                    selected: member['can_record'] == true,
+                                    onSelected: (v) {
+                                      setState(() => member['can_record'] = v);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ],
               ],
             ),

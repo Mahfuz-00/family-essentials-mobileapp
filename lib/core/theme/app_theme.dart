@@ -26,10 +26,10 @@ class AppTheme {
   static const Color onTertiary = Color(0xFFFFFFFF);
   static const Color accent = Color(0xFFE76F51);
 
-  static const Color canvas = Color(0xFFFDFCF7);
+  static const Color canvas = Color(0xFFF6F5EF); // Soft Sage Clay canvas
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceContainerLow = Color(0xFFF4F2FF);
-  static const Color surfaceContainer = Color(0xFFEDECFF);
+  static const Color surfaceContainerLow = Color(0xFFEFF2EE);
+  static const Color surfaceContainer = Color(0xFFE6EBE6);
 
   static const Color ink = Color(0xFF181A2E);
   static const Color onSurfaceVariant = Color(0xFF434844);
@@ -47,9 +47,9 @@ class AppTheme {
   static const Color error = Color(0xFFE76F51);
 
   // -------------------------------------------------------------------- shape
-  static const double radiusSm = 8;
-  static const double radiusMd = 12;
-  static const double radiusLg = 16;
+  static const double radiusSm = 10;
+  static const double radiusMd = 14;
+  static const double radiusLg = 20;
   static const double radiusXl = 24;
   static const double radiusPill = 999;
 
@@ -62,15 +62,15 @@ class AppTheme {
   static const double space6 = 32;
 
   // ---------------------------------------------------------------- elevation
-  // Slate-tinted ambient shadows, never pure black.
+  // Soft UI / Claymorphism sage-tinted ambient shadows, never pure black.
   static const List<BoxShadow> elev1 = [
-    BoxShadow(color: Color(0x0A2B2D42), blurRadius: 8, offset: Offset(0, 2)),
-    BoxShadow(color: Color(0x052B2D42), blurRadius: 3, offset: Offset(0, 1)),
+    BoxShadow(color: Color(0x0D1F2A22), blurRadius: 16, offset: Offset(0, 4)),
+    BoxShadow(color: Color(0x061F2A22), blurRadius: 4, offset: Offset(0, 1)),
   ];
 
   static const List<BoxShadow> elev2 = [
-    BoxShadow(color: Color(0x0F2B2D42), blurRadius: 16, offset: Offset(0, 6)),
-    BoxShadow(color: Color(0x0A2B2D42), blurRadius: 6, offset: Offset(0, 2)),
+    BoxShadow(color: Color(0x141F2A22), blurRadius: 22, offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x0A1F2A22), blurRadius: 6, offset: Offset(0, 2)),
   ];
 
   static const List<BoxShadow> elev3 = [

@@ -49,6 +49,8 @@ class LedgerSummaryModel extends LedgerSummary {
     super.isOverBudget,
     super.periodType,
     super.currency,
+    super.from,
+    super.to,
     super.categories,
     super.weeklyBreakdown,
   });
@@ -64,6 +66,8 @@ class LedgerSummaryModel extends LedgerSummary {
       isOverBudget: json['is_over_budget'] == true,
       periodType: json['period_type'] as String? ?? 'monthly',
       currency: json['currency'] as String? ?? 'USD',
+      from: json['from'] as String?,
+      to: json['to'] as String?,
       categories: (json['by_category'] as List? ?? const [])
           .whereType<Map>()
           .map((item) => LedgerCategoryTotalModel.fromJson(Map<String, dynamic>.from(item)))

@@ -6,7 +6,7 @@ abstract class LedgerRepository {
 
   Future<LedgerSummary> getSummary(int ledgerId, {String periodType = 'monthly'});
 
-  Future<List<LedgerEntry>> getEntries(int ledgerId);
+  Future<List<LedgerEntry>> getEntries(int ledgerId, {String? from, String? to});
 
   Future<Ledger> createLedger({
     required String name,

@@ -23,8 +23,19 @@ class LedgerRemoteDataSource {
     return response.data?['data'] as Map<String, dynamic>? ?? {};
   }
 
-  Future<List<Map<String, dynamic>>> getEntries(int ledgerId) async {
-    final response = await _dio.get<Map<String, dynamic>>('/v1/ledgers/$ledgerId/entries');
+  Future<List<Map<String, dynamic>>> getEntries(
+    int ledgerId, {
+    String? from,
+    String? to,
+  }) async {
+    final queryParams = <String, dynamic>{
+      if (from != null && from.isNotEmpty) 'from': from,
+      if (to != null && to.isNotEmpty) 'to': to,
+    };
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/v1/ledgers/$ledgerId/entries',
+      queryParameters: queryParams.isEmpty ? null : queryParams,
+    );
     final data = response.data?['data'] as List? ?? [];
     return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }

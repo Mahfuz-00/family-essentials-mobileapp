@@ -41,8 +41,13 @@ class LedgerBloc extends Bloc<LedgerEvent, LedgerState> {
         current.activeLedger.id,
         periodType: event.periodType,
       );
+      final entries = await _repository.getEntries(
+        current.activeLedger.id,
+        from: summary.from,
+        to: summary.to,
+      );
       if (state is LedgerLoaded && (state as LedgerLoaded).periodType == event.periodType) {
-        emit((state as LedgerLoaded).copyWith(summary: summary));
+        emit((state as LedgerLoaded).copyWith(summary: summary, entries: entries));
       }
     } on AppFailure catch (failure) {
       emit(LedgerFailure(failure.message));
@@ -143,7 +148,11 @@ class LedgerBloc extends Bloc<LedgerEvent, LedgerState> {
           : ledgers.first;
 
       final summary = await _repository.getSummary(active.id, periodType: periodType);
-      final entries = await _repository.getEntries(active.id);
+      final entries = await _repository.getEntries(
+        active.id,
+        from: summary.from,
+        to: summary.to,
+      );
 
       emit(
         LedgerLoaded(

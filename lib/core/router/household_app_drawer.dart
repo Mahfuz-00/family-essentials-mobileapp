@@ -43,7 +43,7 @@ class HouseholdAppDrawer extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Household Members',
+                    'Family Members',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.ink),
                   ),
                   Text('2 Active', style: TextStyle(fontSize: 13, color: AppTheme.muted)),
@@ -309,19 +309,19 @@ class HouseholdAppDrawer extends StatelessWidget {
                     _drawerItem(
                       context,
                       icon: Icons.today_rounded,
-                      label: "Today's Daily Hub",
+                      label: "Today's Pulse",
                       path: '/today',
                     ),
                     _drawerItem(
                       context,
                       icon: Icons.shopping_basket_rounded,
-                      label: 'Shopping & Errands',
+                      label: 'Errands & Tasks',
                       path: '/shopping',
                     ),
                     _drawerItem(
                       context,
                       icon: Icons.auto_awesome,
-                      label: 'AI Family Dispatcher & Chat',
+                      label: 'Household Chat & AI',
                       path: '/chat',
                       isHighlight: true,
                     ),
@@ -337,13 +337,13 @@ class HouseholdAppDrawer extends StatelessWidget {
                     _drawerItem(
                       context,
                       icon: Icons.account_balance_wallet_rounded,
-                      label: 'Household Expense Tracker',
+                      label: 'Expenses & Money',
                       path: '/budget',
                     ),
                     _drawerItem(
                       context,
                       icon: Icons.credit_card_rounded,
-                      label: 'Billing & Subscription',
+                      label: 'Plan & Billing',
                       path: '/billing',
                     ),
 
@@ -352,19 +352,19 @@ class HouseholdAppDrawer extends StatelessWidget {
                     _drawerItem(
                       context,
                       icon: Icons.inventory_2_outlined,
-                      label: 'Pantry Pulse & Stock',
+                      label: 'Pantry Inventory',
                       path: '/pantry',
                     ),
                     _drawerItem(
                       context,
                       icon: Icons.document_scanner_outlined,
-                      label: 'Receipt Scanner (OCR)',
+                      label: 'Receipt Scanner',
                       path: '/receipt/scan',
                     ),
                     _drawerItem(
                       context,
                       icon: Icons.pin_drop_outlined,
-                      label: 'Saved Places & Stores',
+                      label: 'Places & Geofences',
                       path: '/places',
                     ),
 
@@ -372,14 +372,14 @@ class HouseholdAppDrawer extends StatelessWidget {
                     _sectionLabel('PEOPLE & RULES'),
                     ListTile(
                       leading: const Icon(Icons.group_outlined, size: 22, color: AppTheme.ink),
-                      title: const Text('Household Members', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      title: const Text('Family Members', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                       onTap: () => _showMembersSheet(context),
                       dense: true,
                     ),
                     _drawerItem(
                       context,
                       icon: Icons.event_repeat_rounded,
-                      label: 'Recurring Chore Rules',
+                      label: 'Recurring Tasks',
                       path: '/recurring',
                     ),
 
@@ -388,7 +388,7 @@ class HouseholdAppDrawer extends StatelessWidget {
                     _drawerItem(
                       context,
                       icon: Icons.tune_rounded,
-                      label: 'Reminders & Settings',
+                      label: 'Settings',
                       path: '/settings',
                     ),
                     _drawerItem(

@@ -25,13 +25,13 @@ class MainShell extends StatefulWidget {
         ),
         (
           path: '/shopping',
-          label: 'Shopping',
+          label: 'Errands',
           icon: Icons.shopping_basket_outlined,
           activeIcon: Icons.shopping_basket,
         ),
         (
           path: '/budget',
-          label: 'Budget',
+          label: 'Money',
           icon: Icons.account_balance_wallet_outlined,
           activeIcon: Icons.account_balance_wallet,
         ),
@@ -84,13 +84,13 @@ class _MainShellState extends State<MainShell> {
   }
 
   String _titleFor(String loc) {
-    if (loc.startsWith('/today')) return 'Daily Hub';
-    if (loc.startsWith('/shopping')) return 'Shopping & Errands';
-    if (loc.startsWith('/budget') || loc.startsWith('/ledger')) return 'Household Expenses';
-    if (loc.startsWith('/places')) return 'Saved Places';
-    if (loc.startsWith('/settings')) return 'Reminders & Settings';
-    if (loc.startsWith('/pantry')) return 'Pantry & Stock';
-    if (loc.startsWith('/recurring')) return 'Recurring Rules';
+    if (loc.startsWith('/today')) return "Today's Pulse";
+    if (loc.startsWith('/shopping')) return 'Errands & Tasks';
+    if (loc.startsWith('/budget') || loc.startsWith('/ledger')) return 'Expenses & Money';
+    if (loc.startsWith('/places')) return 'Places & Geofences';
+    if (loc.startsWith('/settings')) return 'Settings';
+    if (loc.startsWith('/pantry')) return 'Pantry Inventory';
+    if (loc.startsWith('/recurring')) return 'Recurring Tasks';
     return 'Family Essentials';
   }
 

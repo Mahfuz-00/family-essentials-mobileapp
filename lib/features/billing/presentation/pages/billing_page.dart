@@ -502,7 +502,7 @@ class _BillingPageState extends State<BillingPage> {
     return Scaffold(
       backgroundColor: AppTheme.canvas,
       appBar: AppBar(
-        title: const Text('Billing & Subscription'),
+        title: const Text('Plan & Billing'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Back',

@@ -27,10 +27,11 @@ class LedgerRepositoryImpl implements LedgerRepository {
       });
 
   @override
-  Future<List<LedgerEntry>> getEntries(int ledgerId) => _guard(() async {
-    final list = await _remote.getEntries(ledgerId);
-    return list.map(LedgerEntryModel.fromJson).toList();
-  });
+  Future<List<LedgerEntry>> getEntries(int ledgerId, {String? from, String? to}) =>
+      _guard(() async {
+        final list = await _remote.getEntries(ledgerId, from: from, to: to);
+        return list.map(LedgerEntryModel.fromJson).toList();
+      });
 
   @override
   Future<Ledger> createLedger({

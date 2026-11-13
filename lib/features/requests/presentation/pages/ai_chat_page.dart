@@ -188,7 +188,7 @@ class _AiChatPageState extends State<AiChatPage> {
           children: [
             Icon(Icons.auto_awesome, color: AppTheme.secondary, size: 20),
             SizedBox(width: 8),
-            Text('AI Family Dispatcher'),
+            Text('Household Chat & AI'),
           ],
         ),
       ),

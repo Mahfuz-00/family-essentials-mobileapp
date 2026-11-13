@@ -71,9 +71,17 @@ class _PantryView extends StatelessWidget {
             return ListView(
               padding: const EdgeInsets.all(AppTheme.space4),
               children: const [
-                ShimmerWarmCard(height: 120),
+                Row(
+                  children: [
+                    Expanded(child: ShimmerStatCard()),
+                    SizedBox(width: 8),
+                    Expanded(child: ShimmerStatCard()),
+                    SizedBox(width: 8),
+                    Expanded(child: ShimmerStatCard()),
+                  ],
+                ),
                 SizedBox(height: AppTheme.space3),
-                ShimmerWarmCard(height: 140),
+                ShimmerWarmCard(height: 110),
                 SizedBox(height: AppTheme.space3),
                 ShimmerWarmCard(height: 140),
                 SizedBox(height: AppTheme.space3),
@@ -153,98 +161,46 @@ class _PantryView extends StatelessWidget {
   }
 
   Widget _pulse(PantrySummary summary) {
-    return WarmCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.insights, size: 18, color: AppTheme.primary),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Pantry pulse',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.ink,
-                  ),
-                ),
+    final inStockCount = (summary.total - summary.due).clamp(0, 9999);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: SoftStatCard(
+                label: 'Restock Due',
+                value: '${summary.due}',
+                icon: Icons.warning_amber_rounded,
+                tone: summary.due > 0 ? WarmTone.danger : WarmTone.success,
+                badgeLabel: summary.safetyStock > 0
+                    ? '${summary.safetyStock} critical'
+                    : 'Healthy',
               ),
-              PriorityChip(
-                label: summary.due == 0 ? 'All stocked' : '${summary.due} due',
-                tone: summary.due == 0 ? WarmTone.success : WarmTone.danger,
-              ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.space3),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              StatPill(value: summary.total, label: 'Tracked'),
-              StatPill(
-                value: summary.safetyStock,
-                label: 'Below stock',
-                tone: WarmTone.danger,
-              ),
-              StatPill(
-                value: summary.cadence,
-                label: 'Due on cadence',
-                tone: WarmTone.warning,
-              ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.space3),
-          // Spending & Restock Overview (Point 9)
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.forestSoft.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.secondary.withValues(alpha: 0.2)),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Total Pantry Spend',
-                        style: TextStyle(fontSize: 11, color: AppTheme.muted, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '\$${((summary.totalSpentMinor) / 100).toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.secondary),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(width: 1, height: 28, color: AppTheme.outline.withValues(alpha: 0.2)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Restock Needed',
-                        style: TextStyle(fontSize: 11, color: AppTheme.muted, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '\$${((summary.projectedRestockMinor) / 100).toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.ink),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            const SizedBox(width: 8),
+            Expanded(
+              child: SoftStatCard(
+                label: 'In Stock',
+                value: '$inStockCount',
+                icon: Icons.inventory_2_outlined,
+                tone: WarmTone.success,
+                badgeLabel: '${summary.total} tracked',
+              ),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SoftStatCard(
+                label: 'Est. Restock',
+                value: formatMoneyMinor(summary.projectedRestockMinor),
+                icon: Icons.shopping_cart_checkout_rounded,
+                tone: WarmTone.primary,
+                badgeLabel: 'Spent: ${formatMoneyMinor(summary.totalSpentMinor)}',
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -530,6 +486,20 @@ class _AddEssentialSheetState extends State<_AddEssentialSheet> {
   int _cadenceDays = 14;
   int _threshold = 1;
   int _stock = 0;
+  String _category = 'dairy_eggs';
+
+  static const _pantryCategories = <(String key, String label)>[
+    ('dairy_eggs', 'Dairy & Eggs'),
+    ('produce', 'Fresh Produce'),
+    ('bakery', 'Bakery & Bread'),
+    ('meat_seafood', 'Meat & Seafood'),
+    ('pantry_staples', 'Grains, Oil & Spices'),
+    ('beverages', 'Coffee, Tea & Drinks'),
+    ('snacks', 'Snacks & Breakfast'),
+    ('household_cleaning', 'Cleaning & Laundry'),
+    ('personal_care', 'Baby & Personal Care'),
+    ('medicine', 'Health & First Aid'),
+  ];
 
   @override
   void dispose() {
@@ -584,6 +554,19 @@ class _AddEssentialSheetState extends State<_AddEssentialSheet> {
               controller: _name,
               autofocus: true,
               decoration: const InputDecoration(labelText: 'Item name'),
+            ),
+            const SizedBox(height: AppTheme.space3),
+            DropdownButtonFormField<String>(
+              initialValue: _category,
+              decoration: const InputDecoration(
+                labelText: 'Household Category',
+                prefixIcon: Icon(Icons.category_outlined),
+              ),
+              items: [
+                for (final c in _pantryCategories)
+                  DropdownMenuItem(value: c.$1, child: Text(c.$2)),
+              ],
+              onChanged: (v) => setState(() => _category = v ?? 'dairy_eggs'),
             ),
             const SizedBox(height: AppTheme.space3),
             Row(
@@ -665,6 +648,7 @@ class _AddEssentialSheetState extends State<_AddEssentialSheet> {
                             '/v1/essentials',
                             data: {
                               'name': _name.text.trim(),
+                              'category': _category,
                               'default_store': _store.text.trim().isEmpty ? null : _store.text.trim(),
                               'pack_size': _packSize.text.trim().isEmpty ? null : _packSize.text.trim(),
                               'cadence_days': _cadenceDays,
@@ -675,7 +659,7 @@ class _AddEssentialSheetState extends State<_AddEssentialSheet> {
                           );
                         }
                       } catch (_) {
-                        if (mounted) {
+                        if (context.mounted) {
                           context.read<PantryBloc>().add(
                             EssentialCreated(
                               name: _name.text.trim(),

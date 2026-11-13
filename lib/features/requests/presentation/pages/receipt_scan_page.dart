@@ -194,7 +194,7 @@ class _ReceiptScanPageState extends State<ReceiptScanPage> {
     return Scaffold(
       backgroundColor: AppTheme.canvas,
       appBar: AppBar(
-        title: const Text('Receipt Scanner (OCR)'),
+        title: const Text('Receipt Scanner'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Back',

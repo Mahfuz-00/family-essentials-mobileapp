@@ -49,6 +49,8 @@ class LedgerSummary extends Equatable {
     this.isOverBudget = false,
     this.periodType = 'monthly',
     this.currency = 'USD',
+    this.from,
+    this.to,
     this.categories = const [],
     this.weeklyBreakdown = const [],
   });
@@ -60,8 +62,10 @@ class LedgerSummary extends Equatable {
   final int? remainingBudgetMinor;
   final int budgetPercentUsed;
   final bool isOverBudget;
-  final String periodType; // 'monthly' or 'weekly'
+  final String periodType; // 'monthly', 'weekly', or 'yearly'
   final String currency;
+  final String? from;
+  final String? to;
   final List<LedgerCategoryTotal> categories;
   final List<WeeklyLedgerBucket> weeklyBreakdown;
 
@@ -78,6 +82,8 @@ class LedgerSummary extends Equatable {
     isOverBudget,
     periodType,
     currency,
+    from,
+    to,
     categories,
     weeklyBreakdown,
   ];
