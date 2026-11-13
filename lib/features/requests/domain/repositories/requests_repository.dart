@@ -32,5 +32,7 @@ abstract class RequestsRepository {
 
   Future<void> act(int id, String action, {Map<String, dynamic>? payload});
 
+  Future<void> assign(int id, int? assigneeId);
+
   Future<void> triggerVoiceCall(int requestId);
 }

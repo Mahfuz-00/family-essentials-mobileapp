@@ -7,6 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../places/domain/entities/place.dart';
 import '../../../places/domain/repositories/places_repository.dart';
 import '../../domain/entities/service_request.dart';
+import '../../domain/repositories/requests_repository.dart';
 import '../bloc/requests_bloc.dart';
 import '../bloc/requests_event.dart';
 import '../bloc/requests_state.dart';
@@ -65,6 +66,18 @@ class _QuickAddFormState extends State<_QuickAddForm> {
     super.initState();
     context.read<RequestsBloc>().add(const BoardRequested());
     _loadPlaces();
+    _loadMembers();
+  }
+
+  Future<void> _loadMembers() async {
+    try {
+      final members = await getIt<RequestsRepository>().members();
+      if (mounted) {
+        setState(() => _members = members);
+      }
+    } catch (_) {
+      // Non-fatal
+    }
   }
 
   Future<void> _loadPlaces() async {
@@ -115,14 +128,22 @@ class _QuickAddFormState extends State<_QuickAddForm> {
   }
 
   Future<void> _pickMember() async {
-    final chosen = await showChoiceSheet<HouseholdMember>(
+    final choices = [
+      const MemberChoice(null, 'Anyone in household (Unassigned)'),
+      ..._members.map((m) => MemberChoice(m.userId, m.name)),
+    ];
+
+    final currentChoice = choices.firstWhere(
+      (c) => c.userId == _assigneeId,
+      orElse: () => choices.first,
+    );
+
+    final chosen = await showChoiceSheet<MemberChoice>(
       context: context,
-      title: 'Who is it for?',
-      options: _members,
-      label: (member) => member.name,
-      current: _members
-          .where((member) => member.userId == _assigneeId)
-          .firstOrNull,
+      title: 'Assign chore to',
+      options: choices,
+      label: (choice) => choice.name,
+      current: currentChoice,
     );
 
     if (chosen != null) {
@@ -297,18 +318,63 @@ class _QuickAddFormState extends State<_QuickAddForm> {
                     ),
                   ),
                 ],
-                const SizedBox(height: AppTheme.space4),
+                const SizedBox(height: AppTheme.space3),
 
-                // For · Where · By — each one tap, opening a sheet.
+                // Dedicated Chore Assignment Card
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    border: Border.all(color: AppTheme.outline.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: _assigneeId != null
+                            ? AppTheme.secondary.withValues(alpha: 0.15)
+                            : AppTheme.sageSoft,
+                        child: Icon(
+                          _assigneeId != null ? Icons.person : Icons.group_outlined,
+                          size: 20,
+                          color: _assigneeId != null ? AppTheme.secondary : AppTheme.muted,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Assign chore to',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.muted),
+                            ),
+                            Text(
+                              member?.name ?? 'Anyone in household (Open to all)',
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.ink),
+                            ),
+                          ],
+                        ),
+                      ),
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        ),
+                        onPressed: _pickMember,
+                        child: Text(_assigneeId == null ? 'Assign' : 'Change'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppTheme.space3),
+
+                // Where · By — each one tap, opening a sheet.
                 Wrap(
                   spacing: AppTheme.space2,
                   runSpacing: AppTheme.space2,
                   children: [
-                    _choiceChip(
-                      icon: Icons.person_outline,
-                      label: member?.name ?? 'For anyone',
-                      onTap: _pickMember,
-                    ),
                     _choiceChip(
                       icon: Icons.storefront_outlined,
                       label: shop?.name ?? 'Any shop',

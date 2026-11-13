@@ -6,6 +6,7 @@ import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/warm_widgets.dart';
 import '../../domain/entities/service_request.dart';
+import '../../domain/repositories/requests_repository.dart';
 import '../bloc/requests_bloc.dart';
 import '../bloc/requests_event.dart';
 import '../bloc/requests_state.dart';
@@ -30,6 +31,38 @@ class _RequestDetailView extends StatelessWidget {
   const _RequestDetailView({required this.id});
 
   final int id;
+
+  Future<void> _reassignChore(BuildContext context, ServiceRequest request) async {
+    final bloc = context.read<RequestsBloc>();
+    List<HouseholdMember> members = [];
+    try {
+      members = await getIt<RequestsRepository>().members();
+    } catch (_) {}
+
+    if (!context.mounted) return;
+
+    final choices = [
+      const MemberChoice(null, 'Anyone in household (Unassigned)'),
+      ...members.map((m) => MemberChoice(m.userId, m.name)),
+    ];
+
+    final currentChoice = choices.firstWhere(
+      (c) => c.userId == request.assigneeId,
+      orElse: () => choices.first,
+    );
+
+    final chosen = await showChoiceSheet<MemberChoice>(
+      context: context,
+      title: 'Assign / Handover Chore',
+      options: choices,
+      label: (c) => c.name,
+      current: currentChoice,
+    );
+
+    if (chosen != null) {
+      bloc.add(AssignRequested(id: request.id, assigneeId: chosen.userId));
+    }
+  }
 
   /// The member set a cue on this task; this is the one place it comes back.
   Future<void> _changeReminder(BuildContext context, ServiceRequest request) {
@@ -142,6 +175,64 @@ class _RequestDetailView extends StatelessWidget {
         ),
         const SizedBox(height: AppTheme.space4),
 
+        // Assignment Card
+        WarmCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SectionHeader(title: 'Assignment', count: 1),
+              const SizedBox(height: AppTheme.space3),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: request.assigneeName != null
+                        ? AppTheme.secondary.withValues(alpha: 0.15)
+                        : AppTheme.sageSoft,
+                    child: Icon(
+                      request.assigneeName != null ? Icons.person : Icons.group_outlined,
+                      size: 22,
+                      color: request.assigneeName != null ? AppTheme.secondary : AppTheme.muted,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          request.assigneeName ?? 'Anyone (Unassigned)',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.ink,
+                          ),
+                        ),
+                        Text(
+                          request.assigneeName != null
+                              ? 'Assigned household member'
+                              : 'Open for any household member to pick up',
+                          style: const TextStyle(fontSize: 12, color: AppTheme.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _reassignChore(context, request),
+                    icon: const Icon(Icons.swap_horiz, size: 16),
+                    label: Text(request.assigneeName != null ? 'Reassign' : 'Assign'),
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppTheme.space3),
+
         WarmCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,6 +343,12 @@ class _RequestDetailView extends StatelessWidget {
                 icon: const Icon(Icons.check_circle_outline, size: 18),
                 onPressed: () => _openFulfillSheet(context, request),
                 label: const Text('Fulfill & Complete'),
+              ),
+            if (request.isOpen)
+              OutlinedButton.icon(
+                icon: const Icon(Icons.swap_horiz, size: 18),
+                onPressed: () => _reassignChore(context, request),
+                label: const Text('Handover chore'),
               ),
             if (request.isOpen)
               OutlinedButton(

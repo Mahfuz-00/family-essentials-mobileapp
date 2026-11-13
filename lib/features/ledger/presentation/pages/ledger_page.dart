@@ -661,37 +661,58 @@ class _LedgerView extends StatelessWidget {
               children: [
                 // Period Selector & Ledger Header
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          ledger.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.ink,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            ledger.name,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.ink,
+                            ),
                           ),
-                        ),
-                        const Text(
-                          'Household Expense Tracker',
-                          style: TextStyle(fontSize: 12, color: AppTheme.muted),
-                        ),
-                      ],
-                    ),
-                    SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(value: 'monthly', label: Text('Month')),
-                        ButtonSegment(value: 'weekly', label: Text('Week')),
-                        ButtonSegment(value: 'yearly', label: Text('Year')),
-                      ],
-                      selected: {state.periodType},
-                      onSelectionChanged: (val) {
-                        context.read<LedgerBloc>().add(LedgerPeriodChanged(val.first));
-                      },
+                          const Text(
+                            'Household Expense Tracker',
+                            style: TextStyle(fontSize: 12, color: AppTheme.muted),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<String>(
+                    style: SegmentedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    segments: const [
+                      ButtonSegment(
+                        value: 'monthly',
+                        label: Text('Monthly', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        icon: Icon(Icons.calendar_month, size: 16),
+                      ),
+                      ButtonSegment(
+                        value: 'weekly',
+                        label: Text('Weekly', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        icon: Icon(Icons.view_week, size: 16),
+                      ),
+                      ButtonSegment(
+                        value: 'yearly',
+                        label: Text('Yearly', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        icon: Icon(Icons.calendar_today, size: 16),
+                      ),
+                    ],
+                    selected: {state.periodType},
+                    onSelectionChanged: (val) {
+                      context.read<LedgerBloc>().add(LedgerPeriodChanged(val.first));
+                    },
+                  ),
                 ),
                 const SizedBox(height: 10),
                 InkWell(
@@ -707,19 +728,24 @@ class _LedgerView extends StatelessWidget {
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Icon(Icons.query_stats, size: 16, color: AppTheme.secondary),
-                            SizedBox(width: 8),
-                            Text(
-                              'Finances: Net Worth, Goals, Loans & Taxes',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.secondary,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(Icons.query_stats, size: 16, color: AppTheme.secondary),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Finances: Net Worth, Goals, Loans & Taxes',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.secondary,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         Icon(Icons.chevron_right, size: 18, color: AppTheme.secondary),
                       ],

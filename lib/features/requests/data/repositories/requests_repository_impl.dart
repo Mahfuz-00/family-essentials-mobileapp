@@ -95,6 +95,10 @@ class RequestsRepositoryImpl implements RequestsRepository {
       _guard(() => _remote.act(id, action, payload: payload));
 
   @override
+  Future<void> assign(int id, int? assigneeId) =>
+      _guard(() => _remote.assign(id, assigneeId));
+
+  @override
   Future<void> triggerVoiceCall(int requestId) =>
       _guard(() => _remote.triggerVoiceCall(requestId));
 

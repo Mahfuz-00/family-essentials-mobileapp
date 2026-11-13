@@ -269,6 +269,80 @@ class DemoMockInterceptor extends Interceptor {
       };
     }
 
+    // Single Request detail
+    final reqMatch = RegExp(r'/requests/(\d+)').firstMatch(path);
+    if (reqMatch != null && method == 'GET') {
+      final reqId = int.tryParse(reqMatch.group(1)!) ?? 102;
+      return {
+        'data': {
+          'id': reqId,
+          'title': reqId == 101
+              ? 'Fix leaking kitchen tap'
+              : (reqId == 103
+                  ? 'Collect prescription from CVS'
+                  : 'Weekly Organic Grocery Run'),
+          'status': 'in_progress',
+          'priority': 'normal',
+          'quantity': '4 items',
+          'quantity_got': '3 of 4 items picked',
+          'items': [
+            {
+              'name': 'Organic Whole Milk',
+              'quantity_asked': '2 gal',
+              'quantity_got': '2 gal',
+              'is_picked': true,
+            },
+            {
+              'name': 'Free-range Eggs',
+              'quantity_asked': '1 dozen',
+              'quantity_got': '1 dozen',
+              'is_picked': true,
+            },
+            {
+              'name': 'Sourdough Bread',
+              'quantity_asked': '1 loaf',
+              'quantity_got': '1 loaf',
+              'is_picked': true,
+            },
+            {
+              'name': 'Organic Bananas',
+              'quantity_asked': '1 bunch',
+              'quantity_got': null,
+              'is_picked': false,
+            },
+          ],
+          'notes': 'Check organic produce section first',
+          'category': 'grocery',
+          'store_name': 'Whole Foods Market',
+          'due_at': '2026-11-13T19:00:00Z',
+          'amount_minor': 4850,
+          'ledger_id': 1,
+          'assignee': {'id': 1, 'name': 'Tanvir Rahman'},
+          'requested_by': {'id': 2, 'name': 'Sarah Rahman'},
+          'location_trigger': {
+            'place_id': 3,
+            'direction': 'enter',
+            'place_name': 'Whole Foods Market',
+          },
+          'history': [
+            {
+              'id': 1,
+              'action': 'Assigned to Tanvir Rahman',
+              'actor_name': 'Sarah Rahman',
+              'created_at': '2026-11-13T10:00:00Z',
+            },
+            {
+              'id': 2,
+              'action': 'Started task',
+              'actor_name': 'Tanvir Rahman',
+              'created_at': '2026-11-13T11:15:00Z',
+            },
+          ],
+          'voice_calls': [],
+        },
+      };
+    }
+
     // Ledgers list
     if (path.endsWith('/ledgers') && method == 'GET') {
       return {

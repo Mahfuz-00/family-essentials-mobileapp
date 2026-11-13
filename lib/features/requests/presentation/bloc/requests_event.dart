@@ -97,6 +97,16 @@ class ActionRequested extends RequestsEvent {
   List<Object?> get props => [id, action, payload];
 }
 
+class AssignRequested extends RequestsEvent {
+  const AssignRequested({required this.id, this.assigneeId});
+
+  final int id;
+  final int? assigneeId;
+
+  @override
+  List<Object?> get props => [id, assigneeId];
+}
+
 class VoiceCallRequested extends RequestsEvent {
   const VoiceCallRequested(this.id);
 

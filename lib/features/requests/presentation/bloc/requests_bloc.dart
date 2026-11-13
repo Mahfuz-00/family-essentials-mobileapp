@@ -12,6 +12,7 @@ class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
     on<RequestSubmitted>(_onRequestSubmitted);
     on<ReminderCueChanged>(_onReminderCueChanged);
     on<ActionRequested>(_onActionRequested);
+    on<AssignRequested>(_onAssignRequested);
     on<VoiceCallRequested>(_onVoiceCallRequested);
   }
 
@@ -103,6 +104,21 @@ class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
       await _repository.act(event.id, event.action, payload: event.payload);
 
       emit(const RequestsActionSuccess('Updated.'));
+    } on AppFailure catch (failure) {
+      emit(RequestsFailure(failure.message));
+    }
+  }
+
+  Future<void> _onAssignRequested(
+    AssignRequested event,
+    Emitter<RequestsState> emit,
+  ) async {
+    emit(const RequestsLoading());
+
+    try {
+      await _repository.assign(event.id, event.assigneeId);
+
+      emit(const RequestsActionSuccess('Chore assignment updated.'));
     } on AppFailure catch (failure) {
       emit(RequestsFailure(failure.message));
     }

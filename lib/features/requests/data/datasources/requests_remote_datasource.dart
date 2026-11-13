@@ -53,6 +53,9 @@ class RequestsRemoteDataSource {
   Future<void> act(int id, String action, {Map<String, dynamic>? payload}) =>
       _dio.post<void>('/v1/requests/$id/$action', data: payload ?? const {});
 
+  Future<void> assign(int id, int? assigneeId) =>
+      _dio.post<void>('/v1/requests/$id/assign', data: {'assignee_id': assigneeId});
+
   Future<void> triggerVoiceCall(int requestId) =>
       _dio.post<void>('/v1/requests/$requestId/voice-escalation');
 }

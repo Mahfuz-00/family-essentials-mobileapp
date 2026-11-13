@@ -85,4 +85,18 @@ void main() {
       const RequestsActionSuccess('Updated.'),
     ],
   );
+
+  blocTest<RequestsBloc, RequestsState>(
+    'assigning a chore emits a success state',
+    build: () {
+      when(() => repository.assign(1, 7)).thenAnswer((_) async {});
+
+      return RequestsBloc(repository);
+    },
+    act: (bloc) => bloc.add(const AssignRequested(id: 1, assigneeId: 7)),
+    expect: () => [
+      const RequestsLoading(),
+      const RequestsActionSuccess('Chore assignment updated.'),
+    ],
+  );
 }
