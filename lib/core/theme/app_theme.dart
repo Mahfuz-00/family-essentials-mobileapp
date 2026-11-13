@@ -290,6 +290,37 @@ class AppTheme {
     ),
   );
 
+  /// Warm Sage success SnackBar for completed actions.
+  static SnackBar successSnackBar(String message) {
+    return SnackBar(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: secondary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radiusMd),
+      ),
+      content: Row(
+        children: [
+          const Icon(
+            Icons.check_circle_outline_rounded,
+            color: Colors.white,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// High-contrast Warm Sage error SnackBar with terracotta alert styling.
   static SnackBar errorSnackBar(String message) {
     return SnackBar(

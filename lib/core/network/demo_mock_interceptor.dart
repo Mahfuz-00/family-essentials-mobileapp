@@ -9,6 +9,9 @@ class DemoMockInterceptor extends Interceptor {
   static bool isOfflineMode = false;
   static String activePlanTier = 'pilot';
   static int usedCallsThisMonth = 2;
+  static final List<Map<String, dynamic>> customDueTodayTasks = [];
+  static final List<Map<String, dynamic>> customLedgerEntries = [];
+  static Map<String, dynamic>? activeHouseholdCall;
   static final List<Map<String, dynamic>> householdMessages = [
     {
       'id': 1,
@@ -340,8 +343,8 @@ class DemoMockInterceptor extends Interceptor {
       return {
         'counts': {
           'overdue': 1,
-          'due_today': 2,
-          'assigned_to_me': 2,
+          'due_today': 2 + customDueTodayTasks.length,
+          'assigned_to_me': 2 + customDueTodayTasks.length,
           'backlog': 2,
           'completed_today': 1,
         },
@@ -362,6 +365,7 @@ class DemoMockInterceptor extends Interceptor {
           },
         ],
         'due_today': [
+          ...customDueTodayTasks,
           {
             'id': 102,
             'title': 'Weekly Organic Grocery Run',
@@ -417,6 +421,7 @@ class DemoMockInterceptor extends Interceptor {
           },
         ],
         'assigned_to_me': [
+          ...customDueTodayTasks,
           {
             'id': 102,
             'title': 'Weekly Organic Grocery Run',
@@ -714,22 +719,25 @@ class DemoMockInterceptor extends Interceptor {
     // Ledger entries
     if (path.contains('/entries')) {
       if (method != 'GET') {
-        return {
-          'data': {
-            'id': DateTime.now().millisecondsSinceEpoch % 10000,
-            'ledger_id': 1,
-            'direction': bodyMap['direction'] as String? ?? 'out',
-            'amount_minor': (bodyMap['amount_minor'] as num?)?.toInt() ?? 0,
-            'category': bodyMap['category'] as String? ?? 'other',
-            'description': bodyMap['description'] as String? ?? 'Ledger Entry',
-            'source': bodyMap['source'] as String? ?? 'manual',
-            'logged_by': {'id': 1, 'name': 'Tanvir Rahman'},
-            'created_at': DateTime.now().toIso8601String(),
-          },
+        final created = {
+          'id': DateTime.now().millisecondsSinceEpoch % 10000,
+          'ledger_id': 1,
+          'direction': bodyMap['direction'] as String? ?? 'out',
+          'amount_minor': (bodyMap['amount_minor'] as num?)?.toInt() ?? 0,
+          'category': bodyMap['category'] as String? ?? 'other',
+          'description': bodyMap['description'] as String? ?? 'Ledger Entry',
+          'source': bodyMap['source'] as String? ?? 'manual',
+          'occurred_on': DateTime.now().toIso8601String().split('T').first,
+          'logged_by': {'id': 1, 'name': 'Tanvir Rahman'},
+          'paid_by': {'id': 1, 'name': 'Tanvir Rahman'},
+          'created_at': DateTime.now().toIso8601String(),
         };
+        customLedgerEntries.insert(0, created);
+        return {'data': created};
       }
       return {
         'data': [
+          ...customLedgerEntries,
           {
             'id': 1,
             'ledger_id': 1,
@@ -1456,7 +1464,7 @@ class DemoMockInterceptor extends Interceptor {
           ? (options.data['text'] as String? ?? '')
           : '';
       final recipientId = options.data is Map
-          ? options.data['recipient_id'] as int?
+          ? (options.data['recipient_id'] as num?)?.toInt()
           : null;
       final newMsg = {
         'id': householdMessages.length + 1,
@@ -1467,6 +1475,33 @@ class DemoMockInterceptor extends Interceptor {
         'created_at': 'Just now',
       };
       householdMessages.add(newMsg);
+
+      // In offline/single-device mode, simulate a realistic reply from Sarah Rahman
+      // after 2 seconds so the user can test two-way household chat on one phone!
+      if (text.trim().isNotEmpty) {
+        Future<void>.delayed(const Duration(seconds: 2), () {
+          final lower = text.toLowerCase();
+          String reply = 'Got it! Thanks for the update 👍';
+          if (lower.contains('milk') || lower.contains('grocery') || lower.contains('store') || lower.contains('buy')) {
+            reply = 'Awesome, could you also grab organic eggs and sourdough bread while you are there?';
+          } else if (lower.contains('call') || lower.contains('phone') || lower.contains('talk')) {
+            reply = 'I am free right now—feel free to ring me using the Call button above!';
+          } else if (lower.contains('home') || lower.contains('dinner') || lower.contains('eta')) {
+            reply = 'Sounds good! I will be home in about 20 minutes.';
+          } else if (lower.contains('hi') || lower.contains('hello') || lower.contains('hey')) {
+            reply = 'Hey Tanvir! How is your day going? Everything good with today\'s errands?';
+          }
+          householdMessages.add({
+            'id': householdMessages.length + 1,
+            'sender_id': 2,
+            'sender_name': 'Sarah Rahman',
+            'recipient_id': recipientId,
+            'text': reply,
+            'created_at': 'Just now',
+          });
+        });
+      }
+
       return {
         'data': newMsg,
         'chat_used': householdMessages.length,
@@ -1475,37 +1510,159 @@ class DemoMockInterceptor extends Interceptor {
       };
     }
 
+    // Active household call signaling (GET & POST)
+    if (path.contains('/household/calls/active') && method == 'GET') {
+      return {
+        'active_call': activeHouseholdCall,
+      };
+    }
+
+    if (path.contains('/household/calls/') && path.endsWith('/end') && method == 'POST') {
+      activeHouseholdCall = null;
+      return {'status': 'ended'};
+    }
+
     // Direct household member call
     if (path.contains('/members/') && path.endsWith('/call') && method == 'POST') {
       final plan = _planDetailsFor(activePlanTier);
       final callCap = plan['member_calls_cap'] as int;
       usedCallsThisMonth++;
+      final callId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      activeHouseholdCall = {
+        'id': callId,
+        'caller_id': 1,
+        'caller_name': 'Tanvir Rahman',
+        'callee_id': 2,
+        'callee_name': 'Sarah Rahman',
+        'phone': '+8801711000002',
+        'status': 'connected',
+        'started_at': DateTime.now().toIso8601String(),
+      };
       return {
         'message': 'Call connected to household member.',
         'phone': '+8801711000002',
-        'call_id': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        'call_id': callId,
+        'status': 'connected',
         'remaining_calls': (callCap - usedCallsThisMonth).clamp(0, 9999),
         'quota': callCap,
         'used': usedCallsThisMonth,
       };
     }
 
+    // Real Receipt OCR Scan persistence
+    if (path.contains('/ledger/receipts/scan') && method == 'POST') {
+      final merchant = bodyMap['merchant'] as String? ?? 'Receipt Merchant';
+      final date = bodyMap['date'] as String? ?? DateTime.now().toIso8601String().split('T').first;
+      final totalMinor = (bodyMap['total_minor'] as num?)?.toInt() ?? 0;
+      final taxMinor = (bodyMap['tax_minor'] as num?)?.toInt() ?? 0;
+      final subtotalMinor = (bodyMap['subtotal_minor'] as num?)?.toInt() ?? totalMinor;
+      final lineItems = bodyMap['line_items'] as List<dynamic>? ?? const [];
+      final suggestedRestocks = bodyMap['suggested_restocks'] as List<dynamic>? ?? const [];
+      final autoRecord = bodyMap['auto_record'] as bool? ?? true;
+
+      Map<String, dynamic>? recordedEntry;
+      if (autoRecord && totalMinor > 0) {
+        recordedEntry = {
+          'id': DateTime.now().millisecondsSinceEpoch % 10000,
+          'ledger_id': 1,
+          'direction': 'out',
+          'amount_minor': totalMinor,
+          'category': 'grocery',
+          'description': 'Receipt scanned: $merchant',
+          'source': 'manual',
+          'occurred_on': date,
+          'logged_by': {'id': 1, 'name': 'Tanvir Rahman'},
+          'paid_by': {'id': 1, 'name': 'Tanvir Rahman'},
+          'created_at': DateTime.now().toIso8601String(),
+        };
+        customLedgerEntries.insert(0, recordedEntry);
+      }
+
+      return {
+        'merchant': merchant,
+        'date': date,
+        'total_minor': totalMinor,
+        'tax_minor': taxMinor,
+        'subtotal_minor': subtotalMinor,
+        'currency': 'USD',
+        'confidence': 0.96,
+        'line_items': lineItems,
+        'suggested_restocks': suggestedRestocks,
+        'recorded_entry': recordedEntry,
+      };
+    }
+
     // AI Family Dispatcher (NLP)
     if (path.contains('/requests/parse-nlp') && method == 'POST') {
-      final text = options.data is Map ? (options.data['text'] as String? ?? '') : '';
+      final text = options.data is Map ? (options.data['text'] as String? ?? '').trim() : '';
+      final lower = text.toLowerCase();
+      final isSarah = lower.contains('sarah');
+      final assigneeName = isSarah ? 'Sarah Rahman' : 'Tanvir Rahman';
+      final assigneeId = isSarah ? 2 : 1;
+      final priority = (lower.contains('urgent') || lower.contains('asap') || lower.contains('emergency'))
+          ? 'urgent'
+          : (lower.contains('high') || lower.contains('important') ? 'high' : 'normal');
+
+      String storeName = 'Local Store';
+      if (lower.contains('whole foods')) {
+        storeName = 'Whole Foods Market';
+      } else if (lower.contains('target')) {
+        storeName = 'Target';
+      } else if (lower.contains('costco')) {
+        storeName = 'Costco';
+      } else if (lower.contains('cvs') || lower.contains('pharmacy')) {
+        storeName = 'CVS Pharmacy';
+      } else if (lower.contains('walmart')) {
+        storeName = 'Walmart';
+      }
+
+      // Clean conversational prefixes for the task title
+      String cleanTitle = text
+          .replaceFirst(
+            RegExp(
+              r'^(please\s+)?(remind|ask|tell|assign)\s+(sarah(\s+rahman)?|tanvir(\s+rahman)?|me)\s+to\s+',
+              caseSensitive: false,
+            ),
+            '',
+          )
+          .replaceFirst(
+            RegExp(r'^(please\s+)?(create|add|schedule|dispatch)\s+(an?\s+)?(errand|task|chore)\s+(to\s+|for\s+)?', caseSensitive: false),
+            '',
+          )
+          .trim();
+      if (cleanTitle.isEmpty) {
+        cleanTitle = text.isNotEmpty ? text : 'Errand from AI Dispatcher';
+      } else {
+        cleanTitle = cleanTitle[0].toUpperCase() + cleanTitle.substring(1);
+      }
+
+      final newTask = {
+        'id': DateTime.now().millisecondsSinceEpoch % 10000,
+        'title': cleanTitle,
+        'status': 'pending',
+        'priority': priority,
+        'quantity': null,
+        'quantity_got': null,
+        'items': <Map<String, dynamic>>[],
+        'category': lower.contains('pharmacy') || lower.contains('prescription') ? 'health' : 'grocery',
+        'store_name': storeName,
+        'due_at': DateTime.now().add(const Duration(hours: 4)).toIso8601String(),
+        'assignee': {'id': assigneeId, 'name': assigneeName},
+      };
+      customDueTodayTasks.insert(0, newTask);
+
       return {
         'parsed': {
-          'title': text.isNotEmpty ? text : 'Errand from AI Dispatcher',
-          'store_name': text.toLowerCase().contains('whole foods')
-              ? 'Whole Foods Market'
-              : (text.toLowerCase().contains('target') ? 'Target' : 'Local Store'),
-          'assignee_name': text.toLowerCase().contains('sarah') ? 'Sarah Rahman' : 'Tanvir Rahman',
-          'assignee_id': text.toLowerCase().contains('sarah') ? 2 : 1,
-          'priority': text.toLowerCase().contains('urgent') || text.toLowerCase().contains('asap') ? 'urgent' : 'normal',
-          'due_at': '2026-11-14T18:00:00Z',
+          'title': cleanTitle,
+          'store_name': storeName,
+          'assignee_name': assigneeName,
+          'assignee_id': assigneeId,
+          'priority': priority,
+          'due_at': newTask['due_at'],
         },
+        'request': newTask,
         'created': true,
-        'message': 'AI Family Dispatcher processed request successfully.',
+        'message': 'AI Family Dispatcher created errand "$cleanTitle" and assigned it to $assigneeName.',
       };
     }
 
