@@ -1,5 +1,7 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/di/injector.dart';
 import '../../../../core/network/dio_client.dart';
@@ -241,6 +243,56 @@ class _BillingPageState extends State<BillingPage> {
     try {
       if (getIt.isRegistered<DioClient>()) {
         final dio = getIt<DioClient>().dio;
+
+        // Card upgrades go through the provider's hosted checkout. The local
+        // invoice is only settled by the provider's signed webhook, so do not
+        // fabricate a paid invoice here.
+        if (!isCash) {
+          try {
+            final checkout = await dio.post<dynamic>(
+              '/v1/billing/checkout-session',
+              data: {'tier': newTier, 'gateway': 'stripe'},
+            );
+
+            final payload = checkout.data;
+            final data = payload is Map ? payload['data'] : null;
+            final checkoutData = data is Map ? data['checkout'] : null;
+            final url = checkoutData is Map ? checkoutData['url'] : null;
+
+            if (url is String && url.isNotEmpty) {
+              final uri = Uri.parse(url);
+
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+
+              if (mounted) {
+                setState(() => _isLoading = false);
+              }
+
+              return;
+            }
+          } on DioException catch (error) {
+            // 422 means no provider keys are configured on this platform; keep
+            // the existing simulated flow for local development.
+            if (error.response?.statusCode != 422) {
+              if (mounted) {
+                setState(() => _isLoading = false);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      error.response?.data?['message']?.toString() ??
+                          'Could not start the checkout session.',
+                    ),
+                  ),
+                );
+              }
+
+              return;
+            }
+          }
+        }
+
         await dio.post<dynamic>(
           '/v1/billing/upgrade',
           data: {
