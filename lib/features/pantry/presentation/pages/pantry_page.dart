@@ -46,17 +46,6 @@ class _PantryView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.canvas,
-      appBar: AppBar(
-        title: const Text('Pantry & essentials'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: () =>
-                context.read<PantryBloc>().add(const PantryRequested()),
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _add(context),
         backgroundColor: AppTheme.secondary,

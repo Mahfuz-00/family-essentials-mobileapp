@@ -5,9 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_event.dart';
+import '../../features/auth/presentation/bloc/auth_state.dart';
+import 'household_app_drawer.dart';
 
-/// Persistent bottom navigation, as specified by the mobile designs:
-/// Today · Shopping · Places · Settings.
+/// Persistent bottom navigation & unified top app bar with Drawer menu.
 class MainShell extends StatefulWidget {
   const MainShell({super.key, required this.location, required this.child});
 
@@ -53,16 +54,20 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   void initState() {
     super.initState();
-    // Every tab needs the household identity, so load it once here.
+    // Load active household session
     context.read<AuthBloc>().add(const SessionLoaded());
   }
 
-  /// Pantry is a sub-screen of the shopping tab, so it keeps Shopping lit;
-  /// recurring rules belong to Today; ledger alias keeps Budget lit.
-  static const _tabAliases = <String, int>{'/pantry': 1, '/recurring': 0, '/ledger': 2};
+  static const _tabAliases = <String, int>{
+    '/pantry': 1,
+    '/recurring': 0,
+    '/ledger': 2,
+  };
 
   int get _index {
     for (final alias in _tabAliases.entries) {
@@ -78,9 +83,88 @@ class _MainShellState extends State<MainShell> {
     return match < 0 ? 0 : match;
   }
 
+  String _titleFor(String loc) {
+    if (loc.startsWith('/today')) return 'Daily Hub';
+    if (loc.startsWith('/shopping')) return 'Shopping & Errands';
+    if (loc.startsWith('/budget') || loc.startsWith('/ledger')) return 'Household Expenses';
+    if (loc.startsWith('/places')) return 'Saved Places';
+    if (loc.startsWith('/settings')) return 'Reminders & Settings';
+    if (loc.startsWith('/pantry')) return 'Pantry & Stock';
+    if (loc.startsWith('/recurring')) return 'Recurring Rules';
+    return 'Family Essentials';
+  }
+
+  bool get _isSubRoute {
+    return widget.location == '/pantry' || widget.location == '/recurring';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: HouseholdAppDrawer(currentLocation: widget.location),
+      appBar: AppBar(
+        leading: _isSubRoute
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Back',
+                onPressed: () => context.pop(),
+              )
+            : IconButton(
+                icon: const Icon(Icons.menu),
+                tooltip: 'Open Menu',
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              ),
+        title: BlocBuilder<AuthBloc, AuthState>(
+          builder: (context, state) {
+            String hName = 'The Tanvir Household';
+            if (state is AuthMembershipsLoaded) {
+              hName = state.activeMembership?.tenant.name ?? hName;
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _titleFor(widget.location),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.ink,
+                  ),
+                ),
+                Text(
+                  hName,
+                  style: const TextStyle(fontSize: 11, color: AppTheme.muted),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            );
+          },
+        ),
+        actions: [
+          if (widget.location.startsWith('/budget') || widget.location.startsWith('/ledger'))
+            IconButton(
+              tooltip: 'Household Finances (Net Worth, Goals, Loans, Taxes)',
+              icon: const Icon(Icons.analytics_outlined, color: AppTheme.secondary),
+              onPressed: () {
+                // Navigate to or open finances modal sheet
+                context.push('/budget?open=finances');
+              },
+            ),
+          IconButton(
+            tooltip: 'AI Family Dispatcher & Chat',
+            icon: const Icon(Icons.auto_awesome, color: AppTheme.secondary),
+            onPressed: () => context.push('/chat'),
+          ),
+          IconButton(
+            tooltip: 'Receipt Scanner (OCR)',
+            icon: const Icon(Icons.document_scanner_outlined),
+            onPressed: () => context.push('/receipt/scan'),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
       body: widget.child,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,

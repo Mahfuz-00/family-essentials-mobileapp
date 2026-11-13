@@ -31,11 +31,24 @@ class LedgerBloc extends Bloc<LedgerEvent, LedgerState> {
   ) async {
     if (state is! LedgerLoaded) return;
     final current = state as LedgerLoaded;
-    await _loadData(
-      emit,
-      selectedLedgerId: current.activeLedger.id,
-      periodType: event.periodType,
-    );
+    if (current.periodType == event.periodType) return;
+
+    // Immediately update periodType for instant UI response
+    emit(current.copyWith(periodType: event.periodType));
+
+    try {
+      final summary = await _repository.getSummary(
+        current.activeLedger.id,
+        periodType: event.periodType,
+      );
+      if (state is LedgerLoaded && (state as LedgerLoaded).periodType == event.periodType) {
+        emit((state as LedgerLoaded).copyWith(summary: summary));
+      }
+    } on AppFailure catch (failure) {
+      emit(LedgerFailure(failure.message));
+    } catch (e) {
+      emit(LedgerFailure(e.toString()));
+    }
   }
 
   Future<void> _onLedgerSelected(

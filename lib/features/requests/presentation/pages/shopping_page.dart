@@ -42,22 +42,6 @@ class _ShoppingViewState extends State<_ShoppingView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.canvas,
-      appBar: AppBar(
-        title: const Text('Shopping mode'),
-        actions: [
-          IconButton(
-            tooltip: 'Scan Receipt',
-            icon: const Icon(Icons.document_scanner_outlined),
-            onPressed: () => context.push('/receipt/scan'),
-          ),
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: () =>
-                context.read<RequestsBloc>().add(const BoardRequested()),
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
       body: BlocConsumer<RequestsBloc, RequestsState>(
         listener: (context, state) {
           if (state is RequestsActionSuccess) {

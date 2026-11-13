@@ -84,17 +84,6 @@ class _RecurringView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.canvas,
-      appBar: AppBar(
-        title: const Text('Recurring rules'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: () =>
-                context.read<RecurringBloc>().add(const RecurringRulesRequested()),
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _add(context),
         backgroundColor: AppTheme.secondary,

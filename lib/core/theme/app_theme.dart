@@ -131,8 +131,16 @@ class AppTheme {
   );
 
   // ------------------------------------------------------------------- theme
-  static ThemeData get light => ThemeData(
+  static final ThemeData light = _buildTheme();
+
+  static ThemeData _buildTheme() => ThemeData(
     useMaterial3: true,
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
     colorScheme: ColorScheme.fromSeed(
       seedColor: primary,
       primary: primary,

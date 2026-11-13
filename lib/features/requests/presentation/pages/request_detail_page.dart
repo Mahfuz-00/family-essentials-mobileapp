@@ -89,6 +89,110 @@ class _RequestDetailView extends StatelessWidget {
     });
   }
 
+  Future<void> _handleCallAssignee(BuildContext context, ServiceRequest request) async {
+    final bloc = context.read<RequestsBloc>();
+    const phone = '+15550000002';
+    final name = request.assigneeName ?? 'Assignee';
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppTheme.outline.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Reach $name',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.ink,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Choose standard cellular call or automated AI voice escalation.',
+                  style: const TextStyle(fontSize: 13, color: AppTheme.muted),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.forestSoft,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.phone_in_talk, color: AppTheme.secondary),
+                  ),
+                  title: const Text('Direct Phone Call', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('Dial $phone directly on cellular network'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.muted),
+                  onTap: () async {
+                    Navigator.of(ctx).pop();
+                    final uri = Uri.parse('tel:$phone');
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Could not open phone dialer for $phone')),
+                        );
+                      }
+                    }
+                  },
+                ),
+                const Divider(height: 16),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.coralSoft,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.ring_volume, color: AppTheme.tertiary),
+                  ),
+                  title: const Text('AI Voice Escalation Call', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: const Text('Trigger automated Twilio urgency call to assignee'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.muted),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    bloc.add(VoiceCallRequested(request.id));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('AI voice escalation requested for $name!'),
+                        backgroundColor: AppTheme.secondary,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _openFulfillSheet(BuildContext context, ServiceRequest request) {
     FulfillRequestSheet.show(
       context,
@@ -359,15 +463,7 @@ class _RequestDetailView extends StatelessWidget {
               ),
             if (request.isOpen)
               OutlinedButton.icon(
-                onPressed: () async {
-                  context.read<RequestsBloc>().add(
-                    VoiceCallRequested(request.id),
-                  );
-                  final uri = Uri.parse('tel:');
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri);
-                  }
-                },
+                onPressed: () => _handleCallAssignee(context, request),
                 icon: const Icon(Icons.phone, size: 18),
                 label: const Text('Call assignee'),
               ),

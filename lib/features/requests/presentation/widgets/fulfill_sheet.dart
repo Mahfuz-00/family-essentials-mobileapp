@@ -5,18 +5,24 @@ import '../../domain/entities/service_request.dart';
 
 class FulfillItemData {
   FulfillItemData({
-    required this.name,
+    required String name,
     this.quantityAsked,
     String? quantityGot,
     this.isPicked = true,
-  }) : gotController = TextEditingController(text: quantityGot ?? quantityAsked ?? '');
+    this.isExtra = false,
+  })  : nameController = TextEditingController(text: name),
+        gotController = TextEditingController(text: quantityGot ?? quantityAsked ?? '');
 
-  final String name;
+  final TextEditingController nameController;
   final String? quantityAsked;
   final TextEditingController gotController;
   bool isPicked;
+  final bool isExtra;
+
+  String get name => nameController.text.trim();
 
   void dispose() {
+    nameController.dispose();
     gotController.dispose();
   }
 }
@@ -91,8 +97,30 @@ class _FulfillRequestSheetState extends State<FulfillRequestSheet> {
     super.dispose();
   }
 
+  void _addExtraItem() {
+    setState(() {
+      _items.add(
+        FulfillItemData(
+          name: '',
+          quantityAsked: null,
+          quantityGot: '1',
+          isPicked: true,
+          isExtra: true,
+        ),
+      );
+    });
+  }
+
+  void _removeExtraItem(int index) {
+    setState(() {
+      final removed = _items.removeAt(index);
+      removed.dispose();
+    });
+  }
+
   void _submit() {
     final updatedItems = _items
+        .where((it) => it.name.isNotEmpty)
         .map((it) => {
               'name': it.name,
               'quantity_asked': it.quantityAsked,
@@ -178,36 +206,57 @@ class _FulfillRequestSheetState extends State<FulfillRequestSheet> {
                         onChanged: (val) => setState(() => it.isPicked = val ?? false),
                       ),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              it.name,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.ink,
+                        child: it.isExtra
+                            ? Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: it.nameController,
+                                      autofocus: true,
+                                      decoration: const InputDecoration(
+                                        hintText: 'Extra item name (e.g. Avocado)',
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.close, size: 16, color: AppTheme.muted),
+                                    visualDensity: VisualDensity.compact,
+                                    onPressed: () => _removeExtraItem(index),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    it.name,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.ink,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Asked: ${it.quantityAsked ?? '1'}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.muted,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            Text(
-                              'Asked: ${it.quantityAsked ?? '1'}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.muted,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                       const SizedBox(width: 8),
                       SizedBox(
                         width: 105,
                         child: TextField(
                           controller: it.gotController,
-                          decoration: const InputDecoration(
-                            labelText: 'Got Qty',
+                          decoration: InputDecoration(
+                            labelText: it.isExtra ? 'Qty Got' : 'Got Qty',
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           ),
                         ),
                       ),
@@ -217,7 +266,20 @@ class _FulfillRequestSheetState extends State<FulfillRequestSheet> {
               },
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: _addExtraItem,
+            icon: const Icon(Icons.add, size: 18, color: AppTheme.secondary),
+            label: const Text(
+              'Add extra grocery / item bought',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.secondary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _amount,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),

@@ -5,12 +5,14 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/settings_page.dart';
 import '../../features/auth/presentation/pages/verify_phone_page.dart';
+import '../../features/billing/presentation/pages/billing_page.dart';
 import '../../features/feedback/presentation/pages/feedback_page.dart';
 import '../../features/ledger/presentation/pages/ledger_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/pantry/presentation/pages/pantry_page.dart';
 import '../../features/places/presentation/pages/places_page.dart';
 import '../../features/recurring/presentation/pages/recurring_page.dart';
+import '../../features/requests/presentation/pages/ai_chat_page.dart';
 import '../../features/requests/presentation/pages/quick_add_page.dart';
 import '../../features/requests/presentation/pages/receipt_scan_page.dart';
 import '../../features/requests/presentation/pages/request_detail_page.dart';
@@ -152,6 +154,24 @@ class AppRouter {
             pageBuilder: (context, state) => _buildFadeSlidePage(
               key: state.pageKey,
               child: const ReceiptScanPage(),
+            ),
+          ),
+
+          // Household Chat & AI Dispatcher
+          GoRoute(
+            path: '/chat',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const AiChatPage(),
+            ),
+          ),
+
+          // Billing & Plan Management
+          GoRoute(
+            path: '/billing',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const BillingPage(),
             ),
           ),
 

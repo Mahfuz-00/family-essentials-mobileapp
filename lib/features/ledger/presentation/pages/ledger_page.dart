@@ -399,6 +399,44 @@ class _LedgerView extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
 
+                    // Quick Management Actions
+                    const Text(
+                      'Manage Household Assets, Debt & Goals',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ActionChip(
+                          avatar: const Icon(Icons.savings_outlined, size: 16, color: AppTheme.secondary),
+                          label: const Text('+ Add Asset'),
+                          onPressed: () => _showAddAssetDialog(sheetCtx),
+                        ),
+                        ActionChip(
+                          avatar: const Icon(Icons.account_balance, size: 16, color: AppTheme.tertiary),
+                          label: const Text('+ Add Loan / Mortgage'),
+                          onPressed: () => _showAddLiabilityDialog(sheetCtx),
+                        ),
+                        ActionChip(
+                          avatar: const Icon(Icons.flag_outlined, size: 16, color: AppTheme.primary),
+                          label: const Text('+ Add Goal'),
+                          onPressed: () => _showAddGoalDialog(sheetCtx),
+                        ),
+                        ActionChip(
+                          avatar: const Icon(Icons.receipt_outlined, size: 16, color: AppTheme.ink),
+                          label: const Text('+ Add Tax Assessment'),
+                          onPressed: () => _showAddTaxDialog(sheetCtx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
                     FilledButton.icon(
                       onPressed: () => Navigator.of(sheetCtx).pop(),
                       icon: const Icon(Icons.check, size: 18),
@@ -411,6 +449,227 @@ class _LedgerView extends StatelessWidget {
           },
         );
       },
+    );
+  }
+
+  void _showAddGoalDialog(BuildContext context) {
+    final titleCtrl = TextEditingController();
+    final targetCtrl = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Financial Goal'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleCtrl,
+              decoration: const InputDecoration(labelText: 'Goal Title', hintText: 'e.g. Emergency Fund'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: targetCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Target Amount (\$)', hintText: '5000.00'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              final target = double.tryParse(targetCtrl.text.trim());
+              if (titleCtrl.text.trim().isNotEmpty && target != null) {
+                await getIt<FinancesRemoteDataSource>().createGoal({
+                  'title': titleCtrl.text.trim(),
+                  'target_minor': (target * 100).round(),
+                });
+                if (ctx.mounted) Navigator.of(ctx).pop();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Goal created!'), backgroundColor: AppTheme.secondary),
+                  );
+                }
+              }
+            },
+            child: const Text('Save Goal'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddAssetDialog(BuildContext context) {
+    final nameCtrl = TextEditingController();
+    final valueCtrl = TextEditingController();
+    String type = 'savings';
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Add Asset / Account'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Asset Name', hintText: 'e.g. High-Yield Savings'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: type,
+                items: const [
+                  DropdownMenuItem(value: 'savings', child: Text('Savings Account')),
+                  DropdownMenuItem(value: 'investment', child: Text('Investments / Stocks')),
+                  DropdownMenuItem(value: 'property', child: Text('Real Estate / Property')),
+                  DropdownMenuItem(value: 'other', child: Text('Other Asset')),
+                ],
+                onChanged: (val) => setDialogState(() => type = val ?? 'savings'),
+                decoration: const InputDecoration(labelText: 'Asset Type'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: valueCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Current Value (\$)', hintText: '10000.00'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                final val = double.tryParse(valueCtrl.text.trim());
+                if (nameCtrl.text.trim().isNotEmpty && val != null) {
+                  await getIt<FinancesRemoteDataSource>().createAsset({
+                    'name': nameCtrl.text.trim(),
+                    'type': type,
+                    'value_minor': (val * 100).round(),
+                  });
+                  if (ctx.mounted) Navigator.of(ctx).pop();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Asset added!'), backgroundColor: AppTheme.secondary),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save Asset'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddLiabilityDialog(BuildContext context) {
+    final nameCtrl = TextEditingController();
+    final balanceCtrl = TextEditingController();
+    String type = 'loan';
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Add Liability / Debt'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Debt / Loan Name', hintText: 'e.g. Car Loan, Home Mortgage'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: type,
+                items: const [
+                  DropdownMenuItem(value: 'mortgage', child: Text('Mortgage')),
+                  DropdownMenuItem(value: 'loan', child: Text('Personal / Auto Loan')),
+                  DropdownMenuItem(value: 'credit_card', child: Text('Credit Card Balance')),
+                  DropdownMenuItem(value: 'other', child: Text('Other Liability')),
+                ],
+                onChanged: (val) => setDialogState(() => type = val ?? 'loan'),
+                decoration: const InputDecoration(labelText: 'Liability Type'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: balanceCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Outstanding Balance (\$)', hintText: '15000.00'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                final val = double.tryParse(balanceCtrl.text.trim());
+                if (nameCtrl.text.trim().isNotEmpty && val != null) {
+                  await getIt<FinancesRemoteDataSource>().createLiability({
+                    'name': nameCtrl.text.trim(),
+                    'type': type,
+                    'balance_minor': (val * 100).round(),
+                  });
+                  if (ctx.mounted) Navigator.of(ctx).pop();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Liability added!'), backgroundColor: AppTheme.secondary),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save Liability'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddTaxDialog(BuildContext context) {
+    final titleCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Tax Assessment'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleCtrl,
+              decoration: const InputDecoration(labelText: 'Tax Description', hintText: 'e.g. Property Tax 2026 Q1'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: amountCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Estimated Amount Due (\$)', hintText: '1200.00'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              final amt = double.tryParse(amountCtrl.text.trim());
+              if (titleCtrl.text.trim().isNotEmpty && amt != null) {
+                await getIt<FinancesRemoteDataSource>().createTax({
+                  'title': titleCtrl.text.trim(),
+                  'amount_minor': (amt * 100).round(),
+                  'status': 'pending',
+                });
+                if (ctx.mounted) Navigator.of(ctx).pop();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Tax assessment added!'), backgroundColor: AppTheme.secondary),
+                  );
+                }
+              }
+            },
+            child: const Text('Save Tax'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -597,21 +856,6 @@ class _LedgerView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.canvas,
-      appBar: AppBar(
-        title: const Text('Budget & Expenses'),
-        actions: [
-          IconButton(
-            tooltip: 'Household Finances (Net Worth, Goals, Loans, Taxes)',
-            icon: const Icon(Icons.analytics_outlined),
-            onPressed: () => _showFinancesSheet(context),
-          ),
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh),
-            onPressed: () => context.read<LedgerBloc>().add(const LedgerPageStarted()),
-          ),
-        ],
-      ),
       floatingActionButton: BlocBuilder<LedgerBloc, LedgerState>(
         builder: (context, state) {
           if (state is! LedgerLoaded) return const SizedBox.shrink();

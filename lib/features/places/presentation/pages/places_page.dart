@@ -52,7 +52,6 @@ class _PlacesViewState extends State<_PlacesView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Saved places')),
       body: SafeArea(
         child: BlocConsumer<PlacesBloc, PlacesState>(
           listener: (context, state) {

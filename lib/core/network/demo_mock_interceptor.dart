@@ -4,6 +4,29 @@ import 'package:dio/dio.dart';
 /// Intercepts network failures (when API is offline / unhosted) and serves
 /// rich seeded demo data so the mobile app can be evaluated completely offline.
 class DemoMockInterceptor extends Interceptor {
+  /// Latches to true when backend is offline so all subsequent requests
+  /// respond with 0ms latency without waiting for timeouts.
+  static bool isOfflineMode = false;
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    if (isOfflineMode) {
+      final mock = _resolveMock(options.path, options.method.toUpperCase(), options);
+      if (mock != null) {
+        handler.resolve(
+          Response(
+            requestOptions: options,
+            data: mock,
+            statusCode: 200,
+            statusMessage: 'OK (Offline Cache)',
+          ),
+        );
+        return;
+      }
+    }
+    handler.next(options);
+  }
+
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     final isConnectionError = err.type == DioExceptionType.connectionError ||
@@ -12,7 +35,11 @@ class DemoMockInterceptor extends Interceptor {
         err.error is SocketException ||
         (err.response != null && err.response!.statusCode! >= 500);
 
-    if (!isConnectionError) {
+    if (isConnectionError) {
+      isOfflineMode = true;
+    }
+
+    if (!isConnectionError && !isOfflineMode) {
       handler.next(err);
       return;
     }
@@ -93,9 +120,33 @@ class DemoMockInterceptor extends Interceptor {
     if (path.contains('/tenant/members')) {
       return {
         'data': [
-          {'user_id': 1, 'name': 'Tanvir Rahman'},
-          {'user_id': 2, 'name': 'Sarah Rahman'},
+          {'user_id': 1, 'name': 'Tanvir Rahman', 'role': 'tenant_admin', 'email': 'tanvir@familyessentials.app'},
+          {'user_id': 2, 'name': 'Sarah Rahman', 'role': 'member', 'email': 'sarah@familyessentials.app'},
         ],
+      };
+    }
+
+    // Tenant Roles
+    if (path.contains('/tenant/roles')) {
+      return {
+        'roles': {
+          'tenant_admin': {'label': 'Household admin', 'detail': 'Full control, including roles and billing'},
+          'co_admin': {'label': 'Co-admin', 'detail': 'Runs the household day to day, cannot change roles'},
+          'member': {'label': 'Household member', 'detail': 'Creates, claims and completes requests'},
+          'junior': {'label': 'Junior', 'detail': 'Raises requests and completes their own; cannot dispatch'},
+        },
+        'can_manage_roles': true,
+      };
+    }
+
+    // Tenant Quotas
+    if (path.contains('/tenant/quotas')) {
+      return {
+        'plan': 'Household Pro',
+        'members_limit': 10,
+        'members_count': 2,
+        'voice_calls_daily_limit': 15,
+        'voice_calls_used_today': 1,
       };
     }
 
@@ -362,9 +413,47 @@ class DemoMockInterceptor extends Interceptor {
 
     // Ledger summary
     if (path.contains('/summary')) {
+      final period = options.queryParameters['period'] ?? 'monthly';
+      if (period == 'weekly') {
+        return {
+          'currency': 'USD',
+          'period': 'weekly',
+          'budget_minor': 60000,
+          'weekly_budget_minor': 60000,
+          'yearly_budget_minor': 3000000,
+          'total_expense_minor': 24500,
+          'total_income_minor': 87500,
+          'net_minor': 63000,
+          'by_category': [
+            {'category': 'grocery', 'total_minor': 14500},
+            {'category': 'utility_bill', 'total_minor': 4500},
+            {'category': 'household', 'total_minor': 3500},
+            {'category': 'other', 'total_minor': 2000},
+          ],
+        };
+      } else if (period == 'yearly') {
+        return {
+          'currency': 'USD',
+          'period': 'yearly',
+          'budget_minor': 3000000,
+          'weekly_budget_minor': 60000,
+          'yearly_budget_minor': 3000000,
+          'total_expense_minor': 2214000,
+          'total_income_minor': 4200000,
+          'net_minor': 1986000,
+          'by_category': [
+            {'category': 'rent', 'total_minor': 1440000},
+            {'category': 'grocery', 'total_minor': 294000},
+            {'category': 'utility_bill', 'total_minor': 222000},
+            {'category': 'household', 'total_minor': 112800},
+            {'category': 'healthcare', 'total_minor': 82200},
+            {'category': 'other', 'total_minor': 63000},
+          ],
+        };
+      }
       return {
         'currency': 'USD',
-        'period': 'month',
+        'period': 'monthly',
         'budget_minor': 250000,
         'weekly_budget_minor': 60000,
         'yearly_budget_minor': 3000000,
@@ -640,6 +729,342 @@ class DemoMockInterceptor extends Interceptor {
             'latitude': 23.8130,
             'longitude': 90.4160,
             'radius_meters': 200,
+          },
+        ],
+      };
+    }
+
+    // Pantry Essentials
+    if (path.contains('/essentials') && method == 'GET') {
+      return {
+        'summary': {
+          'total': 6,
+          'due': 2,
+          'safety_stock': 4,
+          'cadence': 2,
+        },
+        'data': [
+          {
+            'id': 1,
+            'name': 'Organic Whole Milk',
+            'category': 'Groceries',
+            'default_store': 'Whole Foods Market',
+            'pack_size': '1 Gallon',
+            'cadence_days': 7,
+            'threshold': 2,
+            'stock_level': 1,
+            'is_active': true,
+            'is_due': true,
+            'due_reason': 'Low safety stock (1 of 2 threshold)',
+            'last_restocked_at': '2026-11-06T10:00:00Z',
+            'next_due_at': '2026-11-13T10:00:00Z',
+            'days_until_due': 0,
+          },
+          {
+            'id': 2,
+            'name': 'Grade A Large Eggs',
+            'category': 'Groceries',
+            'default_store': 'Whole Foods Market',
+            'pack_size': '12 Pack',
+            'cadence_days': 7,
+            'threshold': 2,
+            'stock_level': 1,
+            'is_active': true,
+            'is_due': true,
+            'due_reason': 'Low safety stock (1 of 2 threshold)',
+            'last_restocked_at': '2026-11-06T10:00:00Z',
+            'next_due_at': '2026-11-13T10:00:00Z',
+            'days_until_due': 0,
+          },
+          {
+            'id': 3,
+            'name': 'Extra Virgin Olive Oil',
+            'category': 'Pantry',
+            'default_store': 'Trader Joe\'s',
+            'pack_size': '750ml Bottle',
+            'cadence_days': 30,
+            'threshold': 1,
+            'stock_level': 2,
+            'is_active': true,
+            'is_due': false,
+            'last_restocked_at': '2026-10-25T14:00:00Z',
+            'next_due_at': '2026-11-24T14:00:00Z',
+            'days_until_due': 11,
+          },
+          {
+            'id': 4,
+            'name': 'Laundry Detergent Pods',
+            'category': 'Cleaning',
+            'default_store': 'Target',
+            'pack_size': '42 Pods Tub',
+            'cadence_days': 21,
+            'threshold': 1,
+            'stock_level': 2,
+            'is_active': true,
+            'is_due': false,
+            'last_restocked_at': '2026-11-01T16:00:00Z',
+            'next_due_at': '2026-11-22T16:00:00Z',
+            'days_until_due': 9,
+          },
+          {
+            'id': 5,
+            'name': 'Paper Towels',
+            'category': 'Household',
+            'default_store': 'Costco',
+            'pack_size': '12 Giant Rolls',
+            'cadence_days': 30,
+            'threshold': 2,
+            'stock_level': 3,
+            'is_active': true,
+            'is_due': false,
+            'last_restocked_at': '2026-10-28T11:00:00Z',
+            'next_due_at': '2026-11-27T11:00:00Z',
+            'days_until_due': 14,
+          },
+          {
+            'id': 6,
+            'name': 'Organic Medium Roast Coffee',
+            'category': 'Pantry',
+            'default_store': 'Whole Foods Market',
+            'pack_size': '12oz Bag',
+            'cadence_days': 14,
+            'threshold': 1,
+            'stock_level': 2,
+            'is_active': true,
+            'is_due': false,
+            'last_restocked_at': '2026-11-05T09:00:00Z',
+            'next_due_at': '2026-11-19T09:00:00Z',
+            'days_until_due': 6,
+          },
+        ],
+      };
+    }
+
+    // Recurring Rules
+    if (path.contains('/recurring-rules') && method == 'GET') {
+      return {
+        'data': [
+          {
+            'id': 1,
+            'title': 'Weekly Organic Grocery Run',
+            'cadence': 'weekly',
+            'weekday': 6,
+            'priority': 'normal',
+            'category': 'grocery',
+            'place_name': 'Whole Foods Market',
+            'place_id': 3,
+            'assignee_id': 1,
+            'assignee': {'id': 1, 'name': 'Tanvir Rahman'},
+            'active': true,
+            'next_run_on': '2026-11-14',
+            'notes': 'Milk, eggs, fresh produce and pantry staples',
+          },
+          {
+            'id': 2,
+            'title': 'Take out recycling & compost',
+            'cadence': 'weekly',
+            'weekday': 2,
+            'priority': 'normal',
+            'category': 'home',
+            'place_name': 'Home',
+            'place_id': 1,
+            'assignee_id': 2,
+            'assignee': {'id': 2, 'name': 'Sarah Rahman'},
+            'active': true,
+            'next_run_on': '2026-11-17',
+          },
+          {
+            'id': 3,
+            'title': 'Deep clean kitchen & microwave',
+            'cadence': 'weekly',
+            'weekday': 7,
+            'priority': 'normal',
+            'category': 'cleaning',
+            'place_name': 'Home',
+            'place_id': 1,
+            'assignee_id': 1,
+            'assignee': {'id': 1, 'name': 'Tanvir Rahman'},
+            'active': true,
+            'next_run_on': '2026-11-15',
+          },
+          {
+            'id': 4,
+            'title': 'Replace HVAC Air Filters',
+            'cadence': 'monthly',
+            'day_of_month': 1,
+            'priority': 'normal',
+            'category': 'maintenance',
+            'place_name': 'Home',
+            'place_id': 1,
+            'assignee_id': 1,
+            'assignee': {'id': 1, 'name': 'Tanvir Rahman'},
+            'active': true,
+            'next_run_on': '2026-12-01',
+          },
+        ],
+      };
+    }
+
+    // Billing Invoices
+    if (path.contains('/billing/invoices') && method == 'GET') {
+      return {
+        'data': [
+          {
+            'id': 101,
+            'invoice_number': 'INV-2026-1101',
+            'tier': 'household_pro',
+            'amount_cents': 2900,
+            'currency': 'USD',
+            'status': 'paid',
+            'payment_method': 'card',
+            'created_at': '2026-11-01T00:00:00Z',
+            'paid_at': '2026-11-01T00:01:00Z',
+            'line_items': [
+              {'description': 'FairShare Household Pro Monthly Subscription', 'amount_cents': 2900}
+            ],
+          },
+          {
+            'id': 102,
+            'invoice_number': 'INV-2026-1001',
+            'tier': 'household_pro',
+            'amount_cents': 2900,
+            'currency': 'USD',
+            'status': 'paid',
+            'payment_method': 'card',
+            'created_at': '2026-10-01T00:00:00Z',
+            'paid_at': '2026-10-01T00:01:00Z',
+            'line_items': [
+              {'description': 'FairShare Household Pro Monthly Subscription', 'amount_cents': 2900}
+            ],
+          },
+          {
+            'id': 103,
+            'invoice_number': 'INV-2026-0901',
+            'tier': 'family_plus',
+            'amount_cents': 1500,
+            'currency': 'USD',
+            'status': 'paid',
+            'payment_method': 'card',
+            'created_at': '2026-09-01T00:00:00Z',
+            'paid_at': '2026-09-01T00:01:00Z',
+            'line_items': [
+              {'description': 'FairShare Family Plus Monthly Subscription', 'amount_cents': 1500}
+            ],
+          },
+        ],
+      };
+    }
+
+    // Billing Payment Methods
+    if (path.contains('/billing/payment-methods') && method == 'GET') {
+      return {
+        'data': [
+          {
+            'id': 'pm_1',
+            'brand': 'Visa',
+            'last4': '4242',
+            'exp_month': 12,
+            'exp_year': 2028,
+            'is_default': true,
+          },
+          {
+            'id': 'pm_2',
+            'brand': 'Mastercard',
+            'last4': '8888',
+            'exp_month': 8,
+            'exp_year': 2027,
+            'is_default': false,
+          },
+        ],
+        'cash_enabled': true,
+      };
+    }
+
+    // Notifications
+    if (path.contains('/notifications') && method == 'GET') {
+      return {
+        'data': [
+          {
+            'id': 1,
+            'title': 'Arrived at Whole Foods Market',
+            'body': '3 shopping items needed: Organic Milk, Free-range Eggs, Sourdough Bread.',
+            'type': 'geofence_arrival',
+            'created_at': '2026-11-13T16:30:00Z',
+            'read_at': null,
+          },
+          {
+            'id': 2,
+            'title': 'Chore Assigned',
+            'body': 'Sarah assigned "Collect prescription from CVS" to you.',
+            'type': 'assignment',
+            'created_at': '2026-11-13T14:15:00Z',
+            'read_at': '2026-11-13T14:30:00Z',
+          },
+          {
+            'id': 3,
+            'title': 'Budget Warning',
+            'body': 'Weekly grocery expense reached 82% of budget limit.',
+            'type': 'budget_alert',
+            'created_at': '2026-11-13T11:00:00Z',
+            'read_at': '2026-11-13T12:00:00Z',
+          },
+        ],
+      };
+    }
+
+    // Voice Calls Quota & Logs
+    if (path.contains('/voice-calls/quota') && method == 'GET') {
+      return {
+        'used_today': 1,
+        'daily_budget': 15,
+        'max_attempts_per_request': 3,
+      };
+    }
+
+    if (path.contains('/voice-calls') && method == 'GET') {
+      return {
+        'data': [
+          {
+            'id': 1,
+            'request_title': 'Collect prescription from CVS',
+            'status': 'completed',
+            'reason': 'Overdue chore escalation',
+            'duration_seconds': 38,
+            'created_at': '2026-11-13T15:00:00Z',
+          },
+        ],
+      };
+    }
+
+    // AI Family Dispatcher (NLP)
+    if (path.contains('/requests/parse-nlp') && method == 'POST') {
+      final text = options.data is Map ? (options.data['text'] as String? ?? '') : '';
+      return {
+        'parsed': {
+          'title': text.isNotEmpty ? text : 'Errand from AI Dispatcher',
+          'store_name': text.toLowerCase().contains('whole foods')
+              ? 'Whole Foods Market'
+              : (text.toLowerCase().contains('target') ? 'Target' : 'Local Store'),
+          'assignee_name': text.toLowerCase().contains('sarah') ? 'Sarah Rahman' : 'Tanvir Rahman',
+          'assignee_id': text.toLowerCase().contains('sarah') ? 2 : 1,
+          'priority': text.toLowerCase().contains('urgent') || text.toLowerCase().contains('asap') ? 'urgent' : 'normal',
+          'due_at': '2026-11-14T18:00:00Z',
+        },
+        'created': true,
+        'message': 'AI Family Dispatcher processed request successfully.',
+      };
+    }
+
+    // Feedback
+    if (path.contains('/feedback') && method == 'GET') {
+      return {
+        'data': [
+          {
+            'id': 1,
+            'category': 'praise',
+            'message': 'Loving the new multi-item grocery list and offline mode!',
+            'status': 'resolved',
+            'created_at': '2026-11-12T10:00:00Z',
           },
         ],
       };

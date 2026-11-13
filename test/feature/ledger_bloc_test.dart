@@ -98,6 +98,8 @@ void main() {
 
     final expectedStates = [
       isA<LedgerLoaded>()
+          .having((s) => s.periodType, 'periodType', 'weekly'),
+      isA<LedgerLoaded>()
           .having((s) => s.periodType, 'periodType', 'weekly')
           .having((s) => s.summary.budgetMinor, 'budgetMinor', 50000)
           .having((s) => s.summary.isOverBudget, 'isOverBudget', true)
