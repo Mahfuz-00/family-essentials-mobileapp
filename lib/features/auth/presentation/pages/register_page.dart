@@ -76,7 +76,7 @@ class _RegisterPageState extends State<RegisterPage> {
       body: SafeArea(
         child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
-            if (state is AuthAuthenticated) {
+            if (state is AuthAuthenticated || state is AuthMembershipsLoaded) {
               context.go('/verify-phone');
             } else if (state is AuthFailureState) {
               ScaffoldMessenger.of(

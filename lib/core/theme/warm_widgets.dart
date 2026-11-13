@@ -2,7 +2,111 @@ import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
 
-/// Shared Warm Sage widgets for the mobile app.
+/// Shimmer loading placeholder for WarmCards
+class ShimmerWarmCard extends StatefulWidget {
+  const ShimmerWarmCard({super.key, this.height = 110});
+
+  final double height;
+
+  @override
+  State<ShimmerWarmCard> createState() => _ShimmerWarmCardState();
+}
+
+class _ShimmerWarmCardState extends State<ShimmerWarmCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final alpha = 0.35 + 0.3 * (0.5 - (_controller.value - 0.5).abs());
+        return Container(
+          height: widget.height,
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            border: Border.all(color: AppTheme.outline.withValues(alpha: 0.15)),
+            boxShadow: AppTheme.elev1,
+          ),
+          padding: const EdgeInsets.all(AppTheme.space4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 140,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: AppTheme.forestSoft.withValues(alpha: alpha),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  Container(
+                    width: 50,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: AppTheme.sageSoft.withValues(alpha: alpha),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                width: 220,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: AppTheme.canvas.withValues(alpha: alpha * 1.5),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 80,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: AppTheme.forestSoft.withValues(alpha: alpha),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 60,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: AppTheme.sageSoft.withValues(alpha: alpha),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
 ///
 /// These are the mobile equivalents of the React kit in
 /// `frontend/src/components/ui/`, so both surfaces render the same vocabulary.

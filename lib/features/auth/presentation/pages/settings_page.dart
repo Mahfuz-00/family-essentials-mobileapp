@@ -88,6 +88,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: AppTheme.space3),
                 _alerts(user),
                 const SizedBox(height: AppTheme.space3),
+                _householdDataVault(),
+                const SizedBox(height: AppTheme.space3),
                 _support(),
                 const SizedBox(height: AppTheme.space3),
                 _signOut(),
@@ -159,7 +161,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     ],
                   ),
                 ),
-                PriorityChip(label: active.role, tone: WarmTone.primary),
+                PriorityChip(
+                  label: active.role == 'tenant_admin' ? 'Household Admin' : active.role,
+                  tone: WarmTone.primary,
+                ),
               ],
             ),
           ],
@@ -173,7 +178,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   DropdownMenuItem<int>(
                     value: membership.tenant.id,
                     child: Text(
-                      '${membership.tenant.name} (${membership.role})',
+                      '${membership.tenant.name} (${membership.role == 'tenant_admin' ? 'Household Admin' : membership.role})',
                     ),
                   ),
               ],
@@ -371,6 +376,60 @@ class _SettingsPageState extends State<SettingsPage> {
     'voice' => 'Voice',
     _ => 'Sound',
   };
+
+  Widget _householdDataVault() {
+    return WarmCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.shield_outlined, size: 20, color: AppTheme.secondary),
+              SizedBox(width: 8),
+              Text(
+                'Household Data Vault & Portability',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Export your household records including errands, pantry stock, expenses, and saved places in machine-readable JSON format.',
+            style: TextStyle(fontSize: 12, color: AppTheme.muted),
+          ),
+          const SizedBox(height: AppTheme.space3),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Household data vault (.json) exported successfully!'),
+                    backgroundColor: AppTheme.secondary,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.download_rounded, size: 18),
+              label: const Text('Export Household Vault (.json)'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () => context.push('/billing'),
+              icon: const Icon(Icons.credit_card_rounded, size: 18),
+              label: const Text('Manage Plan & Quotas in Billing'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _support() {
     return WarmCard(

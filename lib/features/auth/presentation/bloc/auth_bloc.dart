@@ -37,7 +37,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
       _user = user;
       _session.isAuthenticated.value = true;
-      emit(AuthAuthenticated(user));
+      await _emitMemberships(emit, user);
     } on AuthFailure catch (failure) {
       emit(AuthFailureState(failure.message));
     }
@@ -64,7 +64,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       _user = user;
       _session.isAuthenticated.value = true;
-      emit(AuthAuthenticated(user));
+      await _emitMemberships(emit, user);
     } on AuthFailure catch (failure) {
       emit(AuthFailureState(failure.message));
     }
@@ -220,8 +220,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _emitMemberships(Emitter<AuthState> emit, User user) async {
     try {
       final memberships = await _repository.memberships();
-      emit(AuthMembershipsLoaded(user, memberships));
-    } on AuthFailure {
+      if (memberships != null && memberships.isNotEmpty) {
+        emit(AuthMembershipsLoaded(user, memberships));
+      } else {
+        emit(AuthAuthenticated(user));
+      }
+    } catch (_) {
       emit(AuthAuthenticated(user));
     }
   }

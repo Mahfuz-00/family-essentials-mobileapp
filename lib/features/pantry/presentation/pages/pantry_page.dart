@@ -241,7 +241,11 @@ class _EssentialCard extends StatelessWidget {
               style: const TextStyle(fontSize: 12, color: AppTheme.muted),
             ),
             const SizedBox(height: AppTheme.space3),
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 6,
               children: [
                 Text(
                   'Stock ${essential.stockLevel} · alert at ${essential.threshold}',
@@ -250,8 +254,7 @@ class _EssentialCard extends StatelessWidget {
                     color: AppTheme.onSurfaceVariant,
                   ),
                 ),
-                const Spacer(),
-                if (essential.isDue) ...[
+                if (essential.isDue)
                   OutlinedButton.icon(
                     icon: const Icon(Icons.add_shopping_cart, size: 16),
                     onPressed: () async {
@@ -289,8 +292,6 @@ class _EssentialCard extends StatelessWidget {
                     ),
                     label: const Text('Add Errand'),
                   ),
-                  const SizedBox(width: 8),
-                ],
                 FilledButton.tonal(
                   onPressed: () => bloc.add(
                     EssentialRestocked(id: essential.id, quantity: 1),

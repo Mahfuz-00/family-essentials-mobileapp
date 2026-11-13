@@ -39,8 +39,8 @@ class _LoginPageState extends State<LoginPage> {
       body: SafeArea(
         child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
-            if (state is AuthAuthenticated) {
-              context.go('/home');
+            if (state is AuthAuthenticated || state is AuthMembershipsLoaded) {
+              context.go('/today');
             } else if (state is AuthFailureState) {
               ScaffoldMessenger.of(
                 context,
