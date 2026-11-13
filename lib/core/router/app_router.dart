@@ -67,8 +67,8 @@ class AppRouter {
           final seenOnboarding = session.hasSeenOnboarding.value;
           final isAuthRoute =
               state.matchedLocation == '/login' ||
-              state.matchedLocation == '/register' ||
-              state.matchedLocation == '/verify-phone';
+              state.matchedLocation == '/register';
+          final isVerifyPhone = state.matchedLocation == '/verify-phone';
           final isOnboardingRoute = state.matchedLocation == '/onboarding';
 
           // First launch: must see the onboarding carousel
@@ -82,11 +82,11 @@ class AppRouter {
           }
 
           // Unauthenticated users must log in
-          if (!loggedIn && !isAuthRoute) {
+          if (!loggedIn && !isAuthRoute && !isVerifyPhone) {
             return '/login';
           }
 
-          // Authenticated users skipping auth routes
+          // Authenticated users skipping login/register routes
           if (loggedIn && isAuthRoute) {
             return '/today';
           }

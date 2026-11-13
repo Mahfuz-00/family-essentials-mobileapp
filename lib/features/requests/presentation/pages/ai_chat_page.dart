@@ -170,28 +170,45 @@ class _AiChatPageState extends State<AiChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.canvas,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.go('/today');
-            }
-          },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/today');
+          }
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.canvas,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/today');
+              }
+            },
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.auto_awesome, color: AppTheme.secondary, size: 20),
+              SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Household Chat & AI',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
-        title: const Row(
-          children: [
-            Icon(Icons.auto_awesome, color: AppTheme.secondary, size: 20),
-            SizedBox(width: 8),
-            Text('Household Chat & AI'),
-          ],
-        ),
-      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -290,6 +307,7 @@ class _AiChatPageState extends State<AiChatPage> {
           ],
         ),
       ),
+    ),
     );
   }
 

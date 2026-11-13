@@ -191,22 +191,33 @@ class _ReceiptScanPageState extends State<ReceiptScanPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.canvas,
-      appBar: AppBar(
-        title: const Text('Receipt Scanner'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.go('/today');
-            }
-          },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/today');
+          }
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.canvas,
+        appBar: AppBar(
+          title: const Text('Receipt Scanner'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/today');
+              }
+            },
+          ),
         ),
-      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppTheme.space4),
@@ -579,6 +590,7 @@ class _ReceiptScanPageState extends State<ReceiptScanPage> {
             ],
           ],
         ),
+      ),
       ),
     );
   }

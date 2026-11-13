@@ -257,23 +257,26 @@ class _LedgerViewState extends State<_LedgerView> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Household Wealth & Finances',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.ink,
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Household Wealth & Finances',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.ink,
+                                ),
                               ),
-                            ),
-                            Text(
-                              'Net worth, debt, goals, & taxes',
-                              style: TextStyle(fontSize: 12, color: AppTheme.muted),
-                            ),
-                          ],
+                              Text(
+                                'Net worth, debt, goals, & taxes',
+                                style: TextStyle(fontSize: 12, color: AppTheme.muted),
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
@@ -1270,37 +1273,41 @@ class _LedgerViewState extends State<_LedgerView> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'THIS PERIOD',
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.6,
-                                    color: AppTheme.muted,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'THIS PERIOD',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.6,
+                                      color: AppTheme.muted,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  isYearly
-                                      ? 'Yearly Ledger'
-                                      : isWeekly
-                                          ? 'Weekly Ledger'
-                                          : 'Monthly Ledger',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.ink,
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    isYearly
+                                        ? 'Yearly Ledger'
+                                        : isWeekly
+                                            ? 'Weekly Ledger'
+                                            : 'Monthly Ledger',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.ink,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                             if (summary.from != null && summary.to != null)
-                              PriorityChip(
-                                label: '${summary.from} → ${summary.to}',
-                                tone: WarmTone.neutral,
+                              Flexible(
+                                child: PriorityChip(
+                                  label: '${summary.from} → ${summary.to}',
+                                  tone: WarmTone.neutral,
+                                ),
                               ),
                           ],
                         ),
@@ -1488,23 +1495,28 @@ class _LedgerViewState extends State<_LedgerView> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  isOver ? Icons.warning_amber_rounded : Icons.pie_chart_outline,
-                                  size: 20,
-                                  color: isOver ? AppTheme.tertiary : AppTheme.secondary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '${isYearly ? "Yearly" : isWeekly ? "Weekly" : "Monthly"} Budget Limit',
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.ink,
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isOver ? Icons.warning_amber_rounded : Icons.pie_chart_outline,
+                                    size: 20,
+                                    color: isOver ? AppTheme.tertiary : AppTheme.secondary,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      '${isYearly ? "Yearly" : isWeekly ? "Weekly" : "Monthly"} Budget Limit',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.ink,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                             TextButton.icon(
                               style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
@@ -1674,18 +1686,22 @@ class _LedgerViewState extends State<_LedgerView> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              isYearly
-                                  ? '12-Month Annual Breakdown'
-                                  : isWeekly
-                                      ? '7-Day Daily Breakdown'
-                                      : 'Weekly Breakdown',
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.ink,
+                            Expanded(
+                              child: Text(
+                                isYearly
+                                    ? '12-Month Annual Breakdown'
+                                    : isWeekly
+                                        ? '7-Day Daily Breakdown'
+                                        : 'Weekly Breakdown',
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.ink,
+                                ),
                               ),
                             ),
+                            const SizedBox(width: 8),
                             PriorityChip(
                               label: '${summary.weeklyBreakdown.length} ${isYearly ? "months" : isWeekly ? "days" : "weeks"}',
                               tone: WarmTone.neutral,
@@ -1887,6 +1903,8 @@ class _LedgerViewState extends State<_LedgerView> {
                                     ),
                                   ),
                                   FilterChip(
+                                    visualDensity: VisualDensity.compact,
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                     label: const Text('View', style: TextStyle(fontSize: 11)),
                                     selected: member['can_view'] == true,
                                     onSelected: (v) {
@@ -1895,6 +1913,8 @@ class _LedgerViewState extends State<_LedgerView> {
                                   ),
                                   const SizedBox(width: 6),
                                   FilterChip(
+                                    visualDensity: VisualDensity.compact,
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                     label: const Text('Record', style: TextStyle(fontSize: 11)),
                                     selected: member['can_record'] == true,
                                     onSelected: (v) {

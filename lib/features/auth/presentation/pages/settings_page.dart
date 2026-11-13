@@ -505,12 +505,14 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               Icon(Icons.shield_outlined, size: 20, color: AppTheme.secondary),
               SizedBox(width: 8),
-              Text(
-                'Household Data Vault & Portability',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.ink,
+              Expanded(
+                child: Text(
+                  'Household Data Vault & Portability',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.ink,
+                  ),
                 ),
               ),
             ],

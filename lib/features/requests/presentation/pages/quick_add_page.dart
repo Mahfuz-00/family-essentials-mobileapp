@@ -210,21 +210,32 @@ class _QuickAddFormState extends State<_QuickAddForm> {
     final member = _members.where((m) => m.userId == _assigneeId).firstOrNull;
     final shop = _places.where((p) => p.id == _shopId).firstOrNull;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('New request'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.go('/today');
-            }
-          },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/today');
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('New request'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/today');
+              }
+            },
+          ),
         ),
-      ),
       backgroundColor: AppTheme.canvas,
       body: SafeArea(
         child: BlocConsumer<RequestsBloc, RequestsState>(
@@ -436,6 +447,7 @@ class _QuickAddFormState extends State<_QuickAddForm> {
           },
         ),
       ),
+    ),
     );
   }
 

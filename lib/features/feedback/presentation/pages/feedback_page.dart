@@ -51,22 +51,33 @@ class _FeedbackViewState extends State<_FeedbackView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.canvas,
-      appBar: AppBar(
-        title: const Text('Help & Feedback'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.go('/today');
-            }
-          },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/today');
+          }
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.canvas,
+        appBar: AppBar(
+          title: const Text('Help & Feedback'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/today');
+              }
+            },
+          ),
         ),
-      ),
       body: SafeArea(
         child: BlocConsumer<FeedbackBloc, FeedbackState>(
           listener: (context, state) {
@@ -122,6 +133,7 @@ class _FeedbackViewState extends State<_FeedbackView> {
             );
           },
         ),
+      ),
       ),
     );
   }

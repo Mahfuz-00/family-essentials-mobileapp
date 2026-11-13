@@ -499,22 +499,33 @@ class _BillingPageState extends State<BillingPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.canvas,
-      appBar: AppBar(
-        title: const Text('Plan & Billing'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.go('/today');
-            }
-          },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/today');
+          }
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.canvas,
+        appBar: AppBar(
+          title: const Text('Plan & Billing'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/today');
+              }
+            },
+          ),
         ),
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.secondary))
           : RefreshIndicator(
@@ -716,7 +727,10 @@ class _BillingPageState extends State<BillingPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      SectionHeader(title: 'Invoices & Receipts', count: _invoices.length),
+                      Expanded(
+                        child: SectionHeader(title: 'Invoices & Receipts', count: _invoices.length),
+                      ),
+                      const SizedBox(width: 8),
                       TextButton.icon(
                         onPressed: _showRefundDialog,
                         icon: const Icon(Icons.policy_outlined, size: 16, color: AppTheme.secondary),
@@ -822,6 +836,7 @@ class _BillingPageState extends State<BillingPage> {
                 ],
               ),
             ),
+      ),
     );
   }
 
@@ -874,22 +889,26 @@ class _BillingPageState extends State<BillingPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppTheme.ink)),
-                  if (isPopular) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppTheme.secondary,
-                        borderRadius: BorderRadius.circular(4),
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppTheme.ink)),
+                    if (isPopular)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondary,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('RECOMMENDED', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white)),
                       ),
-                      child: const Text('RECOMMENDED', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white)),
-                    ),
                   ],
-                ],
+                ),
               ),
+              const SizedBox(width: 8),
               Text(price, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: AppTheme.ink)),
             ],
           ),

@@ -208,22 +208,33 @@ class _RequestDetailView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.canvas,
-      appBar: AppBar(
-        title: const Text('Request'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.go('/today');
-            }
-          },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/today');
+          }
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.canvas,
+        appBar: AppBar(
+          title: const Text('Request'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/today');
+              }
+            },
+          ),
         ),
-      ),
       body: SafeArea(
         child: BlocConsumer<RequestsBloc, RequestsState>(
           listener: (context, state) {
@@ -261,6 +272,7 @@ class _RequestDetailView extends StatelessWidget {
           },
         ),
       ),
+    ),
     );
   }
 

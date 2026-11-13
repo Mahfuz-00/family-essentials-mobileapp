@@ -100,73 +100,91 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      drawer: HouseholdAppDrawer(currentLocation: widget.location),
-      appBar: AppBar(
-        leading: _isSubRoute
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                tooltip: 'Back',
-                onPressed: () => context.pop(),
-              )
-            : IconButton(
-                icon: const Icon(Icons.menu),
+    final isToday = widget.location.startsWith('/today');
+
+    return PopScope(
+      canPop: isToday,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go('/today');
+          }
+        }
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        drawer: HouseholdAppDrawer(currentLocation: widget.location),
+        appBar: AppBar(
+          leading: _isSubRoute
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: 'Back',
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/today');
+                    }
+                  },
+                )
+              : IconButton(
+                  icon: const Icon(Icons.menu),
+                  tooltip: 'Open Menu',
+                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                ),
+          title: BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              String hName = 'The Tanvir Household';
+              if (state is AuthMembershipsLoaded) {
+                hName = state.activeMembership?.tenant.name ?? hName;
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _titleFor(widget.location),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.ink,
+                    ),
+                  ),
+                  Text(
+                    hName,
+                    style: const TextStyle(fontSize: 11, color: AppTheme.muted),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            if (_isSubRoute)
+              IconButton(
                 tooltip: 'Open Menu',
+                icon: const Icon(Icons.menu),
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
-        title: BlocBuilder<AuthBloc, AuthState>(
-          builder: (context, state) {
-            String hName = 'The Tanvir Household';
-            if (state is AuthMembershipsLoaded) {
-              hName = state.activeMembership?.tenant.name ?? hName;
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _titleFor(widget.location),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.ink,
-                  ),
-                ),
-                Text(
-                  hName,
-                  style: const TextStyle(fontSize: 11, color: AppTheme.muted),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            );
-          },
-        ),
-        actions: [
-          if (widget.location.startsWith('/budget') || widget.location.startsWith('/ledger'))
             IconButton(
-              tooltip: 'Household Finances (Net Worth, Goals, Loans, Taxes)',
-              icon: const Icon(Icons.analytics_outlined, color: AppTheme.secondary),
-              onPressed: () {
-                // Navigate to or open finances modal sheet
-                context.push('/budget?open=finances');
-              },
+              tooltip: 'Household Chat & AI',
+              icon: const Icon(Icons.auto_awesome, color: AppTheme.secondary),
+              onPressed: () => context.push('/chat'),
             ),
-          IconButton(
-            tooltip: 'AI Family Dispatcher & Chat',
-            icon: const Icon(Icons.auto_awesome, color: AppTheme.secondary),
-            onPressed: () => context.push('/chat'),
-          ),
-          IconButton(
-            tooltip: 'Receipt Scanner (OCR)',
-            icon: const Icon(Icons.document_scanner_outlined),
-            onPressed: () => context.push('/receipt/scan'),
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: widget.child,
-      bottomNavigationBar: NavigationBarTheme(
+            IconButton(
+              tooltip: 'Receipt Scanner',
+              icon: const Icon(Icons.document_scanner_outlined),
+              onPressed: () => context.push('/receipt/scan'),
+            ),
+            const SizedBox(width: 4),
+          ],
+        ),
+        body: widget.child,
+        bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
           indicatorColor: AppTheme.forestSoft,
           iconTheme: WidgetStateProperty.resolveWith<IconThemeData?>((states) {
@@ -206,6 +224,7 @@ class _MainShellState extends State<MainShell> {
           ],
         ),
       ),
+    ),
     );
   }
 }

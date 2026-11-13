@@ -37,10 +37,11 @@ String formatMoneyMinor(int minor, [String currency = 'USD']) {
   return '${isNegative ? "-" : ""}$symbol$wholeStr.$cents';
 }
 
-/// Unified Soft UI / Claymorphism Stat Card matching Web `<StatCard>` anatomy:
-/// 1. Full-width uppercase title at top (unobstructed by any icon).
-/// 2. Middle row: auto-scaling bold value on left + inset soft icon chip on right.
-/// 3. Bottom row: compact highlight pill (`subtitle` / `badgeLabel`).
+/// Unified Soft UI / Claymorphism Stat Card matching Web `<StatCard>` anatomy,
+/// optimized for mobile widths so values never squish or overflow:
+/// 1. Top row: Full-width uppercase title on left + compact soft icon chip on right.
+/// 2. Middle row: Full-width auto-scaling (`FittedBox`) bold value.
+/// 3. Bottom row: Compact highlight pill (`PriorityChip`) with ellipsis protection.
 class SoftStatCard extends StatelessWidget {
   const SoftStatCard({
     super.key,
@@ -76,63 +77,63 @@ class SoftStatCard extends StatelessWidget {
 
     return WarmCard(
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Top line: Full-width unobstructed title
-          Text(
-            label.toUpperCase(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-              color: AppTheme.muted,
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Middle row: Auto-scaling value on left + inset soft icon chip on right
+          // Top row: Title + compact soft icon chip
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.4,
-                      color: effectiveValueColor,
-                    ),
+                child: Text(
+                  label.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                    color: AppTheme.muted,
                   ),
                 ),
               ),
               if (icon != null) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 Container(
-                  width: 34,
-                  height: 34,
+                  width: 24,
+                  height: 24,
                   decoration: BoxDecoration(
                     color: colors.background,
-                    borderRadius: BorderRadius.circular(11),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      width: 1,
-                    ),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, size: 17, color: colors.foreground),
+                  child: Icon(icon, size: 13, color: colors.foreground),
                 ),
               ],
             ],
           ),
+          const SizedBox(height: 6),
+          // Middle row: Full-width auto-scaling value
+          SizedBox(
+            width: double.infinity,
+            height: 26,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.4,
+                  color: effectiveValueColor,
+                ),
+              ),
+            ),
+          ),
           if (badgeLabel != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             PriorityChip(
               label: badgeLabel!,
               tone: badgeTone ?? tone,
@@ -184,43 +185,47 @@ class _ShimmerStatCardState extends State<ShimmerStatCard>
             border: Border.all(color: AppTheme.outline.withValues(alpha: 0.2)),
             boxShadow: AppTheme.elev1,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 72,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: AppTheme.forestSoft.withValues(alpha: alpha),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-              ),
-              const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    width: 68,
-                    height: 22,
-                    decoration: BoxDecoration(
-                      color: AppTheme.sageSoft.withValues(alpha: alpha),
-                      borderRadius: BorderRadius.circular(6),
+                  Flexible(
+                    child: Container(
+                      width: 56,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: AppTheme.forestSoft.withValues(alpha: alpha),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 4),
                   Container(
-                    width: 34,
-                    height: 34,
+                    width: 24,
+                    height: 24,
                     decoration: BoxDecoration(
                       color: AppTheme.forestSoft.withValues(alpha: alpha),
-                      borderRadius: BorderRadius.circular(11),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Container(
-                width: 60,
+                width: 68,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: AppTheme.sageSoft.withValues(alpha: alpha),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: 52,
                 height: 16,
                 decoration: BoxDecoration(
                   color: AppTheme.forestSoft.withValues(alpha: alpha),
@@ -427,13 +432,17 @@ class PriorityChip extends StatelessWidget {
             ),
             const SizedBox(width: 6),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.02 * 11,
-              color: colors.foreground,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.02 * 11,
+                color: colors.foreground,
+              ),
             ),
           ),
         ],

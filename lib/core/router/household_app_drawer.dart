@@ -481,7 +481,9 @@ class HouseholdAppDrawer extends StatelessWidget {
                 path == '/billing' ||
                 path == '/receipt/scan' ||
                 path == '/chat' ||
-                path == '/feedback') {
+                path == '/feedback' ||
+                path == '/pantry' ||
+                path == '/recurring') {
               context.push(path);
             } else if (path.startsWith('/')) {
               context.go(path);
