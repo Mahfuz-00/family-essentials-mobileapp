@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/settings_page.dart';
@@ -13,7 +14,9 @@ import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/pantry/presentation/pages/pantry_page.dart';
 import '../../features/places/presentation/pages/places_page.dart';
 import '../../features/recurring/presentation/pages/recurring_page.dart';
+import '../../features/household/presentation/pages/household_page.dart';
 import '../../features/requests/presentation/pages/ai_chat_page.dart';
+import '../../features/voice/presentation/pages/voice_escalations_page.dart';
 import '../../features/requests/presentation/pages/quick_add_page.dart';
 import '../../features/requests/presentation/pages/receipt_scan_page.dart';
 import '../../features/requests/presentation/pages/request_detail_page.dart';
@@ -67,7 +70,8 @@ class AppRouter {
           final seenOnboarding = session.hasSeenOnboarding.value;
           final isAuthRoute =
               state.matchedLocation == '/login' ||
-              state.matchedLocation == '/register';
+              state.matchedLocation == '/register' ||
+              state.matchedLocation == '/forgot-password';
           final isVerifyPhone = state.matchedLocation == '/verify-phone';
           final isOnboardingRoute = state.matchedLocation == '/onboarding';
 
@@ -123,6 +127,13 @@ class AppRouter {
             ),
           ),
           GoRoute(
+            path: '/forgot-password',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const ForgotPasswordPage(),
+            ),
+          ),
+          GoRoute(
             path: '/verify-phone',
             pageBuilder: (context, state) => _buildFadeSlidePage(
               key: state.pageKey,
@@ -151,6 +162,24 @@ class AppRouter {
             ),
           ),
 
+          // Voice escalation quota and call history.
+          GoRoute(
+            path: '/voice-escalations',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const VoiceEscalationsPage(),
+            ),
+          ),
+
+          // Household administration: members, roles and invitations.
+          GoRoute(
+            path: '/household',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const HouseholdPage(),
+            ),
+          ),
+
           // Feedback is a full-screen flow, reached from Settings.
           GoRoute(
             path: '/feedback',
@@ -168,14 +197,20 @@ class AppRouter {
             ),
           ),
 
-          // Household Chat & AI Dispatcher
+          // AI assistant and household chat are separate modules.
+          GoRoute(path: '/chat', redirect: (context, state) => '/assistant'),
           GoRoute(
-            path: '/chat',
+            path: '/assistant',
             pageBuilder: (context, state) => _buildFadeSlidePage(
               key: state.pageKey,
-              child: AiChatPage(
-                initialTab: state.uri.queryParameters['tab'] ?? 'ai',
-              ),
+              child: const AiChatPage(initialTab: 'ai', dedicated: true),
+            ),
+          ),
+          GoRoute(
+            path: '/messages',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const AiChatPage(initialTab: 'family', dedicated: true),
             ),
           ),
 

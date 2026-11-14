@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:dio/dio.dart';
+
 import '../../../../core/di/injector.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/session/auth_session.dart';
@@ -12,6 +14,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/warm_widgets.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
+import '../widgets/brand_header.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -66,22 +69,28 @@ class _SplashScreenState extends State<SplashScreen>
     final avatar = await storage.readUserAvatar();
     final seenOnboarding = await storage.hasSeenOnboarding();
 
-    final isAuthenticated = token != null && token.isNotEmpty;
+    var isAuthenticated = token != null && token.isNotEmpty;
 
-    if (isAuthenticated && (name == null || name.trim().isEmpty)) {
+    // A stored token is not a session: validate it before opening the app.
+    if (isAuthenticated && getIt.isRegistered<DioClient>()) {
       try {
-        if (getIt.isRegistered<DioClient>()) {
-          final res = await getIt<DioClient>().dio.get<Map<String, dynamic>>(
-            '/v1/auth/me',
-          );
-          final data = (res.data?['data'] ?? res.data) as Map<String, dynamic>?;
-          if (data != null && data['name'] is String) {
-            name = data['name'] as String;
-            await storage.saveUserName(name);
-          }
+        final res = await getIt<DioClient>().dio.get<Map<String, dynamic>>(
+          '/v1/auth/me',
+        );
+        final data = (res.data?['data'] ?? res.data) as Map<String, dynamic>?;
+        if (data != null && data['name'] is String) {
+          name = data['name'] as String;
+          await storage.saveUserName(name);
+        }
+      } on DioException catch (error) {
+        if (error.response?.statusCode == 401 ||
+            error.response?.statusCode == 403) {
+          await storage.deleteToken();
+          isAuthenticated = false;
+          name = null;
         }
       } catch (_) {
-        name ??= 'Tanvir Rahman';
+        // Network failure: keep the session and let the screens retry.
       }
     }
 
@@ -117,7 +126,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     final resolvedName = (_userName != null && _userName!.trim().isNotEmpty)
         ? _userName!.trim()
-        : 'Tanvir Rahman';
+        : 'Household member';
 
     return Scaffold(
       backgroundColor: AppTheme.canvas,
@@ -133,8 +142,7 @@ class _SplashScreenState extends State<SplashScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Spacer(),
-                    // Branded App Logo (Point 1)
-                    const FairShareLogo(size: 108),
+                    const FairShareEmblem(size: 108),
                     const SizedBox(height: 24),
                     const Text(
                       'FairShare',

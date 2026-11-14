@@ -53,9 +53,103 @@ class BillingPage extends StatefulWidget {
 
 class _BillingPageState extends State<BillingPage> {
   bool _isLoading = true;
-  String _activeTier = 'household_pro';
+  String _activeTier = 'pilot';
   List<BillingInvoice> _invoices = [];
-  List<Map<String, dynamic>> _paymentMethods = [];
+  Map<String, dynamic>? _billingConfig;
+  List<Map<String, dynamic>> _meters = [];
+
+  /// Mirror of Backend/config/plans.php — the enforced catalogue.
+  static const Map<String, Map<String, dynamic>> _plans = {
+    'starter': {
+      'label': 'Starter Family',
+      'price': r'$0',
+      'cadence': 'free',
+      'seats': 2,
+      'places': 2,
+      'requests': 50,
+      'calls': 0,
+      'chats': 30,
+      'scans': 5,
+      'pantry': 20,
+      'features': [
+        'Up to 2 family members',
+        '2 saved stores & geofences',
+        '50 errands per month',
+        '30 AI & member chat messages/mo',
+        '5 receipt OCR scans/mo',
+        'Basic pantry tracker (20 items)',
+        'Member-to-member calling not included',
+      ],
+    },
+    'pilot': {
+      'label': 'Pilot Family Tier',
+      'price': r'$14.99',
+      'cadence': 'per month',
+      'seats': 5,
+      'places': 10,
+      'requests': 300,
+      'calls': 15,
+      'chats': 300,
+      'scans': 50,
+      'pantry': 100,
+      'features': [
+        'Up to 5 family members',
+        '10 saved stores & geofences',
+        '300 errands per month',
+        '15 member escalation calls/mo',
+        '300 AI & member chat messages/mo',
+        '50 receipt OCR scans/mo',
+        'Full pantry inventory & cost tracking (100 items)',
+        'Multi-period household expense ledgers',
+      ],
+    },
+    'standard': {
+      'label': 'Household Pro',
+      'price': r'$24.99',
+      'cadence': 'per month',
+      'seats': 10,
+      'places': 25,
+      'requests': 1000,
+      'calls': 60,
+      'chats': 1500,
+      'scans': 200,
+      'pantry': 500,
+      'features': [
+        'Up to 10 family members',
+        '25 saved stores & geofences',
+        '1,000 errands per month',
+        '60 member escalation calls/mo',
+        '1,500 AI & member chat messages/mo',
+        '200 receipt OCR scans/mo',
+        'Extended pantry & auto-restock buffer (500 items)',
+        'Complete wealth, assets, debt & tax tracking',
+        'Household Data Vault & Portability JSON export',
+      ],
+    },
+    'enterprise': {
+      'label': 'Enterprise Household',
+      'price': r'$49.99',
+      'cadence': 'per month',
+      'seats': 25,
+      'places': 100,
+      'requests': 5000,
+      'calls': 9999,
+      'chats': 9999,
+      'scans': 1000,
+      'pantry': 2500,
+      'features': [
+        'Up to 25 family members',
+        '100 saved stores & geofences',
+        '5,000 errands per month',
+        'Unlimited member direct calling & escalation',
+        'Unlimited AI family dispatcher & member chat',
+        '1,000 receipt OCR scans/mo',
+        'Pantry catalog up to 2,500 items',
+        'Multi-generational property & estate tracking',
+        'Priority platform support & concierge onboarding',
+      ],
+    },
+  };
 
   @override
   void initState() {
@@ -69,7 +163,7 @@ class _BillingPageState extends State<BillingPage> {
     try {
       final savedTier = await getIt<SecureStorage>().readActiveTier();
       if (savedTier != null && savedTier.isNotEmpty) {
-        _activeTier = savedTier;
+        _activeTier = _normaliseTier(savedTier);
       }
       if (getIt.isRegistered<DioClient>()) {
         final dio = getIt<DioClient>().dio;
@@ -79,9 +173,15 @@ class _BillingPageState extends State<BillingPage> {
           );
           final planObj = quotaRes.data?['plan'];
           if (planObj is Map && planObj['key'] is String) {
-            final serverKey = planObj['key'] as String;
-            _activeTier = serverKey == 'standard' ? 'household_pro' : serverKey;
+            _activeTier = _normaliseTier(planObj['key'] as String);
             await getIt<SecureStorage>().saveActiveTier(_activeTier);
+          }
+          final meters = quotaRes.data?['meters'];
+          if (meters is List) {
+            _meters = meters
+                .whereType<Map>()
+                .map((meter) => meter.cast<String, dynamic>())
+                .toList();
           }
         } catch (_) {}
 
@@ -94,48 +194,13 @@ class _BillingPageState extends State<BillingPage> {
               .toList();
         }
 
-        if (pmRes.data != null && pmRes.data!['data'] is List) {
-          _paymentMethods = (pmRes.data!['data'] as List).cast<Map<String, dynamic>>();
+        final methods = pmRes.data?['data'];
+        if (methods is Map) {
+          _billingConfig = methods.cast<String, dynamic>();
         }
       }
     } catch (_) {
-      // Fallback
-    }
-
-    if (_invoices.isEmpty) {
-      _invoices = [
-        const BillingInvoice(
-          id: 101,
-          invoiceNumber: 'INV-2026-1101',
-          tier: 'household_pro',
-          amountCents: 2900,
-          currency: 'USD',
-          status: 'paid',
-          createdAt: '2026-11-01',
-          paidAt: '2026-11-01',
-        ),
-        const BillingInvoice(
-          id: 102,
-          invoiceNumber: 'INV-2026-1001',
-          tier: 'household_pro',
-          amountCents: 2900,
-          currency: 'USD',
-          status: 'paid',
-          createdAt: '2026-10-01',
-          paidAt: '2026-10-01',
-        ),
-      ];
-    }
-
-    if (_paymentMethods.isEmpty) {
-      _paymentMethods = [
-        {
-          'brand': 'Visa',
-          'last4': '4242',
-          'exp': '12/28',
-          'is_default': true,
-        },
-      ];
+      // Leave the lists empty: showing invented invoices would be worse.
     }
 
     if (mounted) {
@@ -237,111 +302,120 @@ class _BillingPageState extends State<BillingPage> {
   Future<void> _processUpgrade(String newTier, {required bool isCash}) async {
     setState(() => _isLoading = true);
 
-    final invoiceNum = 'INV-2026-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-    final amountCents = _tierPriceCents(newTier);
-
     try {
-      if (getIt.isRegistered<DioClient>()) {
-        final dio = getIt<DioClient>().dio;
+      if (!getIt.isRegistered<DioClient>()) {
+        throw Exception('Billing needs a connection.');
+      }
 
-        // Card upgrades go through the provider's hosted checkout. The local
-        // invoice is only settled by the provider's signed webhook, so do not
-        // fabricate a paid invoice here.
-        if (!isCash) {
-          String? activeGateway;
+      final dio = getIt<DioClient>().dio;
 
+      // Card upgrades go through the provider's hosted checkout. The local
+      // invoice is only settled by the provider's signed webhook.
+      if (!isCash) {
+        String? activeGateway;
+
+        try {
+          final methods = await dio.get<dynamic>('/v1/billing/payment-methods');
+          final methodsPayload = methods.data;
+          final methodsData = methodsPayload is Map
+              ? methodsPayload['data']
+              : null;
+
+          if (methodsData is Map) {
+            activeGateway = methodsData['active_gateway']?.toString();
+          }
+        } catch (_) {}
+
+        const hostedGateways = [
+          'stripe',
+          'paypal',
+          'razorpay',
+          'sslcommerz',
+          'bkash',
+          'paystack',
+          'mollie',
+        ];
+
+        if (activeGateway != null && hostedGateways.contains(activeGateway)) {
           try {
-            final methods = await dio.get<dynamic>('/v1/billing/payment-methods');
-            final methodsPayload = methods.data;
-            final methodsData = methodsPayload is Map ? methodsPayload['data'] : null;
+            final checkout = await dio.post<dynamic>(
+              '/v1/billing/checkout-session',
+              data: {'tier': newTier, 'gateway': activeGateway},
+            );
 
-            if (methodsData is Map) {
-              activeGateway = methodsData['active_gateway']?.toString();
-            }
-          } catch (_) {}
+            final payload = checkout.data;
+            final data = payload is Map ? payload['data'] : null;
+            final checkoutData = data is Map ? data['checkout'] : null;
+            final url = checkoutData is Map ? checkoutData['url'] : null;
 
-          final hostedGateways = ['stripe', 'paypal', 'razorpay', 'sslcommerz', 'bkash', 'paystack', 'mollie'];
-
-          if (activeGateway != null && hostedGateways.contains(activeGateway)) {
-            try {
-              final checkout = await dio.post<dynamic>(
-                '/v1/billing/checkout-session',
-                data: {'tier': newTier, 'gateway': activeGateway},
+            if (url is String && url.isNotEmpty) {
+              await launchUrl(
+                Uri.parse(url),
+                mode: LaunchMode.externalApplication,
               );
 
-              final payload = checkout.data;
-              final data = payload is Map ? payload['data'] : null;
-              final checkoutData = data is Map ? data['checkout'] : null;
-              final url = checkoutData is Map ? checkoutData['url'] : null;
-
-              if (url is String && url.isNotEmpty) {
-                final uri = Uri.parse(url);
-
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                }
-
-                if (mounted) {
-                  setState(() => _isLoading = false);
-                }
-
-                return;
+              if (mounted) {
+                setState(() => _isLoading = false);
+                _snack(
+                  'Complete payment in the browser. Your plan updates when the provider confirms.',
+                );
               }
-            } on DioException catch (error) {
-              // 422 means no provider keys are configured on this platform;
-              // keep the existing simulated flow for local development.
-              if (error.response?.statusCode != 422) {
-                if (mounted) {
-                  setState(() => _isLoading = false);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        error.response?.data?['message']?.toString() ??
-                            'Could not start the checkout session.',
-                      ),
-                    ),
-                  );
-                }
 
-                return;
-              }
+              return;
             }
+          } on DioException catch (error) {
+            // 422 means no provider keys are configured on this platform; the
+            // API's own upgrade path is the correct fallback.
+            if (error.response?.statusCode != 422) rethrow;
           }
         }
-
-        await dio.post<dynamic>(
-          '/v1/billing/upgrade',
-          data: {
-            'tier': newTier,
-            'payment_type': isCash ? 'cash' : 'online',
-          },
-        );
       }
-    } catch (_) {}
 
-    final newInv = BillingInvoice(
-      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      invoiceNumber: invoiceNum,
-      tier: newTier,
-      amountCents: amountCents,
-      currency: 'USD',
-      status: isCash ? 'pending_cash' : 'paid',
-      createdAt: DateTime.now().toIso8601String().split('T').first,
-      paidAt: isCash ? null : DateTime.now().toIso8601String().split('T').first,
-    );
+      await dio.post<dynamic>(
+        '/v1/billing/upgrade',
+        data: {
+          'tier': newTier,
+          'payment_type': isCash ? 'cash' : 'online',
+        },
+      );
 
-    await getIt<SecureStorage>().saveActiveTier(newTier);
+      await getIt<SecureStorage>().saveActiveTier(newTier);
+      await _fetchBillingData();
 
-    if (mounted) {
-      setState(() {
-        _activeTier = newTier;
-        _invoices.insert(0, newInv);
-        _isLoading = false;
-      });
+      if (!mounted) return;
 
-      // Show Invoice Receipt Modal (Point 23)
-      _showInvoiceReceiptModal(newInv, isCash: isCash);
+      if (_invoices.isNotEmpty) {
+        _showInvoiceReceiptModal(_invoices.first, isCash: isCash);
+      } else {
+        _snack(isCash ? 'Cash invoice created.' : 'Plan updated.');
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _snack(_billingMessage(error), error: true);
+      }
     }
+  }
+
+  String _billingMessage(Object error) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map && data['message'] is String) {
+        return data['message'] as String;
+      }
+
+      return 'Could not update the plan.';
+    }
+
+    return error.toString().replaceFirst('Exception: ', '');
+  }
+
+  void _snack(String message, {bool error = false}) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      error ? AppTheme.errorSnackBar(message) : AppTheme.successSnackBar(message),
+    );
   }
 
   void _showInvoiceReceiptModal(BillingInvoice inv, {required bool isCash}) {
@@ -393,7 +467,7 @@ class _BillingPageState extends State<BillingPage> {
                   const Divider(height: 12),
                   _receiptRow('Plan Tier', _tierName(inv.tier)),
                   const Divider(height: 12),
-                  _receiptRow('Amount', '\$${(inv.amountCents / 100).toStringAsFixed(2)}'),
+                  _receiptRow('Amount', '${inv.currency} ${(inv.amountCents / 100).toStringAsFixed(2)}'),
                   const Divider(height: 12),
                   _receiptRow('Status', isCash ? 'PENDING CASH' : 'PAID IN FULL'),
                   const Divider(height: 12),
@@ -428,7 +502,11 @@ class _BillingPageState extends State<BillingPage> {
   }
 
   void _showRefundDialog() {
+    final invoice = _invoices.isNotEmpty ? _invoices.first : null;
     final reasonCtrl = TextEditingController();
+    final amountCtrl = TextEditingController(
+      text: invoice == null ? '' : (invoice.amountCents / 100).toStringAsFixed(2),
+    );
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -446,7 +524,7 @@ class _BillingPageState extends State<BillingPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'FairShare Graduated Refund Policy (Point 23):',
+                'FairShare Graduated Refund Policy:',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.ink),
               ),
               const SizedBox(height: 8),
@@ -456,10 +534,20 @@ class _BillingPageState extends State<BillingPage> {
               _policyBullet('Cancellation Lockout', 'Cancelling logs out immediately. Access is restricted to Billing until resubscribed.'),
               const SizedBox(height: 14),
               TextField(
+                controller: amountCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Amount to refund',
+                  prefixText: '${invoice?.currency ?? 'USD'} ',
+                  hintText: '0.00',
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
                 controller: reasonCtrl,
                 maxLines: 2,
                 decoration: const InputDecoration(
-                  labelText: 'Refund Reason (optional)',
+                  labelText: 'Reason (optional)',
                   hintText: 'e.g. Inadvertent renewal or plan switch',
                 ),
               ),
@@ -472,14 +560,60 @@ class _BillingPageState extends State<BillingPage> {
             child: const Text('Close'),
           ),
           FilledButton(
-            onPressed: () {
+            onPressed: () async {
+              final amount = (double.tryParse(amountCtrl.text.trim()) ?? 0) * 100;
+              if (amount < 100) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  AppTheme.errorSnackBar('Enter a refund amount of at least 1.00.'),
+                );
+                return;
+              }
+
               Navigator.of(ctx).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Refund request logged. Review timeline is 1-2 business days.'),
-                  backgroundColor: AppTheme.secondary,
-                ),
-              );
+
+              try {
+                if (!getIt.isRegistered<DioClient>()) {
+                  throw Exception('Billing is unavailable offline.');
+                }
+
+                await getIt<DioClient>().dio.post<Map<String, dynamic>>(
+                  '/v1/billing/refund-request',
+                  data: {
+                    'invoice_id': invoice?.id,
+                    'amount_cents': amount.round(),
+                    'currency': invoice?.currency ?? 'USD',
+                    'reason': reasonCtrl.text.trim().isEmpty
+                        ? 'Refund requested from the mobile app.'
+                        : reasonCtrl.text.trim(),
+                  },
+                );
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    AppTheme.successSnackBar(
+                      'Refund request submitted. Review timeline is 1-2 business days.',
+                    ),
+                  );
+                }
+              } on DioException catch (error) {
+                final data = error.response?.data;
+                final message = data is Map && data['message'] is String
+                    ? data['message'] as String
+                    : 'Could not submit the refund request.';
+                if (mounted) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(AppTheme.errorSnackBar(message));
+                }
+              } catch (error) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    AppTheme.errorSnackBar(
+                      error.toString().replaceFirst('Exception: ', ''),
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('Submit Request'),
           ),
@@ -518,7 +652,7 @@ class _BillingPageState extends State<BillingPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Cancel Subscription?', style: TextStyle(fontWeight: FontWeight.w800)),
         content: const Text(
-          'Under FairShare rules (Point 23), cancelling your plan will immediately log you out. '
+          'Cancelling your plan will immediately log you out. '
           'When you log back in, all features will be locked except Billing & Subscription until a valid plan is renewed.\n\n'
           'Are you sure you want to proceed?',
           style: TextStyle(fontSize: 13, color: AppTheme.ink, height: 1.4),
@@ -532,19 +666,21 @@ class _BillingPageState extends State<BillingPage> {
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             onPressed: () async {
               Navigator.of(ctx).pop();
-              try {
-                if (getIt.isRegistered<DioClient>()) {
-                  final dio = getIt<DioClient>().dio;
-                  await dio.post<dynamic>('/v1/billing/cancel');
-                }
-              } catch (_) {}
 
-              // Clear token and logout immediately (Point 23)
-              final storage = getIt<SecureStorage>();
-              await storage.deleteToken();
-              if (mounted) {
-                context.go('/login');
+              if (!getIt.isRegistered<DioClient>()) {
+                _snack('Cancelling the plan needs a connection.', error: true);
+                return;
               }
+
+              try {
+                await getIt<DioClient>().dio.post<dynamic>('/v1/billing/cancel');
+              } catch (error) {
+                _snack(_billingMessage(error), error: true);
+                return;
+              }
+
+              await getIt<SecureStorage>().deleteToken();
+              if (mounted) context.go('/login');
             },
             child: const Text('Confirm Cancellation'),
           ),
@@ -553,35 +689,26 @@ class _BillingPageState extends State<BillingPage> {
     );
   }
 
-  String _tierName(String tier) {
+  String _normaliseTier(String tier) {
     switch (tier) {
-      case 'enterprise':
-        return 'Enterprise Estate';
       case 'household_pro':
-        return 'Household Pro';
+      case 'standard':
+        return 'standard';
       case 'family_plus':
       case 'pilot':
-        return 'Pilot Family';
+        return 'pilot';
+      case 'enterprise':
+        return 'enterprise';
       case 'starter':
       default:
-        return 'Starter Free';
+        return 'starter';
     }
   }
 
-  int _tierPriceCents(String tier) {
-    switch (tier) {
-      case 'enterprise':
-        return 9900;
-      case 'household_pro':
-        return 2900;
-      case 'family_plus':
-      case 'pilot':
-        return 1500;
-      case 'starter':
-      default:
-        return 0;
-    }
-  }
+  Map<String, dynamic> _plan(String tier) =>
+      _plans[_normaliseTier(tier)] ?? _plans['starter']!;
+
+  String _tierName(String tier) => _plan(tier)['label']?.toString() ?? 'Plan';
 
   @override
   Widget build(BuildContext context) {
@@ -679,20 +806,14 @@ class _BillingPageState extends State<BillingPage> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          _activeTier == 'enterprise'
-                              ? '\$99.00 / month · Unlimited Multi-Home Estate'
-                              : (_activeTier == 'household_pro'
-                                  ? '\$29.00 / month · Auto-renews Dec 1, 2026'
-                                  : (_activeTier == 'family_plus' || _activeTier == 'pilot'
-                                      ? '\$15.00 / month · Auto-renews Dec 1, 2026'
-                                      : 'Free Plan · No monthly charges')),
+                          '${_plan(_activeTier)['price']} · ${_plan(_activeTier)['cadence']}',
                           style: const TextStyle(fontSize: 14, color: AppTheme.muted),
                         ),
                         const SizedBox(height: 16),
                         const Divider(height: 1),
                         const SizedBox(height: 14),
                         const Text(
-                          'INCLUDED HOUSEHOLD QUOTAS (POINT 22 & 24)',
+                          'INCLUDED HOUSEHOLD QUOTAS',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
@@ -701,87 +822,80 @@ class _BillingPageState extends State<BillingPage> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        _quotaRow(Icons.group_outlined, 'Household Members', _activeTier == 'enterprise' ? 'Unlimited' : (_activeTier == 'household_pro' ? '10 members (2 used)' : '3 members')),
-                        _quotaRow(Icons.pin_drop_outlined, 'Saved Places & Geofencing', _activeTier == 'household_pro' || _activeTier == 'enterprise' ? 'Unlimited places' : '2 places included'),
-                        _quotaRow(Icons.task_alt, 'Errands & Tasks', _activeTier == 'starter' ? '30 / month' : 'Unlimited active errands'),
-                        _quotaRow(Icons.kitchen_outlined, 'Pantry Stock & Spending', _activeTier == 'household_pro' || _activeTier == 'enterprise' ? 'Unlimited tracking' : '50 items max'),
-                        _quotaRow(Icons.phone_in_talk_outlined, 'Direct Member & Voice Calls', _activeTier == 'household_pro' ? '100 calls / mo' : (_activeTier == 'starter' ? 'Disabled' : '15 calls / mo')),
-                        _quotaRow(Icons.document_scanner_outlined, 'Receipt Optical OCR', _activeTier == 'household_pro' || _activeTier == 'enterprise' ? 'Unlimited scans' : '30 scans / mo'),
+                        _quotaRow(
+                          Icons.group_outlined,
+                          'Household Members',
+                          _meterLabel('seats', _plan(_activeTier)['seats'] as int),
+                        ),
+                        _quotaRow(
+                          Icons.pin_drop_outlined,
+                          'Saved Places & Geofencing',
+                          _meterLabel('places', _plan(_activeTier)['places'] as int),
+                        ),
+                        _quotaRow(
+                          Icons.task_alt,
+                          'Errands & Tasks / month',
+                          _meterLabel(
+                            'requests',
+                            _plan(_activeTier)['requests'] as int,
+                          ),
+                        ),
+                        _quotaRow(
+                          Icons.kitchen_outlined,
+                          'Pantry Items',
+                          _meterLabel('pantry', _plan(_activeTier)['pantry'] as int),
+                        ),
+                        _quotaRow(
+                          Icons.phone_in_talk_outlined,
+                          'Member Calls / Voice (today)',
+                          _meterLabel('voice', _plan(_activeTier)['calls'] as int),
+                        ),
+                        _quotaRow(
+                          Icons.document_scanner_outlined,
+                          'Receipt OCR Scans / month',
+                          _capLabel(_plan(_activeTier)['scans'] as int),
+                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: AppTheme.space4),
 
-                  // Plans Comparison / Upgrade Section (Point 24)
+                  // Plans Comparison / Upgrade Section
                   const SectionHeader(title: 'SaaS Subscription Plans', count: 4),
                   const SizedBox(height: AppTheme.space3),
-                  _planCard(
-                    tierKey: 'starter',
-                    title: 'Starter',
-                    price: 'Free',
-                    features: const [
-                      '3 household members',
-                      '2 saved places & geofences',
-                      '30 errands & tasks / month',
-                      'Single expense ledger',
-                    ],
-                    isCurrent: _activeTier == 'starter',
-                  ),
-                  const SizedBox(height: 12),
-                  _planCard(
-                    tierKey: 'pilot',
-                    title: 'Pilot Family',
-                    price: '\$15 / mo',
-                    features: const [
-                      '5 household members',
-                      '5 saved places & geofences',
-                      '100 errands & tasks / month',
-                      '50 pantry items & spend tracking',
-                      '15 member escalation calls / mo',
-                      '30 receipt OCR scans / mo',
-                    ],
-                    isCurrent: _activeTier == 'pilot' || _activeTier == 'family_plus',
-                  ),
-                  const SizedBox(height: 12),
-                  _planCard(
-                    tierKey: 'household_pro',
-                    title: 'Household Pro',
-                    price: '\$29 / mo',
-                    features: const [
-                      '10 household members',
-                      'Unlimited saved places & geofences',
-                      'Unlimited errands & tasks',
-                      'Unlimited pantry stock & spend metrics',
-                      '100 direct member calls & escalations',
-                      'Unlimited OCR receipt optical scans',
-                      'Recurring expenses & wealth projection',
-                      'Priority household concierge',
-                    ],
-                    isCurrent: _activeTier == 'household_pro',
-                    isPopular: true,
-                  ),
-                  const SizedBox(height: 12),
-                  _planCard(
-                    tierKey: 'enterprise',
-                    title: 'Enterprise Estate',
-                    price: '\$99 / mo',
-                    features: const [
-                      'Unlimited members, estates & ledgers',
-                      'Unlimited calls, OCR scans & rules',
-                      'Custom multi-home geographic routing',
-                      '24/7 dedicated support representative',
-                    ],
-                    isCurrent: _activeTier == 'enterprise',
-                  ),
+                  for (final entry in _plans.entries) ...[
+                    _planCard(
+                      tierKey: entry.key,
+                      title: entry.value['label'] as String,
+                      price: entry.value['cadence'] == 'free'
+                          ? entry.value['price'] as String
+                          : '${entry.value['price']} / mo',
+                      features: (entry.value['features'] as List).cast<String>(),
+                      isCurrent: _normaliseTier(_activeTier) == entry.key,
+                      isPopular: entry.key == 'standard',
+                    ),
+                    if (entry.key != _plans.keys.last)
+                      const SizedBox(height: 12),
+                  ],
                   const SizedBox(height: AppTheme.space4),
 
-                  // Payment Methods & Offline Transfer
-                  const SectionHeader(title: 'Payment Methods & Options', count: 2),
+                  // Payment & settlement options, read from the platform gateway config.
+                  SectionHeader(
+                    title: 'Payment & Settlement Options',
+                    count: _gatewayCount,
+                  ),
                   const SizedBox(height: AppTheme.space3),
                   WarmCard(
                     child: Column(
                       children: [
-                        for (final pm in _paymentMethods)
+                        if (_billingConfig == null)
+                          const ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.cloud_off_outlined),
+                            title: Text('Gateway configuration unavailable'),
+                            subtitle: Text('Check the connection and pull to refresh.'),
+                          )
+                        else ...[
                           ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: Container(
@@ -793,28 +907,43 @@ class _BillingPageState extends State<BillingPage> {
                               child: const Icon(Icons.credit_card, color: AppTheme.secondary),
                             ),
                             title: Text(
-                              '${pm['brand'] ?? 'Card'} •••• ${pm['last4'] ?? '4242'}',
+                              'Active gateway · ${_gatewayLabel(_billingConfig!['active_gateway']?.toString())}',
                               style: const TextStyle(fontWeight: FontWeight.w700),
                             ),
-                            subtitle: Text('Expires ${pm['exp'] ?? '12/28'} (Instant auto-billing)'),
-                            trailing: pm['is_default'] == true
-                                ? const PriorityChip(label: 'Default', tone: WarmTone.primary)
-                                : null,
-                          ),
-                        const Divider(height: 16),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.shade50,
-                              borderRadius: BorderRadius.circular(8),
+                            subtitle: Text(
+                              '${(_billingConfig!['mode'] ?? 'sandbox').toString().toUpperCase()} mode · '
+                              '${_billingConfig!['currency'] ?? 'USD'}',
                             ),
-                            child: const Icon(Icons.payments_outlined, color: Colors.amber),
+                            trailing: PriorityChip(
+                              label: (_billingConfig!['is_sandbox'] == true) ? 'Sandbox' : 'Live',
+                              tone: WarmTone.neutral,
+                            ),
                           ),
-                          title: const Text('Cash & Bank Deposit Supported', style: TextStyle(fontWeight: FontWeight.w700)),
-                          subtitle: const Text('Invoices approved by admin once cash is cleared'),
-                        ),
+                          for (final entry in _gateways.entries)
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(
+                                entry.key == 'cash' || entry.key == 'bank_transfer'
+                                    ? Icons.payments_outlined
+                                    : Icons.credit_card,
+                                color: entry.value['enabled'] == true
+                                    ? AppTheme.secondary
+                                    : AppTheme.muted,
+                              ),
+                              title: Text(
+                                _gatewayLabel(entry.key),
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              subtitle: Text(
+                                entry.value['enabled'] == true
+                                    ? '${(entry.value['mode'] ?? 'sandbox').toString().toUpperCase()} · enabled'
+                                    : 'Not enabled',
+                              ),
+                              trailing: entry.value['enabled'] == true
+                                  ? const Icon(Icons.check_circle, size: 18, color: AppTheme.secondary)
+                                  : null,
+                            ),
+                        ],
                       ],
                     ),
                   ),
@@ -843,6 +972,17 @@ class _BillingPageState extends State<BillingPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     child: Column(
                       children: [
+                        if (_invoices.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                            child: Text(
+                              'No invoices yet.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.muted,
+                              ),
+                            ),
+                          ),
                         for (final inv in _invoices)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -883,7 +1023,7 @@ class _BillingPageState extends State<BillingPage> {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      '\$${(inv.amountCents / 100).toStringAsFixed(2)}',
+                                      '${inv.currency} ${(inv.amountCents / 100).toStringAsFixed(2)}',
                                       style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
                                     ),
                                     const SizedBox(height: 2),
@@ -916,7 +1056,7 @@ class _BillingPageState extends State<BillingPage> {
                   ),
                   const SizedBox(height: AppTheme.space4),
 
-                  // Cancel Subscription Action (Point 23)
+                  // Cancel Subscription Action
                   Center(
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
@@ -935,6 +1075,57 @@ class _BillingPageState extends State<BillingPage> {
             ),
       ),
     );
+  }
+
+  Map<String, dynamic> get _gateways {
+    final gateways = _billingConfig?['gateways'];
+    if (gateways is! Map) return const {};
+
+    return gateways.map(
+      (key, value) => MapEntry(
+        key.toString(),
+        value is Map ? value.cast<String, dynamic>() : <String, dynamic>{},
+      ),
+    );
+  }
+
+  int get _gatewayCount => _gateways.length;
+
+  String _gatewayLabel(String? key) => switch (key) {
+    'stripe' => 'Stripe',
+    'paypal' => 'PayPal',
+    'razorpay' => 'Razorpay',
+    'sslcommerz' => 'SSLCommerz',
+    'bkash' => 'bKash',
+    'paystack' => 'Paystack',
+    'mollie' => 'Mollie',
+    'cash' => 'Cash settlement',
+    'bank_transfer' => 'Bank transfer',
+    _ => 'Not configured',
+  };
+
+  String _meterLabel(String key, int fallbackCap) {
+    Map<String, dynamic>? meter;
+    for (final entry in _meters) {
+      if (entry['key'] == key) {
+        meter = entry;
+        break;
+      }
+    }
+
+    if (meter == null) return _capLabel(fallbackCap);
+
+    return _capLabel(
+      (meter['cap'] as num?)?.toInt() ?? fallbackCap,
+      used: (meter['used'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  String _capLabel(int cap, {int? used}) {
+    if (cap <= 0) return 'Not included';
+    if (cap >= 9999) return used == null ? 'Unlimited' : '$used / Unlimited';
+
+    return used == null ? '$cap included' : '$used / $cap';
   }
 
   Widget _quotaRow(IconData icon, String label, String value) {

@@ -70,7 +70,7 @@ String extractErrorMessage(
       case DioExceptionType.receiveTimeout:
         return 'Connection timed out. Please check your network and try again.';
       case DioExceptionType.connectionError:
-        return 'Unable to reach the household server. Using offline mode or check your connection.';
+        return 'Unable to reach the household server. Check your connection and try again.';
       case DioExceptionType.cancel:
         return 'Request was cancelled.';
       case DioExceptionType.badCertificate:

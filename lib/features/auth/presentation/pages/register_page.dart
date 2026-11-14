@@ -73,6 +73,13 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go('/login'),
+        ),
+      ),
       body: SafeArea(
         child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {

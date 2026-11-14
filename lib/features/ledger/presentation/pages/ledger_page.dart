@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injector.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/warm_widgets.dart';
 import '../../../finances/data/datasources/finances_remote_datasource.dart';
@@ -33,49 +34,111 @@ class _LedgerView extends StatefulWidget {
 class _LedgerViewState extends State<_LedgerView> {
   String _activeSubModule = 'entries';
 
-  final List<Map<String, dynamic>> _recurringExpenses = [
-    {
-      'id': 1,
-      'title': 'Home Rent / Mortgage',
-      'category': 'rent',
-      'amount_minor': 120000,
-      'frequency': 'monthly',
-      'next_due_at': '2026-12-01',
-    },
-    {
-      'id': 2,
-      'title': 'High-Speed Fiber Internet',
-      'category': 'utility',
-      'amount_minor': 6500,
-      'frequency': 'monthly',
-      'next_due_at': '2026-11-25',
-    },
-    {
-      'id': 3,
-      'title': 'Electricity & Water Utility',
-      'category': 'utility',
-      'amount_minor': 14500,
-      'frequency': 'monthly',
-      'next_due_at': '2026-11-28',
-    },
-  ];
+  List<Map<String, dynamic>> _recurringExpenses = [];
+  List<Map<String, dynamic>> _householdMembers = [];
 
-  final List<Map<String, dynamic>> _memberAccess = [
-    {
-      'user_id': 1,
-      'name': 'Tanvir Rahman',
-      'role': 'Household Admin',
-      'can_view': true,
-      'can_record': true,
-    },
-    {
-      'user_id': 2,
-      'name': 'Sarah Rahman',
-      'role': 'Household Member',
-      'can_view': true,
-      'can_record': true,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadRecurringExpenses();
+    _loadHouseholdMembers();
+  }
+
+  Future<void> _loadHouseholdMembers() async {
+    if (!getIt.isRegistered<DioClient>()) return;
+
+    try {
+      final response = await getIt<DioClient>().dio.get<Map<String, dynamic>>(
+        '/v1/tenant/members',
+      );
+      final members = response.data?['data'] as List? ?? const [];
+
+      if (mounted) {
+        setState(
+          () => _householdMembers = members
+              .whereType<Map>()
+              .map((member) => member.cast<String, dynamic>())
+              .toList(),
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _grantLedgerAccess(int ledgerId, int userId, String role) async {
+    try {
+      await getIt<DioClient>().dio.post<Map<String, dynamic>>(
+        '/v1/ledgers/$ledgerId/members',
+        data: {'user_id': userId, 'role': role},
+      );
+      if (mounted) {
+        context.read<LedgerBloc>().add(const LedgerPageStarted());
+        ScaffoldMessenger.of(context).showSnackBar(
+          AppTheme.successSnackBar('Ledger access granted.'),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          AppTheme.errorSnackBar('Could not grant ledger access.'),
+        );
+      }
+    }
+  }
+
+  Future<void> _revokeLedgerAccess(int ledgerId, int userId) async {
+    try {
+      await getIt<DioClient>().dio.delete<void>(
+        '/v1/ledgers/$ledgerId/members/$userId',
+      );
+      if (mounted) {
+        context.read<LedgerBloc>().add(const LedgerPageStarted());
+        ScaffoldMessenger.of(context).showSnackBar(
+          AppTheme.successSnackBar('Ledger access revoked.'),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          AppTheme.errorSnackBar('Could not revoke ledger access.'),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadRecurringExpenses() async {
+    if (!getIt.isRegistered<DioClient>()) return;
+
+    try {
+      final response = await getIt<DioClient>().dio.get<Map<String, dynamic>>(
+        '/v1/recurring-rules',
+      );
+      final rules = response.data?['data'] as List? ?? const [];
+      final expenses = rules
+          .whereType<Map>()
+          .map((rule) => rule.cast<String, dynamic>())
+          .where(
+            (rule) => ((rule['amount_minor'] as num?)?.toInt() ?? 0) > 0,
+          )
+          .toList();
+
+      if (mounted) {
+        setState(() => _recurringExpenses = expenses);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _deleteRecurringExpense(int id) async {
+    try {
+      await getIt<DioClient>().dio.delete<void>('/v1/recurring-rules/$id');
+      await _loadRecurringExpenses();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          AppTheme.errorSnackBar('Could not remove that recurring expense.'),
+        );
+      }
+    }
+  }
 
   String _formatMoney(int minor, String currency) =>
       formatMoneyMinor(minor, currency);
@@ -506,6 +569,8 @@ class _LedgerViewState extends State<_LedgerView> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 20),
+                    _FinancesRecords(currency: curr),
                     const SizedBox(height: 24),
 
                     FilledButton.icon(
@@ -551,15 +616,23 @@ class _LedgerViewState extends State<_LedgerView> {
             onPressed: () async {
               final target = double.tryParse(targetCtrl.text.trim());
               if (titleCtrl.text.trim().isNotEmpty && target != null) {
-                await getIt<FinancesRemoteDataSource>().createGoal({
-                  'title': titleCtrl.text.trim(),
-                  'target_minor': (target * 100).round(),
-                });
-                if (ctx.mounted) Navigator.of(ctx).pop();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Goal created!'), backgroundColor: AppTheme.secondary),
-                  );
+                try {
+                  await getIt<FinancesRemoteDataSource>().createGoal({
+                    'name': titleCtrl.text.trim(),
+                    'target_amount_minor': (target * 100).round(),
+                  });
+                  if (ctx.mounted) Navigator.of(ctx).pop();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Goal created!'), backgroundColor: AppTheme.secondary),
+                    );
+                  }
+                } catch (_) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      AppTheme.errorSnackBar('Could not save the goal.'),
+                    );
+                  }
                 }
               }
             },
@@ -592,7 +665,7 @@ class _LedgerViewState extends State<_LedgerView> {
                 items: const [
                   DropdownMenuItem(value: 'savings', child: Text('Savings Account')),
                   DropdownMenuItem(value: 'investment', child: Text('Investments / Stocks')),
-                  DropdownMenuItem(value: 'property', child: Text('Real Estate / Property')),
+                  DropdownMenuItem(value: 'real_estate', child: Text('Real Estate / Property')),
                   DropdownMenuItem(value: 'other', child: Text('Other Asset')),
                 ],
                 onChanged: (val) => setDialogState(() => type = val ?? 'savings'),
@@ -612,16 +685,24 @@ class _LedgerViewState extends State<_LedgerView> {
               onPressed: () async {
                 final val = double.tryParse(valueCtrl.text.trim());
                 if (nameCtrl.text.trim().isNotEmpty && val != null) {
-                  await getIt<FinancesRemoteDataSource>().createAsset({
-                    'name': nameCtrl.text.trim(),
-                    'type': type,
-                    'value_minor': (val * 100).round(),
-                  });
-                  if (ctx.mounted) Navigator.of(ctx).pop();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Asset added!'), backgroundColor: AppTheme.secondary),
-                    );
+                  try {
+                    await getIt<FinancesRemoteDataSource>().createAsset({
+                      'name': nameCtrl.text.trim(),
+                      'type': type,
+                      'balance_minor': (val * 100).round(),
+                    });
+                    if (ctx.mounted) Navigator.of(ctx).pop();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Asset added!'), backgroundColor: AppTheme.secondary),
+                      );
+                    }
+                  } catch (_) {
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        AppTheme.errorSnackBar('Could not save the asset.'),
+                      );
+                    }
                   }
                 }
               },
@@ -655,8 +736,8 @@ class _LedgerViewState extends State<_LedgerView> {
                 items: const [
                   DropdownMenuItem(value: 'mortgage', child: Text('Mortgage')),
                   DropdownMenuItem(value: 'loan', child: Text('Personal / Auto Loan')),
-                  DropdownMenuItem(value: 'credit_card', child: Text('Credit Card Balance')),
-                  DropdownMenuItem(value: 'other', child: Text('Other Liability')),
+                  DropdownMenuItem(value: 'credit_line', child: Text('Credit Line / Card')),
+                  DropdownMenuItem(value: 'student_loan', child: Text('Student Loan')),
                 ],
                 onChanged: (val) => setDialogState(() => type = val ?? 'loan'),
                 decoration: const InputDecoration(labelText: 'Liability Type'),
@@ -675,16 +756,24 @@ class _LedgerViewState extends State<_LedgerView> {
               onPressed: () async {
                 final val = double.tryParse(balanceCtrl.text.trim());
                 if (nameCtrl.text.trim().isNotEmpty && val != null) {
-                  await getIt<FinancesRemoteDataSource>().createLiability({
-                    'name': nameCtrl.text.trim(),
-                    'type': type,
-                    'balance_minor': (val * 100).round(),
-                  });
-                  if (ctx.mounted) Navigator.of(ctx).pop();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Liability added!'), backgroundColor: AppTheme.secondary),
-                    );
+                  try {
+                    await getIt<FinancesRemoteDataSource>().createLiability({
+                      'name': nameCtrl.text.trim(),
+                      'type': type,
+                      'remaining_balance_minor': (val * 100).round(),
+                    });
+                    if (ctx.mounted) Navigator.of(ctx).pop();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Liability added!'), backgroundColor: AppTheme.secondary),
+                      );
+                    }
+                  } catch (_) {
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        AppTheme.errorSnackBar('Could not save the liability.'),
+                      );
+                    }
                   }
                 }
               },
@@ -697,49 +786,104 @@ class _LedgerViewState extends State<_LedgerView> {
   }
 
   void _showAddTaxDialog(BuildContext context) {
-    final titleCtrl = TextEditingController();
+    final nameCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
+    final yearCtrl = TextEditingController(text: '${DateTime.now().year}');
+    String type = 'property';
+
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Tax Assessment'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtrl,
-              decoration: const InputDecoration(labelText: 'Tax Description', hintText: 'e.g. Property Tax 2026 Q1'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Add Tax Assessment'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Tax Description',
+                    hintText: 'e.g. Property Tax 2026',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: type,
+                  decoration: const InputDecoration(labelText: 'Tax Type'),
+                  items: const [
+                    DropdownMenuItem(value: 'property', child: Text('Property')),
+                    DropdownMenuItem(value: 'income', child: Text('Income')),
+                    DropdownMenuItem(value: 'municipal', child: Text('Municipal')),
+                    DropdownMenuItem(value: 'sales', child: Text('Sales')),
+                    DropdownMenuItem(value: 'deduction', child: Text('Deduction')),
+                    DropdownMenuItem(value: 'other', child: Text('Other')),
+                  ],
+                  onChanged: (value) =>
+                      setDialogState(() => type = value ?? 'property'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: yearCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Tax year'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Estimated Amount Due (\$)',
+                    hintText: '1200.00',
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: amountCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Estimated Amount Due (\$)', hintText: '1200.00'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final amt = double.tryParse(amountCtrl.text.trim());
+                final year = int.tryParse(yearCtrl.text.trim());
+                if (nameCtrl.text.trim().isEmpty ||
+                    amt == null ||
+                    year == null) {
+                  return;
+                }
+
+                try {
+                  await getIt<FinancesRemoteDataSource>().createTax({
+                    'name': nameCtrl.text.trim(),
+                    'type': type,
+                    'tax_year': year,
+                    'amount_minor': (amt * 100).round(),
+                    'status': 'pending',
+                  });
+                  if (ctx.mounted) Navigator.of(ctx).pop();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Tax assessment added!'),
+                        backgroundColor: AppTheme.secondary,
+                      ),
+                    );
+                  }
+                } catch (_) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      AppTheme.errorSnackBar('Could not save the tax assessment.'),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save Tax'),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () async {
-              final amt = double.tryParse(amountCtrl.text.trim());
-              if (titleCtrl.text.trim().isNotEmpty && amt != null) {
-                await getIt<FinancesRemoteDataSource>().createTax({
-                  'title': titleCtrl.text.trim(),
-                  'amount_minor': (amt * 100).round(),
-                  'status': 'pending',
-                });
-                if (ctx.mounted) Navigator.of(ctx).pop();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Tax assessment added!'), backgroundColor: AppTheme.secondary),
-                  );
-                }
-              }
-            },
-            child: const Text('Save Tax'),
-          ),
-        ],
       ),
     );
   }
@@ -1020,6 +1164,7 @@ class _LedgerViewState extends State<_LedgerView> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           initialValue: category,
+                          isExpanded: true,
                           decoration: const InputDecoration(labelText: 'Category'),
                           items: const [
                             DropdownMenuItem(value: 'rent', child: Text('Rent & Housing')),
@@ -1035,11 +1180,12 @@ class _LedgerViewState extends State<_LedgerView> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           initialValue: frequency,
+                          isExpanded: true,
                           decoration: const InputDecoration(labelText: 'Frequency'),
                           items: const [
+                            DropdownMenuItem(value: 'daily', child: Text('Daily')),
                             DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
                             DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-                            DropdownMenuItem(value: 'yearly', child: Text('Yearly')),
                           ],
                           onChanged: (v) => setSheetState(() => frequency = v ?? 'monthly'),
                         ),
@@ -1050,20 +1196,42 @@ class _LedgerViewState extends State<_LedgerView> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
-                      onPressed: () {
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
                         final amt = double.tryParse(amountCtrl.text.trim());
-                        if (titleCtrl.text.trim().isEmpty || amt == null || amt <= 0) return;
-                        setState(() {
-                          _recurringExpenses.insert(0, {
-                            'id': DateTime.now().millisecondsSinceEpoch,
-                            'title': titleCtrl.text.trim(),
-                            'category': category,
-                            'amount_minor': (amt * 100).round(),
-                            'frequency': frequency,
-                            'next_due_at': '2026-12-01',
-                          });
-                        });
-                        Navigator.of(ctx).pop();
+                        if (titleCtrl.text.trim().isEmpty || amt == null || amt <= 0) {
+                          return;
+                        }
+                        if (!getIt.isRegistered<DioClient>()) {
+                          messenger.showSnackBar(
+                            AppTheme.errorSnackBar('Recurring rules need a connection.'),
+                          );
+                          return;
+                        }
+
+                        try {
+                          await getIt<DioClient>().dio.post<Map<String, dynamic>>(
+                            '/v1/recurring-rules',
+                            data: {
+                              'title': titleCtrl.text.trim(),
+                              'cadence': frequency,
+                              'weekday': frequency == 'weekly'
+                                  ? DateTime.now().weekday % 7
+                                  : null,
+                              'day_of_month': frequency == 'monthly' ? 1 : null,
+                              'category': category,
+                              'amount_minor': (amt * 100).round(),
+                              'active': true,
+                            },
+                          );
+
+                          if (ctx.mounted) Navigator.of(ctx).pop();
+                          await _loadRecurringExpenses();
+                        } catch (_) {
+                          messenger.showSnackBar(
+                            AppTheme.errorSnackBar('Could not save that recurring expense.'),
+                          );
+                        }
                       },
                       child: const Text('Save Recurring Expense'),
                     ),
@@ -1144,7 +1312,8 @@ class _LedgerViewState extends State<_LedgerView> {
             ('categories', 'Category Breakdown', Icons.donut_large_rounded, null),
             ('periodic', 'Periodic Breakdown', Icons.bar_chart_rounded, null),
             ('recurring', 'Recurring Expenses', Icons.autorenew_rounded, _recurringExpenses.length),
-            ('access', 'Member Access', Icons.group_outlined, _memberAccess.length),
+            if (ledger.canManageMembers)
+              ('access', 'Member Access', Icons.group_outlined, _householdMembers.length),
           ];
 
           return RefreshIndicator(
@@ -1795,6 +1964,14 @@ class _LedgerViewState extends State<_LedgerView> {
                           ],
                         ),
                         const SizedBox(height: 12),
+                        if (_recurringExpenses.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Text(
+                              'No recurring expenses yet. Add a rule to track bills such as rent, utilities or subscriptions.',
+                              style: TextStyle(fontSize: 12, color: AppTheme.muted),
+                            ),
+                          ),
                         for (final item in _recurringExpenses)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
@@ -1821,7 +1998,7 @@ class _LedgerViewState extends State<_LedgerView> {
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          '${(item['frequency'] as String).toUpperCase()} · Next: ${item['next_due_at']}',
+                                          '${(item['cadence'] ?? 'monthly').toString().toUpperCase()} · Next: ${item['next_run_on'] ?? '—'}',
                                           style: const TextStyle(fontSize: 11, color: AppTheme.muted),
                                         ),
                                       ],
@@ -1838,11 +2015,9 @@ class _LedgerViewState extends State<_LedgerView> {
                                   IconButton(
                                     visualDensity: VisualDensity.compact,
                                     icon: const Icon(Icons.delete_outline, size: 18, color: AppTheme.tertiary),
-                                    onPressed: () {
-                                      setState(() {
-                                        _recurringExpenses.removeWhere((e) => e['id'] == item['id']);
-                                      });
-                                    },
+                                    onPressed: () => _deleteRecurringExpense(
+                                      (item['id'] as num).toInt(),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1859,21 +2034,41 @@ class _LedgerViewState extends State<_LedgerView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Household Member Access',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.ink,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Who can see this ledger',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.ink,
+                                ),
+                              ),
+                            ),
+                            PriorityChip(
+                              label: '${ledger.memberCount} members',
+                              tone: WarmTone.neutral,
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'Control which family members can view or record transactions in this ledger.',
+                          'Managers record entries and see every line; totals-only members see the summary only.',
                           style: TextStyle(fontSize: 12, color: AppTheme.muted),
                         ),
                         const SizedBox(height: 12),
-                        for (final member in _memberAccess)
+                        if (_householdMembers
+                            .where((member) => member['user_id'] != ledger.ownerId)
+                            .isEmpty)
+                          const Text(
+                            'You are the only member in this household right now.',
+                            style: TextStyle(fontSize: 12, color: AppTheme.muted),
+                          ),
+                        for (final member in _householdMembers.where(
+                          (member) => member['user_id'] != ledger.ownerId,
+                        ))
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: Container(
@@ -1890,7 +2085,7 @@ class _LedgerViewState extends State<_LedgerView> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          member['name'] as String,
+                                          member['name']?.toString() ?? 'Member',
                                           style: const TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w700,
@@ -1898,30 +2093,49 @@ class _LedgerViewState extends State<_LedgerView> {
                                           ),
                                         ),
                                         Text(
-                                          member['role'] as String,
+                                          member['role_label']?.toString() ??
+                                              member['role']?.toString() ??
+                                              'Member',
                                           style: const TextStyle(fontSize: 11, color: AppTheme.muted),
                                         ),
                                       ],
                                     ),
                                   ),
-                                  FilterChip(
-                                    visualDensity: VisualDensity.compact,
-                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    label: const Text('View', style: TextStyle(fontSize: 11)),
-                                    selected: member['can_view'] == true,
-                                    onSelected: (v) {
-                                      setState(() => member['can_view'] = v);
-                                    },
+                                  PopupMenuButton<String>(
+                                    tooltip: 'Grant access',
+                                    onSelected: (role) => _grantLedgerAccess(
+                                      ledger.id,
+                                      (member['user_id'] as num).toInt(),
+                                      role,
+                                    ),
+                                    itemBuilder: (context) => const [
+                                      PopupMenuItem(value: 'manager', child: Text('Manager')),
+                                      PopupMenuItem(value: 'summary', child: Text('Totals only')),
+                                    ],
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                      child: Text(
+                                        'Grant',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppTheme.secondary,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                  const SizedBox(width: 6),
-                                  FilterChip(
+                                  IconButton(
+                                    tooltip: 'Revoke access',
                                     visualDensity: VisualDensity.compact,
-                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    label: const Text('Record', style: TextStyle(fontSize: 11)),
-                                    selected: member['can_record'] == true,
-                                    onSelected: (v) {
-                                      setState(() => member['can_record'] = v);
-                                    },
+                                    icon: const Icon(
+                                      Icons.person_remove_outlined,
+                                      size: 18,
+                                      color: AppTheme.error,
+                                    ),
+                                    onPressed: () => _revokeLedgerAccess(
+                                      ledger.id,
+                                      (member['user_id'] as num).toInt(),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1936,6 +2150,366 @@ class _LedgerViewState extends State<_LedgerView> {
           );
         },
       ),
+    );
+  }
+}
+
+/// Live goals, liabilities, assets and taxes inside the finances sheet — the
+/// app counterpart of the dashboard's four wealth modules.
+class _FinancesRecords extends StatefulWidget {
+  const _FinancesRecords({required this.currency});
+
+  final String currency;
+
+  @override
+  State<_FinancesRecords> createState() => _FinancesRecordsState();
+}
+
+class _FinancesRecordsState extends State<_FinancesRecords> {
+  late final FinancesRemoteDataSource _api;
+
+  bool _loading = true;
+  List<Map<String, dynamic>> _goals = [];
+  List<Map<String, dynamic>> _liabilities = [];
+  List<Map<String, dynamic>> _assets = [];
+  List<Map<String, dynamic>> _taxes = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _api = getIt<FinancesRemoteDataSource>();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final results = await Future.wait<dynamic>([
+        _api.getGoals(),
+        _api.getLiabilities(),
+        _api.getAssets(),
+        _api.getTaxes(),
+      ]);
+
+      if (!mounted) return;
+
+      setState(() {
+        _goals = results[0] as List<Map<String, dynamic>>;
+        _liabilities = results[1] as List<Map<String, dynamic>>;
+        _assets = results[2] as List<Map<String, dynamic>>;
+        _taxes = results[3] as List<Map<String, dynamic>>;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _section('Savings goals', _goals, _goalRow),
+        _section('Loans & mortgages', _liabilities, _liabilityRow),
+        _section('Assets & funds', _assets, _assetRow),
+        _section('Tax assessments', _taxes, _taxRow),
+      ],
+    );
+  }
+
+  Widget _section(
+    String title,
+    List<Map<String, dynamic>> items,
+    Widget Function(Map<String, dynamic>) row,
+  ) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.muted,
+            ),
+          ),
+          const SizedBox(height: 6),
+          ...items.map(row),
+        ],
+      ),
+    );
+  }
+
+  Widget _goalRow(Map<String, dynamic> goal) {
+    final current = (goal['current_amount_minor'] as num?)?.toInt() ?? 0;
+    final target = (goal['target_amount_minor'] as num?)?.toInt() ?? 0;
+
+    return _recordRow(
+      title: goal['name']?.toString() ?? 'Goal',
+      subtitle:
+          '${_money(current)} of ${_money(target)} · ${goal['status'] ?? 'active'}',
+      primaryIcon: Icons.savings_outlined,
+      primaryTooltip: 'Add savings',
+      onPrimary: () async {
+        final amount = await _promptAmount('Add savings', 'Amount');
+        if (amount == null || amount <= 0) return;
+
+        final next = current + (amount * 100).round();
+        await _perform(
+          () => _api.updateGoal(goal['id'] as int, {
+            'current_amount_minor': next,
+            if (target > 0 && next >= target) 'status': 'achieved',
+          }),
+          'Savings added.',
+        );
+      },
+      onDelete: () => _delete(
+        goal['name']?.toString() ?? 'Goal',
+        () => _api.deleteGoal(goal['id'] as int),
+      ),
+    );
+  }
+
+  Widget _liabilityRow(Map<String, dynamic> liability) {
+    final remaining =
+        (liability['remaining_balance_minor'] as num?)?.toInt() ?? 0;
+
+    return _recordRow(
+      title: liability['name']?.toString() ?? 'Liability',
+      subtitle:
+          'Remaining ${_money(remaining)} · ${liability['status'] ?? 'active'}',
+      primaryIcon: Icons.payments_outlined,
+      primaryTooltip: 'Record payment',
+      onPrimary: () async {
+        final amount = await _promptAmount(
+          'Record principal payment',
+          'Amount',
+          initial: remaining / 100,
+        );
+        if (amount == null || amount <= 0) return;
+
+        final next = remaining - (amount * 100).round();
+        final clamped = next < 0 ? 0 : next;
+        await _perform(
+          () => _api.updateLiability(liability['id'] as int, {
+            'remaining_balance_minor': clamped,
+            'status': clamped == 0 ? 'paid_off' : 'active',
+          }),
+          'Payment recorded.',
+        );
+      },
+      onDelete: () => _delete(
+        liability['name']?.toString() ?? 'Liability',
+        () => _api.deleteLiability(liability['id'] as int),
+      ),
+    );
+  }
+
+  Widget _assetRow(Map<String, dynamic> asset) {
+    final balance = (asset['balance_minor'] as num?)?.toInt() ?? 0;
+
+    return _recordRow(
+      title: asset['name']?.toString() ?? 'Asset',
+      subtitle: '${asset['type'] ?? 'asset'} · ${_money(balance)}',
+      primaryIcon: Icons.edit_outlined,
+      primaryTooltip: 'Update balance',
+      onPrimary: () async {
+        final amount = await _promptAmount(
+          'Update balance',
+          'Balance',
+          initial: balance / 100,
+        );
+        if (amount == null || amount < 0) return;
+
+        await _perform(
+          () => _api.updateAsset(asset['id'] as int, {
+            'balance_minor': (amount * 100).round(),
+          }),
+          'Asset balance updated.',
+        );
+      },
+      onDelete: () => _delete(
+        asset['name']?.toString() ?? 'Asset',
+        () => _api.deleteAsset(asset['id'] as int),
+      ),
+    );
+  }
+
+  Widget _taxRow(Map<String, dynamic> tax) {
+    final amount = (tax['amount_minor'] as num?)?.toInt() ?? 0;
+    final paid = tax['status'] == 'paid';
+
+    return _recordRow(
+      title: tax['name']?.toString() ?? 'Tax assessment',
+      subtitle:
+          '${tax['type'] ?? 'tax'} ${tax['tax_year'] ?? ''} · ${_money(amount)} · ${tax['status'] ?? 'pending'}',
+      primaryIcon: paid ? Icons.check_circle_outline : Icons.check_circle,
+      primaryTooltip: paid ? 'Already paid' : 'Mark paid',
+      onPrimary: paid
+          ? null
+          : () => _perform(
+                () => _api.updateTax(tax['id'] as int, {'status': 'paid'}),
+                'Tax marked paid.',
+              ),
+      onDelete: () => _delete(
+        tax['name']?.toString() ?? 'Tax assessment',
+        () => _api.deleteTax(tax['id'] as int),
+      ),
+    );
+  }
+
+  Widget _recordRow({
+    required String title,
+    required String subtitle,
+    required IconData primaryIcon,
+    required String primaryTooltip,
+    required Future<void> Function()? onPrimary,
+    required Future<void> Function() onDelete,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.canvas,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.outline.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.ink,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 11, color: AppTheme.muted),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: primaryTooltip,
+            visualDensity: VisualDensity.compact,
+            icon: Icon(primaryIcon, size: 18, color: AppTheme.secondary),
+            onPressed: onPrimary == null ? null : () => onPrimary(),
+          ),
+          IconButton(
+            tooltip: 'Delete',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(
+              Icons.delete_outline,
+              size: 18,
+              color: AppTheme.error,
+            ),
+            onPressed: () => onDelete(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _perform(Future<void> Function() action, String success) async {
+    try {
+      await action();
+      await _load();
+      _snack(success);
+    } catch (_) {
+      _snack('Could not update your finances.', error: true);
+    }
+  }
+
+  Future<void> _delete(String label, Future<void> Function() action) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete $label?'),
+        content: const Text('This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.error),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    await _perform(action, '$label removed.');
+  }
+
+  Future<double?> _promptAmount(
+    String title,
+    String label, {
+    double? initial,
+  }) async {
+    final controller = TextEditingController(
+      text: initial == null ? '' : initial.toStringAsFixed(2),
+    );
+
+    final result = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: '$label (${widget.currency})',
+            prefixIcon: const Icon(Icons.attach_money, size: 20),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(ctx).pop(double.tryParse(controller.text.trim())),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+
+    return result;
+  }
+
+  String _money(int minor) => formatMoneyMinor(minor, widget.currency);
+
+  void _snack(String message, {bool error = false}) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      error ? AppTheme.errorSnackBar(message) : AppTheme.successSnackBar(message),
     );
   }
 }

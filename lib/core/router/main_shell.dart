@@ -87,11 +87,11 @@ class _MainShellState extends State<MainShell> {
     if (loc.startsWith('/today')) return "Today's Pulse";
     if (loc.startsWith('/shopping')) return 'Errands & Tasks';
     if (loc.startsWith('/budget') || loc.startsWith('/ledger')) return 'Expenses & Money';
-    if (loc.startsWith('/places')) return 'Places & Geofences';
+    if (loc.startsWith('/places')) return 'Places';
     if (loc.startsWith('/settings')) return 'Settings';
     if (loc.startsWith('/pantry')) return 'Pantry Inventory';
     if (loc.startsWith('/recurring')) return 'Recurring Tasks';
-    return 'Family Essentials';
+    return 'FairShare';
   }
 
   bool get _isSubRoute {
@@ -171,9 +171,14 @@ class _MainShellState extends State<MainShell> {
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
             IconButton(
-              tooltip: 'Household Chat & AI',
+              tooltip: 'AI Assistant',
               icon: const Icon(Icons.auto_awesome, color: AppTheme.secondary),
-              onPressed: () => context.push('/chat'),
+              onPressed: () => context.push('/assistant'),
+            ),
+            IconButton(
+              tooltip: 'Household Chat & Calls',
+              icon: const Icon(Icons.forum_outlined),
+              onPressed: () => context.push('/messages'),
             ),
             IconButton(
               tooltip: 'Receipt Scanner',
@@ -210,7 +215,7 @@ class _MainShellState extends State<MainShell> {
                         padding: const EdgeInsets.symmetric(horizontal: 2),
                         child: _BottomNavPillItem(
                           entry: MainShell.destinations[i],
-                          isSelected: !_isSubRoute && _index == i,
+                          isSelected: _index == i,
                           onTap: () =>
                               context.go(MainShell.destinations[i].path),
                         ),

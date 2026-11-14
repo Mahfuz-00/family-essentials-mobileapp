@@ -294,6 +294,7 @@ class AppTheme {
   static SnackBar successSnackBar(String message) {
     return SnackBar(
       behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 88),
       backgroundColor: secondary,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radiusMd),
@@ -325,6 +326,7 @@ class AppTheme {
   static SnackBar errorSnackBar(String message) {
     return SnackBar(
       behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 88),
       backgroundColor: tertiary,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radiusMd),

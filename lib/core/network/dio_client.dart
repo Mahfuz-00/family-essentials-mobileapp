@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 
 import '../config/app_config.dart';
 import '../storage/secure_storage.dart';
-import 'demo_mock_interceptor.dart';
 
 class DioClient {
   DioClient(this._storage) {
@@ -10,8 +9,9 @@ class DioClient {
       BaseOptions(
         baseUrl: AppConfig.apiBaseUrl,
         headers: const {'Accept': 'application/json'},
-        connectTimeout: const Duration(milliseconds: 2500),
-        receiveTimeout: const Duration(milliseconds: 3000),
+        connectTimeout: const Duration(seconds: 15),
+        sendTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
       ),
     );
 
@@ -35,7 +35,6 @@ class DioClient {
       ),
     );
 
-    dio.interceptors.add(DemoMockInterceptor());
   }
 
   final SecureStorage _storage;

@@ -9,6 +9,9 @@ class LedgerModel extends Ledger {
     super.weeklyBudgetMinor,
     super.yearlyBudgetMinor,
     super.isDefault,
+    super.myRole,
+    super.ownerId,
+    super.memberCount,
     super.createdAt,
   });
 
@@ -21,6 +24,9 @@ class LedgerModel extends Ledger {
       weeklyBudgetMinor: (json['weekly_budget_minor'] as num?)?.toInt(),
       yearlyBudgetMinor: (json['yearly_budget_minor'] as num?)?.toInt(),
       isDefault: json['is_default'] == true,
+      myRole: json['my_role'] as String?,
+      ownerId: (json['owner_id'] as num?)?.toInt(),
+      memberCount: (json['member_count'] as num?)?.toInt() ?? 0,
       createdAt: json['created_at'] is String
           ? DateTime.tryParse(json['created_at'] as String)?.toLocal()
           : null,
