@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 
 import '../config/app_config.dart';
 import '../storage/secure_storage.dart';
-import 'demo_mock_interceptor.dart';
 
 class DioClient {
   DioClient(this._storage) {
@@ -35,7 +34,6 @@ class DioClient {
       ),
     );
 
-    dio.interceptors.add(DemoMockInterceptor());
   }
 
   final SecureStorage _storage;

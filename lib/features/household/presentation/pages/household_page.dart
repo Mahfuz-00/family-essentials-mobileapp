@@ -1,5 +1,7 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/di/injector.dart';
 import '../../../../core/network/dio_client.dart';
@@ -248,6 +250,8 @@ class _HouseholdPageState extends State<HouseholdPage> {
                 if (member['email'] != null)
                   Text(
                     member['email'].toString(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 12, color: AppTheme.muted),
                   ),
                 if (phone != null && phone.isNotEmpty)
@@ -271,6 +275,17 @@ class _HouseholdPageState extends State<HouseholdPage> {
               ],
             ),
           ),
+          if (!isSelf)
+            IconButton(
+              tooltip: 'Call ${member['name'] ?? 'member'}',
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(
+                Icons.call_outlined,
+                size: 20,
+                color: AppTheme.secondary,
+              ),
+              onPressed: () => _callMember(member),
+            ),
           if (_canManageRoles && !isSelf)
             PopupMenuButton<String>(
               tooltip: 'Change role',
@@ -427,66 +442,117 @@ class _HouseholdPageState extends State<HouseholdPage> {
         ),
         if (_capabilities.isNotEmpty) ...[
           const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowHeight: 34,
-              dataRowMinHeight: 34,
-              dataRowMaxHeight: 44,
-              columnSpacing: 18,
-              columns: [
-                const DataColumn(
-                  label: Text(
-                    'Permission',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
-                  ),
-                ),
-                ..._roles.map(
-                  (role) => DataColumn(
-                    label: Text(
-                      role['label']?.toString() ?? '',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-              ],
-              rows: _capabilities.map((capability) {
-                final access = (capability['access'] as Map?) ?? const {};
+          ..._capabilities.map((capability) {
+            final access = (capability['access'] as Map?) ?? const {};
 
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      SizedBox(
-                        width: 160,
-                        child: Text(
-                          capability['label']?.toString() ?? '',
-                          style: const TextStyle(fontSize: 11),
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppTheme.outline.withValues(alpha: 0.18),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    capability['label']?.toString() ?? '',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: _roles.map((role) {
+                      final allowed = access[role['key']] == true;
+
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
                         ),
-                      ),
-                    ),
-                    ..._roles.map(
-                      (role) => DataCell(
-                        access[role['key']] == true
-                            ? const Icon(
-                                Icons.check_circle_rounded,
-                                size: 16,
-                                color: AppTheme.secondary,
-                              )
-                            : const Icon(
-                                Icons.remove_rounded,
-                                size: 16,
-                                color: AppTheme.outline,
+                        decoration: BoxDecoration(
+                          color: allowed ? AppTheme.forestSoft : AppTheme.canvas,
+                          borderRadius: BorderRadius.circular(7),
+                          border: Border.all(
+                            color: AppTheme.outline.withValues(alpha: 0.18),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              allowed
+                                  ? Icons.check_circle_rounded
+                                  : Icons.remove_circle_outline,
+                              size: 12,
+                              color: allowed ? AppTheme.secondary : AppTheme.muted,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              role['label']?.toString() ?? '',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: allowed ? AppTheme.secondary : AppTheme.muted,
                               ),
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-          ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ],
     );
+  }
+
+  Future<void> _callMember(Map<String, dynamic> member) async {
+    final phone = member['phone']?.toString().trim() ?? '';
+    if (phone.isEmpty) {
+      _snack(
+        '${member['name'] ?? 'This member'} has no phone number on file.',
+        error: true,
+      );
+      return;
+    }
+
+    final userId = (member['user_id'] as num?)?.toInt();
+    if (userId != null) {
+      try {
+        await getIt<DioClient>().dio.post<Map<String, dynamic>>(
+          '/v1/members/$userId/call',
+        );
+      } on DioException catch (error) {
+        _snack(_message(error), error: true);
+        return;
+      } catch (_) {
+        // The dialer still works even if the call log could not be written.
+      }
+    }
+
+    final clean = phone.replaceAll(RegExp(r'[^\d+]'), '');
+    if (clean.isEmpty) return;
+
+    final opened = await launchUrl(
+      Uri(scheme: 'tel', path: clean),
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!opened) {
+      _snack('No phone app could open that number.', error: true);
+    }
   }
 
   Future<void> _changeRole(
@@ -556,7 +622,11 @@ class _HouseholdPageState extends State<HouseholdPage> {
   Future<void> _showInviteDialog() async {
     final emailController = TextEditingController();
     final available = _grantableRoles;
-    var role = available.isNotEmpty ? available.first['key']?.toString() ?? '' : '';
+    // Default to least privilege rather than whatever the catalogue lists first.
+    final defaultRole = available.where((item) => item['key'] == 'member');
+    var role = defaultRole.isNotEmpty
+        ? 'member'
+        : (available.isNotEmpty ? available.first['key']?.toString() ?? '' : '');
 
     await showDialog<void>(
       context: context,

@@ -169,7 +169,20 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
     }
 
     if (state is! RequestsBoardLoaded) {
-      return const Center(child: Text('Nothing to show.'));
+      return Padding(
+        padding: const EdgeInsets.all(AppTheme.space4),
+        child: WarmEmptyState(
+          title: 'Could not load your board',
+          description:
+              'Check the connection to the household API and try again. Nothing is lost.',
+          icon: Icons.cloud_off_outlined,
+          action: FilledButton(
+            onPressed: () =>
+                context.read<RequestsBloc>().add(const BoardRequested()),
+            child: const Text('Try again'),
+          ),
+        ),
+      );
     }
 
     final board = state.board;
@@ -203,7 +216,7 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
                   value: '${today.length}',
                   icon: Icons.today_rounded,
                   tone: WarmTone.primary,
-                  badgeLabel: 'Assigned & Due',
+                  badgeLabel: 'Assigned',
                 ),
               ),
               const SizedBox(width: 8),
@@ -213,7 +226,7 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
                   value: '${board.overdue.length}',
                   icon: Icons.warning_amber_rounded,
                   tone: board.overdue.isNotEmpty ? WarmTone.danger : WarmTone.success,
-                  badgeLabel: board.overdue.isNotEmpty ? 'Needs action' : 'All clear',
+                  badgeLabel: board.overdue.isNotEmpty ? 'Action' : 'All clear',
                 ),
               ),
               const SizedBox(width: 8),
@@ -223,7 +236,7 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
                   value: '${board.completedToday.length}',
                   icon: Icons.task_alt_rounded,
                   tone: WarmTone.success,
-                  badgeLabel: '${board.backlog.length} in backlog',
+                  badgeLabel: '${board.backlog.length} backlog',
                 ),
               ),
             ],

@@ -30,6 +30,9 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   String _selectedCurrency = 'BDT';
+  String _dateFormat = 'MMM d, yyyy';
+  String _timeFormat = '12h';
+  int _defaultDueDays = 3;
   String? _userAvatarKey;
   Map<String, dynamic>? _quotaData;
   Map<String, dynamic>? _calendarFeed;
@@ -51,51 +54,64 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => _userAvatarKey = savedAvatar);
     }
 
+    if (!getIt.isRegistered<DioClient>()) return;
+
+    final dio = getIt<DioClient>().dio;
+
     try {
-      if (getIt.isRegistered<DioClient>()) {
-        final res = await getIt<DioClient>().dio.get<Map<String, dynamic>>(
-          '/v1/tenant/quotas',
+      final res = await dio.get<Map<String, dynamic>>('/v1/tenant/quotas');
+      if (res.data != null && mounted) {
+        setState(() => _quotaData = res.data);
+      }
+    } catch (_) {}
+
+    try {
+      final tenantRes = await dio.get<Map<String, dynamic>>('/v1/tenant');
+      final payload = tenantRes.data?['data'] is Map
+          ? (tenantRes.data!['data'] as Map).cast<String, dynamic>()
+          : tenantRes.data;
+      final settings = payload?['settings'] is Map
+          ? (payload!['settings'] as Map).cast<String, dynamic>()
+          : <String, dynamic>{};
+      final quiet = settings['quiet_hours'] is Map
+          ? (settings['quiet_hours'] as Map).cast<String, dynamic>()
+          : <String, dynamic>{};
+
+      if (mounted) {
+        setState(() {
+          _selectedCurrency =
+              settings['currency']?.toString() ?? _selectedCurrency;
+          final loadedDate = settings['date_format']?.toString();
+          _dateFormat = const [
+            'MMM d, yyyy',
+            'dd/MM/yyyy',
+            'MM/dd/yyyy',
+            'yyyy-MM-dd',
+          ].contains(loadedDate)
+              ? loadedDate!
+              : _dateFormat;
+          _timeFormat =
+              settings['time_format']?.toString() == '24h' ? '24h' : '12h';
+          final loadedDue = (settings['default_due_days'] as num?)?.toInt();
+          _defaultDueDays = const [1, 3, 5, 7, 14].contains(loadedDue)
+              ? loadedDue!
+              : _defaultDueDays;
+          _quietHoursEnabled = quiet['enabled'] == true;
+          _quietStart = _parseTime(quiet['start']?.toString()) ?? _quietStart;
+          _quietEnd = _parseTime(quiet['end']?.toString()) ?? _quietEnd;
+        });
+      }
+    } catch (_) {}
+
+    try {
+      final feedRes = await dio.get<Map<String, dynamic>>(
+        '/v1/calendar/feed-url',
+      );
+      if (feedRes.data?['data'] is Map && mounted) {
+        setState(
+          () => _calendarFeed =
+              (feedRes.data!['data'] as Map).cast<String, dynamic>(),
         );
-        if (res.data != null && mounted) {
-          setState(() => _quotaData = res.data);
-        }
-
-        try {
-          final tenantRes = await getIt<DioClient>().dio.get<Map<String, dynamic>>(
-            '/v1/tenant',
-          );
-          final payload = tenantRes.data?['data'] is Map
-              ? (tenantRes.data!['data'] as Map).cast<String, dynamic>()
-              : tenantRes.data;
-          final settings = payload?['settings'] is Map
-              ? (payload!['settings'] as Map).cast<String, dynamic>()
-              : <String, dynamic>{};
-          final quiet = settings['quiet_hours'] is Map
-              ? (settings['quiet_hours'] as Map).cast<String, dynamic>()
-              : <String, dynamic>{};
-
-          if (mounted) {
-            setState(() {
-              _selectedCurrency =
-                  settings['currency']?.toString() ?? _selectedCurrency;
-              _quietHoursEnabled = quiet['enabled'] == true;
-              _quietStart = _parseTime(quiet['start']?.toString()) ?? _quietStart;
-              _quietEnd = _parseTime(quiet['end']?.toString()) ?? _quietEnd;
-            });
-          }
-        } catch (_) {}
-
-        try {
-          final feedRes = await getIt<DioClient>().dio.get<Map<String, dynamic>>(
-            '/v1/calendar/feed-url',
-          );
-          if (feedRes.data?['data'] is Map && mounted) {
-            setState(
-              () => _calendarFeed =
-                  (feedRes.data!['data'] as Map).cast<String, dynamic>(),
-            );
-          }
-        } catch (_) {}
       }
     } catch (_) {}
   }
@@ -447,6 +463,14 @@ class _SettingsPageState extends State<SettingsPage> {
                             label: 'Phone Verified',
                             tone: WarmTone.success,
                           ),
+                        PriorityChip(
+                          label: user.emailVerified
+                              ? 'Email Verified'
+                              : 'Email Unverified',
+                          tone: user.emailVerified
+                              ? WarmTone.success
+                              : WarmTone.warning,
+                        ),
                       ],
                     ),
                   ],
@@ -454,6 +478,15 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ],
           ),
+          if (!user.emailVerified)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _resendEmailVerification,
+                icon: const Icon(Icons.mark_email_unread_outlined, size: 16),
+                label: const Text('Resend email verification'),
+              ),
+            ),
           const SizedBox(height: AppTheme.space2),
           Wrap(
             spacing: 8,
@@ -537,70 +570,56 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     active ??= memberships.isEmpty ? null : memberships.first;
 
-    final planMap = _quotaData?['plan'] is Map
+    if (_quotaData == null) {
+      return WarmCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'SAAS SUBSCRIPTION & PLAN LIMITS',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+                color: AppTheme.muted,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Plan limits are unavailable right now.',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Check your connection and try again. The API is the only source of quota data.',
+              style: TextStyle(fontSize: 12, color: AppTheme.muted),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _loadAvatarAndQuotas,
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('Try again'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final planMap = _quotaData!['plan'] is Map
         ? (_quotaData!['plan'] as Map).cast<String, dynamic>()
         : null;
-    final tierKey =
-        (planMap?['key'] as String?) ??
-        active?.tenant.subscriptionTier ??
-        'pilot';
     final planLabel =
-        (planMap?['label'] as String?) ??
-        (_quotaData?['plan'] is String
-            ? _quotaData!['plan'] as String
-            : (tierKey == 'standard' || tierKey == 'household_pro'
-                  ? 'Household Pro'
-                  : tierKey == 'enterprise'
-                  ? 'Enterprise Household'
-                  : tierKey == 'starter'
-                  ? 'Starter Family'
-                  : 'Pilot Family Tier'));
-    final planPrice =
-        (planMap?['price'] as String?) ??
-        (tierKey == 'standard' || tierKey == 'household_pro'
-            ? '\$24.99/mo'
-            : tierKey == 'enterprise'
-            ? '\$49.99/mo'
-            : tierKey == 'starter'
-            ? 'Free'
-            : '\$14.99/mo');
+        planMap?['label']?.toString() ??
+        active?.tenant.subscriptionTier ??
+        'Household plan';
+    final planPrice = planMap?['price']?.toString() ?? '';
 
-    final meters = _quotaData?['meters'] is List
-        ? (_quotaData!['meters'] as List).cast<Map<String, dynamic>>()
-        : <Map<String, dynamic>>[
-            {
-              'key': 'seats',
-              'label': 'Family member seats',
-              'used': _quotaData?['members_count'] ?? 2,
-              'cap':
-                  planMap?['seat_cap'] ??
-                  _quotaData?['members_limit'] ??
-                  (tierKey == 'starter' ? 2 : 5),
-            },
-            {
-              'key': 'places',
-              'label': 'Saved places & geofences',
-              'used': 2,
-              'cap': planMap?['place_cap'] ?? (tierKey == 'starter' ? 2 : 10),
-            },
-            {
-              'key': 'voice',
-              'label': 'Member calls this month',
-              'used': _quotaData?['voice_calls_used_today'] ?? 1,
-              'cap':
-                  planMap?['member_calls_cap'] ??
-                  _quotaData?['voice_calls_daily_limit'] ??
-                  (tierKey == 'starter' ? 0 : 15),
-            },
-            {
-              'key': 'chat',
-              'label': 'AI & Member chat messages',
-              'used': 6,
-              'cap':
-                  planMap?['chat_messages_cap'] ??
-                  (tierKey == 'starter' ? 30 : 300),
-            },
-          ];
+    final meters = _quotaData!['meters'] is List
+        ? (_quotaData!['meters'] as List)
+              .whereType<Map>()
+              .map((meter) => meter.cast<String, dynamic>())
+              .toList()
+        : <Map<String, dynamic>>[];
 
     return WarmCard(
       borderColor: AppTheme.secondary.withValues(alpha: 0.35),
@@ -621,7 +640,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
               ),
-              PriorityChip(label: planPrice, tone: WarmTone.primary),
+              if (planPrice.isNotEmpty)
+                PriorityChip(label: planPrice, tone: WarmTone.primary),
             ],
           ),
           const SizedBox(height: 6),
@@ -634,6 +654,11 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: 12),
+          if (meters.isEmpty)
+            const Text(
+              'No quota data available.',
+              style: TextStyle(fontSize: 12, color: AppTheme.muted),
+            ),
           for (final m in meters) ...[
             Builder(
               builder: (context) {
@@ -748,23 +773,97 @@ class _SettingsPageState extends State<SettingsPage> {
               }
             },
           ),
+          const SizedBox(height: AppTheme.space3),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: _dateFormat,
+                  decoration: const InputDecoration(labelText: 'Date format'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'MMM d, yyyy',
+                      child: Text('Mar 7, 2026'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'dd/MM/yyyy',
+                      child: Text('07/03/2026'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'MM/dd/yyyy',
+                      child: Text('03/07/2026'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'yyyy-MM-dd',
+                      child: Text('2026-03-07'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _dateFormat = value);
+                    _savePreference({'date_format': value});
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: _timeFormat,
+                  decoration: const InputDecoration(labelText: 'Time format'),
+                  items: const [
+                    DropdownMenuItem(value: '12h', child: Text('12-hour')),
+                    DropdownMenuItem(value: '24h', child: Text('24-hour')),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _timeFormat = value);
+                    _savePreference({'time_format': value});
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.space3),
+          DropdownButtonFormField<int>(
+            isExpanded: true,
+            initialValue: _defaultDueDays,
+            decoration: const InputDecoration(
+              labelText: 'Default task due window',
+            ),
+            items: const [
+              DropdownMenuItem(value: 1, child: Text('Due in 1 day')),
+              DropdownMenuItem(value: 3, child: Text('Due in 3 days')),
+              DropdownMenuItem(value: 5, child: Text('Due in 5 days')),
+              DropdownMenuItem(value: 7, child: Text('Due in 1 week')),
+              DropdownMenuItem(value: 14, child: Text('Due in 2 weeks')),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() => _defaultDueDays = value);
+              _savePreference({'default_due_days': value});
+            },
+          ),
         ],
       ),
     );
   }
 
-  Future<void> _saveCurrency(String currency) async {
+  Future<void> _savePreference(Map<String, dynamic> settings) async {
     try {
       await getIt<DioClient>().dio.patch<Map<String, dynamic>>(
         '/v1/tenant',
-        data: {
-          'settings': {'currency': currency},
-        },
+        data: {'settings': settings},
       );
-      _snack('Household currency updated to $currency.');
+      _snack('Household preferences saved.');
     } catch (error) {
       _snack(_message(error), error: true);
     }
+  }
+
+  Future<void> _saveCurrency(String currency) async {
+    await _savePreference({'currency': currency});
   }
 
   Widget _notifications(User user) {
@@ -993,6 +1092,15 @@ class _SettingsPageState extends State<SettingsPage> {
         },
       );
       _snack(_quietHoursEnabled ? 'Quiet hours saved.' : 'Quiet hours disabled.');
+    } catch (error) {
+      _snack(_message(error), error: true);
+    }
+  }
+
+  Future<void> _resendEmailVerification() async {
+    try {
+      await getIt<DioClient>().dio.post<void>('/v1/auth/email/resend');
+      _snack('Verification email sent.');
     } catch (error) {
       _snack(_message(error), error: true);
     }

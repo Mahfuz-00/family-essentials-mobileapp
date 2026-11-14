@@ -62,9 +62,14 @@ class AiChatPage extends StatefulWidget {
   const AiChatPage({
     super.key,
     this.initialTab = 'ai',
+    this.dedicated = false,
   });
 
   final String initialTab;
+
+  /// When true the page is one module (AI or household chat) and hides the
+  /// combined mode switcher.
+  final bool dedicated;
 
   @override
   State<AiChatPage> createState() => _AiChatPageState();
@@ -80,36 +85,18 @@ class _AiChatPageState extends State<AiChatPage> {
   bool _isLoadingThread = true;
   bool _isSending = false;
 
-  // Plan & Quotas (Point 7 & Point 8)
   String _planKey = 'pilot';
-  String _planLabel = 'Pilot Family Tier';
-  int _chatCap = 300;
-  int _chatUsed = 2;
-  int _callsCap = 15;
-  int _callsUsed = 1;
+  String _planLabel = 'Household plan';
+  int _chatCap = 0;
+  int _chatUsed = 0;
+  int _callsCap = 0;
+  int _callsUsed = 0;
 
   int _currentUserId = 1;
-  String _currentUserName = 'Tanvir Rahman';
+  String _currentUserName = 'Household member';
   int? _selectedMemberId;
 
-  List<Map<String, dynamic>> _members = [
-    {
-      'id': 1,
-      'name': 'Tanvir Rahman',
-      'email': 'tanvir@familyessentials.app',
-      'phone': '+8801711000001',
-      'role': 'tenant_admin',
-      'online': true,
-    },
-    {
-      'id': 2,
-      'name': 'Sarah Rahman',
-      'email': 'sarah@familyessentials.app',
-      'phone': '+8801711000002',
-      'role': 'member',
-      'online': true,
-    },
-  ];
+  List<Map<String, dynamic>> _members = [];
 
   List<HouseholdMemberChatMsg> _familyMessages = [];
 
@@ -133,10 +120,12 @@ class _AiChatPageState extends State<AiChatPage> {
         ? widget.initialTab
         : 'ai';
     _loadHouseholdChatAndQuotas();
-    // Poll every 2 seconds for new household member messages
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      _refreshFamilyMessagesSilently();
-    });
+    // Only the household chat module needs the message poll.
+    if (_activeTab == 'family') {
+      _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+        _refreshFamilyMessagesSilently();
+      });
+    }
   }
 
   @override
@@ -187,11 +176,6 @@ class _AiChatPageState extends State<AiChatPage> {
       if (savedName != null && savedName.trim().isNotEmpty) {
         _currentUserName = savedName.trim();
       }
-      final savedTier = await storage.readActiveTier();
-      if (savedTier != null && savedTier.isNotEmpty) {
-        _applyTierDefaults(savedTier);
-      }
-
       if (getIt.isRegistered<DioClient>()) {
         final dio = getIt<DioClient>().dio;
         final res = await dio.get<Map<String, dynamic>>(
@@ -232,58 +216,9 @@ class _AiChatPageState extends State<AiChatPage> {
       }
     } catch (_) {}
 
-    if (_familyMessages.isEmpty) {
-      _familyMessages = [
-        HouseholdMemberChatMsg(
-          id: 1,
-          senderId: 2,
-          senderName: 'Sarah Rahman',
-          text:
-              'Hey! Are you heading past the grocery store on your way home today?',
-          createdAt: '2:15 PM',
-        ),
-        HouseholdMemberChatMsg(
-          id: 2,
-          senderId: _currentUserId,
-          senderName: _currentUserName,
-          text:
-              'Yes! I checked the Pantry list—picking up milk, eggs, and sourdough.',
-          createdAt: '2:18 PM',
-        ),
-      ];
-    }
-
     if (mounted) {
       setState(() => _isLoadingThread = false);
       _scrollToBottom();
-    }
-  }
-
-  void _applyTierDefaults(String tier) {
-    _planKey = tier;
-    switch (tier) {
-      case 'starter':
-        _planLabel = 'Starter Family';
-        _chatCap = 30;
-        _callsCap = 0;
-        break;
-      case 'household_pro':
-      case 'standard':
-        _planLabel = 'Household Pro';
-        _chatCap = 1500;
-        _callsCap = 60;
-        break;
-      case 'enterprise':
-        _planLabel = 'Enterprise Household';
-        _chatCap = 9999;
-        _callsCap = 9999;
-        break;
-      case 'pilot':
-      default:
-        _planLabel = 'Pilot Family Tier';
-        _chatCap = 300;
-        _callsCap = 15;
-        break;
     }
   }
 
@@ -350,8 +285,9 @@ class _AiChatPageState extends State<AiChatPage> {
     bool isIncoming = false,
   }) async {
     final targetName = member['name'] as String? ?? 'Family Member';
-    final targetId = (member['id'] as num?)?.toInt() ?? 2;
-    final targetPhone = member['phone'] as String? ?? '+8801711000002';
+    final rawId = member['user_id'] ?? member['id'];
+    final targetId = (rawId as num?)?.toInt();
+    final targetPhone = member['phone'] as String? ?? '';
 
     // Enforce SaaS Subscription Plan Call Limits (Point 7 & Point 8)
     if (!isIncoming && _callsCap <= 0) {
@@ -374,7 +310,7 @@ class _AiChatPageState extends State<AiChatPage> {
       return;
     }
 
-    if (!isIncoming) {
+    if (!isIncoming && targetId != null) {
       try {
         if (getIt.isRegistered<DioClient>()) {
           final res = await getIt<DioClient>().dio.post<Map<String, dynamic>>(
@@ -433,6 +369,53 @@ class _AiChatPageState extends State<AiChatPage> {
         isIncoming: isIncoming,
       ),
     );
+  }
+
+  Future<void> _dialPhoneNumber() async {
+    final controller = TextEditingController();
+    final number = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Call a phone number'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.phone,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Phone number',
+            hintText: '+880 1711 000000',
+            prefixIcon: Icon(Icons.phone_outlined),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Call'),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+    if (number == null || number.isEmpty) return;
+
+    final clean = number.replaceAll(RegExp(r'[^\d+]'), '');
+    if (clean.isEmpty) return;
+
+    final opened = await launchUrl(
+      Uri(scheme: 'tel', path: clean),
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        AppTheme.errorSnackBar('No phone app could open that number.'),
+      );
+    }
   }
 
   Future<void> _sendFamilyMessage() async {
@@ -866,17 +849,32 @@ class _AiChatPageState extends State<AiChatPage> {
             children: [
               Text(
                 _activeTab == 'ai'
-                    ? 'AI Dispatcher & Family Chat'
+                    ? 'AI Dispatcher & Chat'
                     : 'Household Chat & Calls',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
               ),
               Text(
-                '$_planLabel · Calls: ${_callsCap >= 9999 ? "$_callsUsed/∞" : "$_callsUsed/$_callsCap"} · Chat: ${_chatCap >= 9999 ? "$_chatUsed/∞" : "$_chatUsed/$_chatCap"}',
-                style: const TextStyle(fontSize: 11, color: AppTheme.muted),
+                '$_planLabel · Calls ${_callsCap >= 9999 ? "$_callsUsed/∞" : "$_callsUsed/$_callsCap"}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 10, color: AppTheme.muted),
               ),
             ],
           ),
           actions: [
+            if (_activeTab == 'family')
+              IconButton(
+                tooltip: 'Call a phone number',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(
+                  Icons.dialpad_rounded,
+                  size: 19,
+                  color: AppTheme.secondary,
+                ),
+                onPressed: _dialPhoneNumber,
+              ),
             TextButton.icon(
               style: TextButton.styleFrom(
                 visualDensity: VisualDensity.compact,
@@ -903,7 +901,8 @@ class _AiChatPageState extends State<AiChatPage> {
         body: Column(
           children: [
             // Top Mode Switcher: AI Dispatcher vs Family Chat & Calls
-            Container(
+            if (!widget.dedicated)
+              Container(
               color: AppTheme.surface,
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
               child: SizedBox(
@@ -1132,31 +1131,25 @@ class _AiChatPageState extends State<AiChatPage> {
                                 ),
                               ),
                             ),
-                          // Simulate Incoming Call button for single-phone testing
-                          if (_members.length > 1)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 4),
-                              child: ActionChip(
-                                visualDensity: VisualDensity.compact,
-                                avatar: const Icon(
-                                  Icons.ring_volume_rounded,
-                                  size: 14,
-                                  color: AppTheme.secondary,
-                                ),
-                                label: const Text(
-                                  'Test Incoming Call',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                onPressed: () => _initiateMemberCall(
-                                  _members.last,
-                                  isIncoming: true,
-                                ),
-                              ),
-                            ),
                         ],
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                        ),
+                        onPressed: _dialPhoneNumber,
+                        icon: const Icon(Icons.dialpad_rounded, size: 15),
+                        label: const Text(
+                          'Call a phone number',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -1176,7 +1169,41 @@ class _AiChatPageState extends State<AiChatPage> {
                           ShimmerWarmCard(height: 76),
                         ],
                       )
-                    : ListView.builder(
+                    : visibleFamilyMessages.isEmpty
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(32),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.forum_outlined,
+                                    size: 34,
+                                    color: AppTheme.muted,
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'No messages yet.',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.ink,
+                                    ),
+                                  ),
+                                  SizedBox(height: 3),
+                                  Text(
+                                    'Send the first message, or tap Call to reach a household member.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.muted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.all(16),
                         itemCount: visibleFamilyMessages.length,

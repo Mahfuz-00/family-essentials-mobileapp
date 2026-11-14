@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/presentation/pages/forgot_password_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/pages/settings_page.dart';
@@ -69,7 +70,8 @@ class AppRouter {
           final seenOnboarding = session.hasSeenOnboarding.value;
           final isAuthRoute =
               state.matchedLocation == '/login' ||
-              state.matchedLocation == '/register';
+              state.matchedLocation == '/register' ||
+              state.matchedLocation == '/forgot-password';
           final isVerifyPhone = state.matchedLocation == '/verify-phone';
           final isOnboardingRoute = state.matchedLocation == '/onboarding';
 
@@ -122,6 +124,13 @@ class AppRouter {
             pageBuilder: (context, state) => _buildFadeSlidePage(
               key: state.pageKey,
               child: const RegisterPage(),
+            ),
+          ),
+          GoRoute(
+            path: '/forgot-password',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const ForgotPasswordPage(),
             ),
           ),
           GoRoute(
@@ -188,14 +197,20 @@ class AppRouter {
             ),
           ),
 
-          // Household Chat & AI Dispatcher
+          // AI assistant and household chat are separate modules.
+          GoRoute(path: '/chat', redirect: (context, state) => '/assistant'),
           GoRoute(
-            path: '/chat',
+            path: '/assistant',
             pageBuilder: (context, state) => _buildFadeSlidePage(
               key: state.pageKey,
-              child: AiChatPage(
-                initialTab: state.uri.queryParameters['tab'] ?? 'ai',
-              ),
+              child: const AiChatPage(initialTab: 'ai', dedicated: true),
+            ),
+          ),
+          GoRoute(
+            path: '/messages',
+            pageBuilder: (context, state) => _buildFadeSlidePage(
+              key: state.pageKey,
+              child: const AiChatPage(initialTab: 'family', dedicated: true),
             ),
           ),
 

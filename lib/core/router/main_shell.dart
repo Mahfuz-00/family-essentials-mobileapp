@@ -171,9 +171,14 @@ class _MainShellState extends State<MainShell> {
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
             IconButton(
-              tooltip: 'Household Chat & AI',
+              tooltip: 'AI Assistant',
               icon: const Icon(Icons.auto_awesome, color: AppTheme.secondary),
-              onPressed: () => context.push('/chat'),
+              onPressed: () => context.push('/assistant'),
+            ),
+            IconButton(
+              tooltip: 'Household Chat & Calls',
+              icon: const Icon(Icons.forum_outlined),
+              onPressed: () => context.push('/messages'),
             ),
             IconButton(
               tooltip: 'Receipt Scanner',
@@ -210,7 +215,7 @@ class _MainShellState extends State<MainShell> {
                         padding: const EdgeInsets.symmetric(horizontal: 2),
                         child: _BottomNavPillItem(
                           entry: MainShell.destinations[i],
-                          isSelected: !_isSubRoute && _index == i,
+                          isSelected: _index == i,
                           onTap: () =>
                               context.go(MainShell.destinations[i].path),
                         ),

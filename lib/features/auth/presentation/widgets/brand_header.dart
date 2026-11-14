@@ -2,6 +2,33 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
 
+/// The FairShare emblem used on the splash, login and onboarding surfaces.
+class FairShareEmblem extends StatelessWidget {
+  const FairShareEmblem({super.key, this.size = 68});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF376847), Color(0xFF284E34)],
+        ),
+        borderRadius: BorderRadius.circular(size * 0.30),
+        boxShadow: AppTheme.elev2,
+      ),
+      child: CustomPaint(
+        painter: _FairShareLogoPainter(),
+      ),
+    );
+  }
+}
+
 class BrandHeader extends StatelessWidget {
   const BrandHeader({super.key, this.subtitle});
 
@@ -13,22 +40,7 @@ class BrandHeader extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Stitch Official FairShare Emblem
-        Container(
-          height: 68,
-          width: 68,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF376847), Color(0xFF284E34)],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: AppTheme.elev2,
-          ),
-          child: CustomPaint(
-            painter: _FairShareLogoPainter(),
-          ),
-        ),
+        const FairShareEmblem(size: 68),
         const SizedBox(height: AppTheme.space3),
         Row(
           mainAxisSize: MainAxisSize.min,

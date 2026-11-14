@@ -72,7 +72,20 @@ class _ShoppingViewState extends State<_ShoppingView> {
           }
 
           if (state is! RequestsBoardLoaded) {
-            return const Center(child: Text('Nothing to show.'));
+            return Padding(
+              padding: const EdgeInsets.all(AppTheme.space4),
+              child: WarmEmptyState(
+                title: 'Could not load your errands',
+                description:
+                    'Check the connection to the household API and try again. Nothing is lost.',
+                icon: Icons.cloud_off_outlined,
+                action: FilledButton(
+                  onPressed: () =>
+                      context.read<RequestsBloc>().add(const BoardRequested()),
+                  child: const Text('Try again'),
+                ),
+              ),
+            );
           }
 
           final open = <ServiceRequest>[

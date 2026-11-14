@@ -114,7 +114,7 @@ class HouseholdAppDrawer extends StatelessWidget {
                               Icon(Icons.shield, size: 12, color: Colors.white),
                               SizedBox(width: 4),
                               Text(
-                                'Household Admin',
+                                'Admin',
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
@@ -151,9 +151,15 @@ class HouseholdAppDrawer extends StatelessWidget {
                     _drawerItem(
                       context,
                       icon: Icons.auto_awesome,
-                      label: 'Household Chat & AI',
-                      path: '/chat',
+                      label: 'AI Assistant',
+                      path: '/assistant',
                       isHighlight: true,
+                    ),
+                    _drawerItem(
+                      context,
+                      icon: Icons.forum_outlined,
+                      label: 'Household Chat & Calls',
+                      path: '/messages',
                     ),
                     _drawerItem(
                       context,
@@ -233,14 +239,17 @@ class HouseholdAppDrawer extends StatelessWidget {
                       label: 'Help & Feedback',
                       path: '/feedback',
                     ),
-                    ListTile(
-                      leading: const Icon(Icons.logout_rounded, size: 22, color: AppTheme.error),
-                      title: const Text('Log out', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.error)),
-                      dense: true,
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        context.read<AuthBloc>().add(const LogoutRequested());
-                      },
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                      child: ListTile(
+                        leading: const Icon(Icons.logout_rounded, size: 22, color: AppTheme.error),
+                        title: const Text('Log out', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.error)),
+                        dense: true,
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          context.read<AuthBloc>().add(const LogoutRequested());
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -316,12 +325,11 @@ class HouseholdAppDrawer extends StatelessWidget {
             if (path == '/requests/new' ||
                 path == '/billing' ||
                 path == '/receipt/scan' ||
-                path == '/chat' ||
+                path == '/assistant' ||
+                path == '/messages' ||
                 path == '/feedback' ||
                 path == '/household' ||
-                path == '/voice-escalations' ||
-                path == '/pantry' ||
-                path == '/recurring') {
+                path == '/voice-escalations') {
               context.push(path);
             } else if (path.startsWith('/')) {
               context.go(path);

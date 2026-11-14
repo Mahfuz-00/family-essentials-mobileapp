@@ -91,7 +91,20 @@ class _PantryView extends StatelessWidget {
           }
 
           if (state is! PantryLoaded) {
-            return const Center(child: Text('Nothing to show.'));
+            return Padding(
+              padding: const EdgeInsets.all(AppTheme.space4),
+              child: WarmEmptyState(
+                title: 'Could not load your pantry',
+                description:
+                    'Check the connection to the household API and try again. Nothing is lost.',
+                icon: Icons.cloud_off_outlined,
+                action: FilledButton(
+                  onPressed: () =>
+                      context.read<PantryBloc>().add(const PantryRequested()),
+                  child: const Text('Try again'),
+                ),
+              ),
+            );
           }
 
           final snapshot = state.snapshot;
@@ -121,7 +134,7 @@ class _PantryView extends StatelessWidget {
             onRefresh: () async =>
                 context.read<PantryBloc>().add(const PantryRequested()),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 160),
               children: [
                 _pulse(snapshot.summary),
                 const SizedBox(height: AppTheme.space4),
@@ -185,7 +198,7 @@ class _PantryView extends StatelessWidget {
                 value: '$inStockCount',
                 icon: Icons.inventory_2_outlined,
                 tone: WarmTone.success,
-                badgeLabel: '${summary.total} tracked',
+                badgeLabel: '${summary.total} items',
               ),
             ),
             const SizedBox(width: 8),
@@ -195,7 +208,7 @@ class _PantryView extends StatelessWidget {
                 value: formatMoneyMinor(summary.projectedRestockMinor),
                 icon: Icons.shopping_cart_checkout_rounded,
                 tone: WarmTone.primary,
-                badgeLabel: 'Spent: ${formatMoneyMinor(summary.totalSpentMinor)}',
+                badgeLabel: 'Spent ${formatMoneyMinor(summary.totalSpentMinor)}',
               ),
             ),
           ],

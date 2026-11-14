@@ -5,6 +5,7 @@ import '../../../../core/di/injector.dart';
 import '../../../../core/session/auth_session.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/widgets/brand_header.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -92,6 +93,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: const Padding(
+          padding: EdgeInsets.only(left: 16),
+          child: Center(child: FairShareEmblem(size: 32)),
+        ),
+        leadingWidth: 64,
         actions: [
           TextButton(
             onPressed: _completeOnboarding,
