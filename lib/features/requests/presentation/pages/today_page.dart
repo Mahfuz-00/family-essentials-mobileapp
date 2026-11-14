@@ -121,6 +121,10 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
                 context,
               ).showSnackBar(SnackBar(content: Text(state.message)));
               context.read<RequestsBloc>().add(const BoardRequested());
+            } else if (state is RequestsActionFailure) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                AppTheme.errorSnackBar(state.message),
+              );
             } else if (state is RequestsFailure) {
               ScaffoldMessenger.of(context).showSnackBar(
                 AppTheme.errorSnackBar(state.message),
@@ -168,7 +172,15 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
       );
     }
 
-    if (state is! RequestsBoardLoaded) {
+    RequestsBoardLoaded? boardState;
+    if (state is RequestsBoardLoaded) {
+      boardState = state;
+    } else if (state is RequestsActionFailure &&
+        state.previous is RequestsBoardLoaded) {
+      boardState = state.previous as RequestsBoardLoaded;
+    }
+
+    if (boardState == null) {
       return Padding(
         padding: const EdgeInsets.all(AppTheme.space4),
         child: WarmEmptyState(
@@ -185,7 +197,7 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
       );
     }
 
-    final board = state.board;
+    final board = boardState.board;
 
     // Today and "assigned to me" overlap heavily; show each task once, most
     // urgent first.

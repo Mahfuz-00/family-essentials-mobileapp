@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/warm_widgets.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../pantry/presentation/bloc/pantry_bloc.dart';
 import '../../../pantry/presentation/bloc/pantry_event.dart';
 import '../../../pantry/presentation/bloc/pantry_state.dart';
@@ -49,6 +51,10 @@ class _ShoppingViewState extends State<_ShoppingView> {
               context,
             ).showSnackBar(SnackBar(content: Text(state.message)));
             context.read<RequestsBloc>().add(const BoardRequested());
+          } else if (state is RequestsActionFailure) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(AppTheme.errorSnackBar(state.message));
           } else if (state is RequestsFailure) {
             ScaffoldMessenger.of(
               context,
@@ -71,7 +77,15 @@ class _ShoppingViewState extends State<_ShoppingView> {
             );
           }
 
-          if (state is! RequestsBoardLoaded) {
+          RequestsBoardLoaded? boardState;
+          if (state is RequestsBoardLoaded) {
+            boardState = state;
+          } else if (state is RequestsActionFailure &&
+              state.previous is RequestsBoardLoaded) {
+            boardState = state.previous as RequestsBoardLoaded;
+          }
+
+          if (boardState == null) {
             return Padding(
               padding: const EdgeInsets.all(AppTheme.space4),
               child: WarmEmptyState(
@@ -89,11 +103,11 @@ class _ShoppingViewState extends State<_ShoppingView> {
           }
 
           final open = <ServiceRequest>[
-            ...state.board.overdue,
-            ...state.board.dueToday,
-            ...state.board.assignedToMe,
+            ...boardState.board.overdue,
+            ...boardState.board.dueToday,
+            ...boardState.board.assignedToMe,
             // Undated and unassigned items are still things to buy.
-            ...state.board.backlog,
+            ...boardState.board.backlog,
           ];
 
           // De-duplicate: a request can legitimately appear on more than one board.
@@ -287,8 +301,26 @@ class _StoreGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bloc = context.read<RequestsBloc>();
+    final authState = context.read<AuthBloc>().state;
+    final currentName = authState is AuthMembershipsLoaded
+        ? authState.user.name
+        : authState is AuthAuthenticated
+            ? authState.user.name
+            : null;
+
+    bool canComplete(ServiceRequest request) =>
+        request.assigneeName == null || request.assigneeName == currentName;
 
     void openFulfill(ServiceRequest request) {
+      if (!canComplete(request)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          AppTheme.errorSnackBar(
+            '${request.assigneeName} owns this errand — only they can complete it.',
+          ),
+        );
+        return;
+      }
+
       FulfillRequestSheet.show(
         context,
         request: request,
@@ -407,24 +439,25 @@ class _StoreGroup extends StatelessWidget {
                     ),
                     // M-06n: out-of-stock / substitution path. Flags the item
                     // unavailable and notifies the household with a note.
-                    IconButton(
-                      tooltip: 'Not available — ask for a substitute',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () => bloc.add(
-                        ActionRequested(
-                          id: request.id,
-                          action: 'unavailable',
-                          payload: const {
-                            'note':
-                                'Out of stock in store — substitute needed.',
-                          },
+                    if (canComplete(request))
+                      IconButton(
+                        tooltip: 'Not available — ask for a substitute',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => bloc.add(
+                          ActionRequested(
+                            id: request.id,
+                            action: 'unavailable',
+                            payload: const {
+                              'note':
+                                  'Out of stock in store — substitute needed.',
+                            },
+                          ),
+                        ),
+                        icon: const Icon(
+                          Icons.swap_horiz,
+                          color: AppTheme.tertiary,
                         ),
                       ),
-                      icon: const Icon(
-                        Icons.swap_horiz,
-                        color: AppTheme.tertiary,
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -432,13 +465,44 @@ class _StoreGroup extends StatelessWidget {
           const SizedBox(height: AppTheme.space2),
           SizedBox(
             width: double.infinity,
-            child: FilledButton.tonal(
-              onPressed: () {
-                for (final request in requests) {
-                  bloc.add(ActionRequested(id: request.id, action: 'complete'));
+            child: Builder(
+              builder: (context) {
+                final mine = requests.where(canComplete).toList();
+
+                if (mine.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    child: Text(
+                      'No items here are assigned to you.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: AppTheme.muted),
+                    ),
+                  );
                 }
+
+                return FilledButton.tonal(
+                  onPressed: () {
+                    for (final request in mine) {
+                      bloc.add(
+                        ActionRequested(id: request.id, action: 'complete'),
+                      );
+                    }
+
+                    if (mine.length < requests.length) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        AppTheme.successSnackBar(
+                          '${requests.length - mine.length} item(s) belong to other members and were left open.',
+                        ),
+                      );
+                    }
+                  },
+                  child: Text(
+                    mine.length == requests.length
+                        ? 'Mark $store done'
+                        : 'Mark my ${mine.length} item${mine.length == 1 ? '' : 's'} done',
+                  ),
+                );
               },
-              child: Text('Mark $store done'),
             ),
           ),
         ],

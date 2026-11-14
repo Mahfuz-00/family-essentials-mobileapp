@@ -740,6 +740,33 @@ class _AiChatPageState extends State<AiChatPage> {
       } catch (_) {}
     }
 
+    // A question is never an errand. If the live lookups above failed, say so
+    // instead of dispatching the question as a task.
+    final looksLikeQuestion =
+        text.trim().endsWith('?') ||
+        RegExp(
+          r'^(what|which|who|how|where|when|why|show|list|check|status|is|are|do|does|can)\b',
+          caseSensitive: false,
+        ).hasMatch(text.trim());
+
+    if (looksLikeQuestion) {
+      if (mounted) {
+        setState(() {
+          _aiMessages.add(
+            AiChatMessage(
+              text:
+                  'I could not reach your live household data just now. Nothing was created — please try again.',
+              isUser: false,
+              time: 'Offline',
+            ),
+          );
+          _isSending = false;
+        });
+        _scrollToBottom();
+      }
+      return;
+    }
+
     // 4. Natural Language Errand & Chore Dispatcher (POST /v1/requests/parse-nlp)
     try {
       if (getIt.isRegistered<DioClient>()) {
@@ -755,6 +782,25 @@ class _AiChatPageState extends State<AiChatPage> {
           final reqObj =
               response.data!['request'] as Map<String, dynamic>? ?? {};
           final reqId = (reqObj['id'] as num?)?.toInt();
+
+          if (reqId == null) {
+            if (mounted) {
+              setState(() {
+                _aiMessages.add(
+                  AiChatMessage(
+                    text:
+                        response.data!['message']?.toString() ??
+                        'I could not create that errand. Nothing was saved.',
+                    isUser: false,
+                    time: 'Not created',
+                  ),
+                );
+                _isSending = false;
+              });
+              _scrollToBottom();
+            }
+            return;
+          }
           final title = parsed['title'] as String? ?? text;
           final assignee =
               parsed['assignee_name'] as String? ?? 'Anyone in household';
@@ -795,9 +841,9 @@ class _AiChatPageState extends State<AiChatPage> {
         _aiMessages.add(
           AiChatMessage(
             text:
-                'Dispatched "$text" to your household Errands & Tasks board.',
+                'The dispatcher could not reach the household server. Nothing was created.',
             isUser: false,
-            time: 'Now',
+            time: 'Failed',
           ),
         );
         _isSending = false;

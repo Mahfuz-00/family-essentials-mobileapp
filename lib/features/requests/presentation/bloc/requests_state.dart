@@ -53,3 +53,16 @@ class RequestsFailure extends RequestsState {
   @override
   List<Object?> get props => [message];
 }
+
+/// A single action failed (e.g. a 403 on someone else's errand). The previous
+/// loaded screen is kept so the list does not vanish just because one action
+/// was refused.
+class RequestsActionFailure extends RequestsState {
+  const RequestsActionFailure(this.message, {this.previous});
+
+  final String message;
+  final RequestsState? previous;
+
+  @override
+  List<Object?> get props => [message, previous];
+}

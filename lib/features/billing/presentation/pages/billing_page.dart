@@ -835,7 +835,10 @@ class _BillingPageState extends State<BillingPage> {
                         _quotaRow(
                           Icons.task_alt,
                           'Errands & Tasks / month',
-                          _capLabel(_plan(_activeTier)['requests'] as int),
+                          _meterLabel(
+                            'requests',
+                            _plan(_activeTier)['requests'] as int,
+                          ),
                         ),
                         _quotaRow(
                           Icons.kitchen_outlined,

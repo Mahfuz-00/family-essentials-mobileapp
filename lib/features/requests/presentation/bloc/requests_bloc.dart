@@ -98,6 +98,7 @@ class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
     ActionRequested event,
     Emitter<RequestsState> emit,
   ) async {
+    final previous = state;
     emit(const RequestsLoading());
 
     try {
@@ -105,7 +106,7 @@ class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
 
       emit(const RequestsActionSuccess('Updated.'));
     } on AppFailure catch (failure) {
-      emit(RequestsFailure(failure.message));
+      emit(RequestsActionFailure(failure.message, previous: previous));
     }
   }
 
@@ -113,6 +114,7 @@ class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
     AssignRequested event,
     Emitter<RequestsState> emit,
   ) async {
+    final previous = state;
     emit(const RequestsLoading());
 
     try {
@@ -120,7 +122,7 @@ class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
 
       emit(const RequestsActionSuccess('Chore assignment updated.'));
     } on AppFailure catch (failure) {
-      emit(RequestsFailure(failure.message));
+      emit(RequestsActionFailure(failure.message, previous: previous));
     }
   }
 
@@ -128,6 +130,7 @@ class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
     VoiceCallRequested event,
     Emitter<RequestsState> emit,
   ) async {
+    final previous = state;
     emit(const RequestsLoading());
 
     try {
@@ -135,7 +138,7 @@ class RequestsBloc extends Bloc<RequestsEvent, RequestsState> {
 
       emit(const RequestsActionSuccess('Voice call requested.'));
     } on AppFailure catch (failure) {
-      emit(RequestsFailure(failure.message));
+      emit(RequestsActionFailure(failure.message, previous: previous));
     }
   }
 }

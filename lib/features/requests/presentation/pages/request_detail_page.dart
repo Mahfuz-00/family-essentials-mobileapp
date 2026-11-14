@@ -244,6 +244,10 @@ class _RequestDetailView extends StatelessWidget {
               ).showSnackBar(SnackBar(content: Text(state.message)));
               // The task changed, so re-read it rather than assuming.
               context.read<RequestsBloc>().add(DetailRequested(id));
+            } else if (state is RequestsActionFailure) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                AppTheme.errorSnackBar(state.message),
+              );
             } else if (state is RequestsFailure) {
               ScaffoldMessenger.of(context).showSnackBar(
                 AppTheme.errorSnackBar(state.message),
@@ -262,6 +266,17 @@ class _RequestDetailView extends StatelessWidget {
                   ShimmerWarmCard(height: 130),
                 ],
               );
+            }
+
+            if (state is RequestsActionFailure) {
+              if (state.previous is RequestsDetailLoaded) {
+                return _detail(
+                  context,
+                  (state.previous as RequestsDetailLoaded).request,
+                );
+              }
+
+              return Center(child: Text(state.message));
             }
 
             if (state is RequestsFailure) {

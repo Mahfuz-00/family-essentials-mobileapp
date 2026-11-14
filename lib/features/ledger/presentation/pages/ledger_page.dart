@@ -1164,6 +1164,7 @@ class _LedgerViewState extends State<_LedgerView> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           initialValue: category,
+                          isExpanded: true,
                           decoration: const InputDecoration(labelText: 'Category'),
                           items: const [
                             DropdownMenuItem(value: 'rent', child: Text('Rent & Housing')),
@@ -1179,6 +1180,7 @@ class _LedgerViewState extends State<_LedgerView> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           initialValue: frequency,
+                          isExpanded: true,
                           decoration: const InputDecoration(labelText: 'Frequency'),
                           items: const [
                             DropdownMenuItem(value: 'daily', child: Text('Daily')),

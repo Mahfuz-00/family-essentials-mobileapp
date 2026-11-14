@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/config/app_config.dart';
+import '../../../../core/di/injector.dart';
+import '../../../../core/storage/secure_storage.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
@@ -30,6 +33,60 @@ class _LoginPageState extends State<LoginPage> {
   void _submit() {
     context.read<AuthBloc>().add(
       LoginRequested(email: _email.text.trim(), password: _password.text),
+    );
+  }
+
+  Future<void> _openServerSettings() async {
+    final storage = getIt<SecureStorage>();
+    final stored = await storage.readBaseUrl();
+    if (!mounted) return;
+    final controller = TextEditingController(
+      text: (stored != null && stored.trim().isNotEmpty)
+          ? stored
+          : AppConfig.apiBaseUrl,
+    );
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Server address'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(
+            labelText: 'API base URL',
+            hintText: 'http://192.168.0.10:8000/mobile',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+    if (!mounted || result == null) return;
+
+    if (result.isNotEmpty &&
+        !result.startsWith('http://') &&
+        !result.startsWith('https://')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        AppTheme.errorSnackBar('Use a full http:// or https:// address.'),
+      );
+      return;
+    }
+
+    await storage.saveBaseUrl(result);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      AppTheme.successSnackBar('Server address saved. Try signing in again.'),
     );
   }
 
@@ -122,6 +179,14 @@ class _LoginPageState extends State<LoginPage> {
                     TextButton(
                       onPressed: () => context.go('/register'),
                       child: const Text('Create an account'),
+                    ),
+                    TextButton.icon(
+                      onPressed: _openServerSettings,
+                      icon: const Icon(Icons.dns_outlined, size: 15),
+                      label: const Text(
+                        'Server settings',
+                        style: TextStyle(fontSize: 12),
+                      ),
                     ),
                   ],
                 ),

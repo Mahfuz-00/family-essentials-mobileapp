@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/di/injector.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/notifications/local_notifications.dart';
@@ -36,6 +37,10 @@ class _SettingsPageState extends State<SettingsPage> {
   String? _userAvatarKey;
   Map<String, dynamic>? _quotaData;
   Map<String, dynamic>? _calendarFeed;
+  String? _customBaseUrl;
+  bool _vaultBusy = false;
+  String? _vaultStatus;
+  bool _vaultStatusError = false;
   bool _quietHoursEnabled = false;
   TimeOfDay _quietStart = const TimeOfDay(hour: 22, minute: 0);
   TimeOfDay _quietEnd = const TimeOfDay(hour: 7, minute: 0);
@@ -50,8 +55,12 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadAvatarAndQuotas() async {
     final storage = getIt<SecureStorage>();
     final savedAvatar = await storage.readUserAvatar();
+    final customBaseUrl = await storage.readBaseUrl();
     if (mounted) {
-      setState(() => _userAvatarKey = savedAvatar);
+      setState(() {
+        _userAvatarKey = savedAvatar;
+        _customBaseUrl = customBaseUrl;
+      });
     }
 
     if (!getIt.isRegistered<DioClient>()) return;
@@ -335,6 +344,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 _alerts(user),
                 const SizedBox(height: AppTheme.space3),
                 _householdDataVault(),
+                const SizedBox(height: AppTheme.space3),
+                _serverConnection(),
                 const SizedBox(height: AppTheme.space3),
                 _support(),
                 const SizedBox(height: AppTheme.space3),
@@ -1263,6 +1274,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _copyHouseholdVault() async {
+    if (_vaultBusy) return;
+
+    setState(() => _vaultBusy = true);
+
     try {
       final response = await getIt<DioClient>().dio.get<dynamic>(
         '/v1/tenant/export',
@@ -1270,9 +1285,24 @@ class _SettingsPageState extends State<SettingsPage> {
       final text = const JsonEncoder.withIndent('  ').convert(response.data);
 
       await Clipboard.setData(ClipboardData(text: text));
+      if (mounted) {
+        setState(() {
+          _vaultStatus = 'Copied to clipboard (${text.length} characters).';
+          _vaultStatusError = false;
+        });
+      }
       _snack('Household vault copied to clipboard (${text.length} chars).');
     } catch (error) {
-      _snack(_message(error), error: true);
+      final message = _message(error);
+      if (mounted) {
+        setState(() {
+          _vaultStatus = message;
+          _vaultStatusError = true;
+        });
+      }
+      _snack(message, error: true);
+    } finally {
+      if (mounted) setState(() => _vaultBusy = false);
     }
   }
 
@@ -1481,18 +1511,57 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Export your household records including errands, pantry stock, expenses, and saved places in machine-readable JSON format.',
+            'Copy your household records — errands, pantry stock, expenses and saved places — as machine-readable JSON.',
             style: TextStyle(fontSize: 12, color: AppTheme.muted),
           ),
           const SizedBox(height: AppTheme.space3),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: _copyHouseholdVault,
-              icon: const Icon(Icons.download_rounded, size: 18),
-              label: const Text('Export Household Vault (.json)'),
+              onPressed: _vaultBusy ? null : _copyHouseholdVault,
+              icon: _vaultBusy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.copy_all_rounded, size: 18),
+              label: Text(
+                _vaultBusy
+                    ? 'Copying household vault…'
+                    : 'Copy Household Vault (.json)',
+              ),
             ),
           ),
+          if (_vaultStatus != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  _vaultStatusError
+                      ? Icons.error_outline_rounded
+                      : Icons.check_circle_outline_rounded,
+                  size: 15,
+                  color: _vaultStatusError
+                      ? AppTheme.error
+                      : AppTheme.secondary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _vaultStatus!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: _vaultStatusError
+                          ? AppTheme.error
+                          : AppTheme.secondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
@@ -1505,6 +1574,101 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+  }
+
+  Widget _serverConnection() {
+    final effective = (_customBaseUrl != null && _customBaseUrl!.trim().isNotEmpty)
+        ? _customBaseUrl!.trim()
+        : AppConfig.apiBaseUrl;
+
+    return WarmCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.dns_outlined, size: 20, color: AppTheme.secondary),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Server connection',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'The API host this app talks to. Change it if your household server moves to a different address.',
+            style: TextStyle(fontSize: 12, color: AppTheme.muted),
+          ),
+          const SizedBox(height: AppTheme.space2),
+          SelectableText(
+            effective,
+            style: const TextStyle(fontSize: 11, color: AppTheme.ink),
+          ),
+          const SizedBox(height: AppTheme.space2),
+          OutlinedButton.icon(
+            onPressed: _editServerConnection,
+            icon: const Icon(Icons.edit_outlined, size: 16),
+            label: const Text('Change server address'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editServerConnection() async {
+    final controller = TextEditingController(
+      text: (_customBaseUrl != null && _customBaseUrl!.trim().isNotEmpty)
+          ? _customBaseUrl
+          : AppConfig.apiBaseUrl,
+    );
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Server address'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(
+            labelText: 'API base URL',
+            hintText: 'http://192.168.0.10:8000/mobile',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+    if (result == null) return;
+
+    if (result.isNotEmpty &&
+        !result.startsWith('http://') &&
+        !result.startsWith('https://')) {
+      _snack('Use a full http:// or https:// address.', error: true);
+      return;
+    }
+
+    await getIt<SecureStorage>().saveBaseUrl(result);
+    if (!mounted) return;
+    setState(() => _customBaseUrl = result.isEmpty ? null : result);
+    await _loadAvatarAndQuotas();
+    _snack('Server address saved.');
   }
 
   Widget _support() {

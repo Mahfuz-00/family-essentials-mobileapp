@@ -87,11 +87,11 @@ class _MainShellState extends State<MainShell> {
     if (loc.startsWith('/today')) return "Today's Pulse";
     if (loc.startsWith('/shopping')) return 'Errands & Tasks';
     if (loc.startsWith('/budget') || loc.startsWith('/ledger')) return 'Expenses & Money';
-    if (loc.startsWith('/places')) return 'Places & Geofences';
+    if (loc.startsWith('/places')) return 'Places';
     if (loc.startsWith('/settings')) return 'Settings';
     if (loc.startsWith('/pantry')) return 'Pantry Inventory';
     if (loc.startsWith('/recurring')) return 'Recurring Tasks';
-    return 'Family Essentials';
+    return 'FairShare';
   }
 
   bool get _isSubRoute {
