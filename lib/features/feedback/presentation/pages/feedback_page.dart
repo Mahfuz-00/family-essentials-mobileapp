@@ -100,7 +100,7 @@ class _FeedbackViewState extends State<_FeedbackView> {
                 : const <FeedbackReport>[];
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 _composer(state),
                 const SizedBox(height: AppTheme.space4),
@@ -112,6 +112,8 @@ class _FeedbackViewState extends State<_FeedbackView> {
                   const ShimmerWarmCard(height: 92),
                   const SizedBox(height: AppTheme.space2),
                   const ShimmerWarmCard(height: 92),
+                  const SizedBox(height: AppTheme.space3),
+                  const ShimmerScreenFill(reservedHeight: 620, itemHeight: 92),
                 ] else if (reports.isEmpty)
                   const WarmEmptyState(
                     title: 'Nothing sent yet',

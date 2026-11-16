@@ -315,7 +315,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
               // Shimmer loading cards matching Settings cards (Point 5)
               return ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 children: const [
                   ShimmerWarmCard(height: 150),
                   SizedBox(height: AppTheme.space3),
@@ -324,12 +324,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   ShimmerWarmCard(height: 110),
                   SizedBox(height: AppTheme.space3),
                   ShimmerWarmCard(height: 140),
+                  SizedBox(height: AppTheme.space3),
+                  ShimmerScreenFill(reservedHeight: 560, itemHeight: 130),
                 ],
               );
             }
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 _identity(user, memberships),
                 const SizedBox(height: AppTheme.space3),

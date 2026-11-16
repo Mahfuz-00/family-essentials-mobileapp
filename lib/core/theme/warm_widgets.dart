@@ -151,6 +151,35 @@ class SoftStatCard extends StatelessWidget {
   }
 }
 
+/// Fills the remaining viewport with a shimmer block so a loading screen never
+/// shows a blank canvas underneath the smaller skeletons.
+class ShimmerScreenFill extends StatelessWidget {
+  const ShimmerScreenFill({
+    super.key,
+    this.reservedHeight = 320,
+    this.itemHeight = 110,
+  });
+
+  final double reservedHeight;
+  final double itemHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = (MediaQuery.sizeOf(context).height - reservedHeight)
+        .clamp(0.0, 1600.0);
+    final count = (remaining / (itemHeight + 12)).ceil().clamp(1, 12);
+
+    return Column(
+      children: [
+        for (var index = 0; index < count; index++) ...[
+          if (index > 0) const SizedBox(height: 12),
+          ShimmerWarmCard(height: itemHeight),
+        ],
+      ],
+    );
+  }
+}
+
 /// 1:1 Shimmer skeleton matching `SoftStatCard` anatomy.
 class ShimmerStatCard extends StatefulWidget {
   const ShimmerStatCard({super.key});

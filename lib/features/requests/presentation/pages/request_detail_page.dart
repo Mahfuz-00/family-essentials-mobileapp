@@ -264,6 +264,8 @@ class _RequestDetailView extends StatelessWidget {
                   ShimmerWarmCard(height: 160),
                   SizedBox(height: AppTheme.space3),
                   ShimmerWarmCard(height: 130),
+                  SizedBox(height: AppTheme.space3),
+                  ShimmerScreenFill(reservedHeight: 460),
                 ],
               );
             }

@@ -63,7 +63,7 @@ class LedgerEntry extends Equatable {
 
   final int id;
   final int ledgerId;
-  final String direction; // 'in' or 'out'
+  final String direction; // 'income' or 'expense' (legacy 'in'/'out' accepted)
   final int amountMinor;
   final String category;
   final String? description;
@@ -72,8 +72,8 @@ class LedgerEntry extends Equatable {
   final String? loggedByName;
   final DateTime? createdAt;
 
-  bool get isIncome => direction == 'in';
-  bool get isExpense => direction == 'out';
+  bool get isIncome => direction == 'income' || direction == 'in';
+  bool get isExpense => direction == 'expense' || direction == 'out';
 
   @override
   List<Object?> get props => [

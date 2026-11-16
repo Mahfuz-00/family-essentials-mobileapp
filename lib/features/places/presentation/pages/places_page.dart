@@ -140,7 +140,7 @@ class _PlacesViewState extends State<_PlacesView> {
             final places = state is PlacesLoaded ? state.places : <Place>[];
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 // OpenStreetMap Info Header
                 Container(
@@ -687,6 +687,8 @@ class _PlacesViewState extends State<_PlacesView> {
                   const ShimmerWarmCard(height: 90),
                   const SizedBox(height: AppTheme.space3),
                   const ShimmerWarmCard(height: 90),
+                  const SizedBox(height: AppTheme.space3),
+                  const ShimmerScreenFill(reservedHeight: 460, itemHeight: 90),
                 ] else if (places.isEmpty) ...[
                   WarmCard(
                     padding: const EdgeInsets.all(24),

@@ -334,6 +334,7 @@ class _BillingPageState extends State<BillingPage> {
           'bkash',
           'paystack',
           'mollie',
+          'paddle',
         ];
 
         if (activeGateway != null && hostedGateways.contains(activeGateway)) {
@@ -750,6 +751,8 @@ class _BillingPageState extends State<BillingPage> {
                 ShimmerWarmCard(height: 150),
                 SizedBox(height: 12),
                 ShimmerWarmCard(height: 150),
+                SizedBox(height: AppTheme.space4),
+                ShimmerScreenFill(reservedHeight: 560, itemHeight: 150),
               ],
             )
           : RefreshIndicator(
@@ -935,9 +938,13 @@ class _BillingPageState extends State<BillingPage> {
                                 style: const TextStyle(fontWeight: FontWeight.w600),
                               ),
                               subtitle: Text(
-                                entry.value['enabled'] == true
-                                    ? '${(entry.value['mode'] ?? 'sandbox').toString().toUpperCase()} · enabled'
-                                    : 'Not enabled',
+                                entry.value['enabled'] != true
+                                    ? 'Not enabled'
+                                    : entry.key == 'cash'
+                                        ? 'In-person settlement'
+                                        : entry.key == 'bank_transfer'
+                                            ? 'Bank transfer'
+                                            : '${(entry.value['mode'] ?? 'sandbox').toString().toUpperCase()} · enabled',
                               ),
                               trailing: entry.value['enabled'] == true
                                   ? const Icon(Icons.check_circle, size: 18, color: AppTheme.secondary)
@@ -1079,14 +1086,25 @@ class _BillingPageState extends State<BillingPage> {
 
   Map<String, dynamic> get _gateways {
     final gateways = _billingConfig?['gateways'];
-    if (gateways is! Map) return const {};
+    final result = <String, dynamic>{};
 
-    return gateways.map(
-      (key, value) => MapEntry(
-        key.toString(),
-        value is Map ? value.cast<String, dynamic>() : <String, dynamic>{},
-      ),
-    );
+    if (gateways is Map) {
+      for (final entry in gateways.entries) {
+        result[entry.key.toString()] = entry.value is Map
+            ? (entry.value as Map).cast<String, dynamic>()
+            : <String, dynamic>{};
+      }
+    }
+
+    // Cash and bank transfer are settlement options, not hosted gateways.
+    for (final key in const ['cash', 'bank_transfer']) {
+      final value = _billingConfig?[key];
+      if (value is Map) {
+        result[key] = value.cast<String, dynamic>();
+      }
+    }
+
+    return result;
   }
 
   int get _gatewayCount => _gateways.length;
@@ -1099,6 +1117,7 @@ class _BillingPageState extends State<BillingPage> {
     'bkash' => 'bKash',
     'paystack' => 'Paystack',
     'mollie' => 'Mollie',
+    'paddle' => 'Paddle',
     'cash' => 'Cash settlement',
     'bank_transfer' => 'Bank transfer',
     _ => 'Not configured',

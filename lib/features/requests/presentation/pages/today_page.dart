@@ -168,6 +168,8 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
           ShimmerWarmCard(height: 110),
           SizedBox(height: AppTheme.space3),
           ShimmerWarmCard(height: 110),
+          SizedBox(height: AppTheme.space3),
+          ShimmerScreenFill(reservedHeight: 360),
         ],
       );
     }
@@ -217,7 +219,7 @@ class _TodayViewState extends State<_TodayView> with WidgetsBindingObserver {
       onRefresh: () async =>
           context.read<RequestsBloc>().add(const BoardRequested()),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
         children: [
           _HouseholdGreetingHeader(board: board),
           Row(
