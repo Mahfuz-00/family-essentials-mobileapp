@@ -107,7 +107,7 @@ class _RecurringView extends StatelessWidget {
         builder: (context, state) {
           if (state is RecurringLoading || state is RecurringInitial) {
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: const [
                 ShimmerWarmCard(height: 118),
                 SizedBox(height: AppTheme.space3),
@@ -116,6 +116,8 @@ class _RecurringView extends StatelessWidget {
                 ShimmerWarmCard(height: 118),
                 SizedBox(height: AppTheme.space3),
                 ShimmerWarmCard(height: 118),
+                SizedBox(height: AppTheme.space3),
+                ShimmerScreenFill(reservedHeight: 520, itemHeight: 118),
               ],
             );
           }
@@ -164,7 +166,7 @@ class _RecurringView extends StatelessWidget {
               const RecurringRulesRequested(),
             ),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 SectionHeader(title: 'Rules', count: state.rules.length),
                 const SizedBox(height: AppTheme.space3),

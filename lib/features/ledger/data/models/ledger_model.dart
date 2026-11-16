@@ -54,7 +54,7 @@ class LedgerEntryModel extends LedgerEntry {
     return LedgerEntryModel(
       id: json['id'] as int,
       ledgerId: (json['ledger_id'] as num?)?.toInt() ?? 0,
-      direction: json['direction'] as String? ?? 'out',
+      direction: json['direction'] as String? ?? 'expense',
       amountMinor: (json['amount_minor'] as num?)?.toInt() ?? 0,
       category: json['category'] as String? ?? 'other',
       description: json['description'] as String?,

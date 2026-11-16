@@ -86,6 +86,8 @@ class _PantryView extends StatelessWidget {
                 ShimmerWarmCard(height: 140),
                 SizedBox(height: AppTheme.space3),
                 ShimmerWarmCard(height: 140),
+                SizedBox(height: AppTheme.space3),
+                ShimmerScreenFill(reservedHeight: 480, itemHeight: 140),
               ],
             );
           }
@@ -134,7 +136,7 @@ class _PantryView extends StatelessWidget {
             onRefresh: () async =>
                 context.read<PantryBloc>().add(const PantryRequested()),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 160),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
               children: [
                 _pulse(snapshot.summary),
                 const SizedBox(height: AppTheme.space4),

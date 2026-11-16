@@ -1213,6 +1213,8 @@ class _AiChatPageState extends State<AiChatPage> {
                           ShimmerWarmCard(height: 76),
                           SizedBox(height: 12),
                           ShimmerWarmCard(height: 76),
+                          SizedBox(height: 12),
+                          ShimmerScreenFill(reservedHeight: 420, itemHeight: 76),
                         ],
                       )
                     : visibleFamilyMessages.isEmpty

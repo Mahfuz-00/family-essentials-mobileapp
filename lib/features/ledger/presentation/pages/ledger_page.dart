@@ -550,22 +550,22 @@ class _LedgerViewState extends State<_LedgerView> {
                         ActionChip(
                           avatar: const Icon(Icons.savings_outlined, size: 16, color: AppTheme.secondary),
                           label: const Text('+ Add Asset'),
-                          onPressed: () => _showAddAssetDialog(sheetCtx),
+                          onPressed: () => _showAddAssetDialog(sheetCtx, curr),
                         ),
                         ActionChip(
                           avatar: const Icon(Icons.account_balance, size: 16, color: AppTheme.tertiary),
                           label: const Text('+ Add Loan / Mortgage'),
-                          onPressed: () => _showAddLiabilityDialog(sheetCtx),
+                          onPressed: () => _showAddLiabilityDialog(sheetCtx, curr),
                         ),
                         ActionChip(
                           avatar: const Icon(Icons.flag_outlined, size: 16, color: AppTheme.primary),
                           label: const Text('+ Add Goal'),
-                          onPressed: () => _showAddGoalDialog(sheetCtx),
+                          onPressed: () => _showAddGoalDialog(sheetCtx, curr),
                         ),
                         ActionChip(
                           avatar: const Icon(Icons.receipt_outlined, size: 16, color: AppTheme.ink),
                           label: const Text('+ Add Tax Assessment'),
-                          onPressed: () => _showAddTaxDialog(sheetCtx),
+                          onPressed: () => _showAddTaxDialog(sheetCtx, curr),
                         ),
                       ],
                     ),
@@ -588,7 +588,7 @@ class _LedgerViewState extends State<_LedgerView> {
     );
   }
 
-  void _showAddGoalDialog(BuildContext context) {
+  void _showAddGoalDialog(BuildContext context, String currency) {
     final titleCtrl = TextEditingController();
     final targetCtrl = TextEditingController();
     showDialog<void>(
@@ -606,7 +606,10 @@ class _LedgerViewState extends State<_LedgerView> {
             TextField(
               controller: targetCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Target Amount (\$)', hintText: '5000.00'),
+              decoration: InputDecoration(
+                labelText: 'Target Amount (${currencySymbolFor(currency)})',
+                hintText: '5000.00',
+              ),
             ),
           ],
         ),
@@ -643,7 +646,7 @@ class _LedgerViewState extends State<_LedgerView> {
     );
   }
 
-  void _showAddAssetDialog(BuildContext context) {
+  void _showAddAssetDialog(BuildContext context, String currency) {
     final nameCtrl = TextEditingController();
     final valueCtrl = TextEditingController();
     String type = 'savings';
@@ -675,7 +678,10 @@ class _LedgerViewState extends State<_LedgerView> {
               TextField(
                 controller: valueCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Current Value (\$)', hintText: '10000.00'),
+                decoration: InputDecoration(
+                  labelText: 'Current Value (${currencySymbolFor(currency)})',
+                  hintText: '10000.00',
+                ),
               ),
             ],
           ),
@@ -714,7 +720,7 @@ class _LedgerViewState extends State<_LedgerView> {
     );
   }
 
-  void _showAddLiabilityDialog(BuildContext context) {
+  void _showAddLiabilityDialog(BuildContext context, String currency) {
     final nameCtrl = TextEditingController();
     final balanceCtrl = TextEditingController();
     String type = 'loan';
@@ -746,7 +752,10 @@ class _LedgerViewState extends State<_LedgerView> {
               TextField(
                 controller: balanceCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Outstanding Balance (\$)', hintText: '15000.00'),
+                decoration: InputDecoration(
+                  labelText: 'Outstanding Balance (${currencySymbolFor(currency)})',
+                  hintText: '15000.00',
+                ),
               ),
             ],
           ),
@@ -785,7 +794,7 @@ class _LedgerViewState extends State<_LedgerView> {
     );
   }
 
-  void _showAddTaxDialog(BuildContext context) {
+  void _showAddTaxDialog(BuildContext context, String currency) {
     final nameCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
     final yearCtrl = TextEditingController(text: '${DateTime.now().year}');
@@ -832,8 +841,8 @@ class _LedgerViewState extends State<_LedgerView> {
                 TextField(
                   controller: amountCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Estimated Amount Due (\$)',
+                  decoration: InputDecoration(
+                    labelText: 'Estimated Amount Due (${currencySymbolFor(currency)})',
                     hintText: '1200.00',
                   ),
                 ),
@@ -889,8 +898,8 @@ class _LedgerViewState extends State<_LedgerView> {
   }
 
   // ignore: unused_element
-  void _showRecordEntrySheet(BuildContext context, int ledgerId) {
-    String direction = 'out';
+  void _showRecordEntrySheet(BuildContext context, int ledgerId, String currency) {
+    String direction = 'expense';
     String category = 'grocery';
     final amountCtrl = TextEditingController();
     final descCtrl = TextEditingController();
@@ -959,24 +968,24 @@ class _LedgerViewState extends State<_LedgerView> {
                         Expanded(
                           child: ChoiceChip(
                             label: const Center(child: Text('Expense (Spend)')),
-                            selected: direction == 'out',
+                            selected: direction == 'expense',
                             selectedColor: AppTheme.tertiary.withValues(alpha: 0.15),
                             side: BorderSide(
-                              color: direction == 'out' ? AppTheme.tertiary : AppTheme.outline,
+                              color: direction == 'expense' ? AppTheme.tertiary : AppTheme.outline,
                             ),
-                            onSelected: (_) => setSheetState(() => direction = 'out'),
+                            onSelected: (_) => setSheetState(() => direction = 'expense'),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: ChoiceChip(
                             label: const Center(child: Text('Income (Add)')),
-                            selected: direction == 'in',
+                            selected: direction == 'income',
                             selectedColor: AppTheme.secondary.withValues(alpha: 0.15),
                             side: BorderSide(
-                              color: direction == 'in' ? AppTheme.secondary : AppTheme.outline,
+                              color: direction == 'income' ? AppTheme.secondary : AppTheme.outline,
                             ),
-                            onSelected: (_) => setSheetState(() => direction = 'in'),
+                            onSelected: (_) => setSheetState(() => direction = 'income'),
                           ),
                         ),
                       ],
@@ -987,10 +996,10 @@ class _LedgerViewState extends State<_LedgerView> {
                       controller: amountCtrl,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       autofocus: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Amount (\$)',
+                      decoration: InputDecoration(
+                        labelText: 'Amount (${currencySymbolFor(currency)})',
                         hintText: '0.00',
-                        prefixIcon: Icon(Icons.attach_money, size: 20),
+                        prefixIcon: const Icon(Icons.attach_money, size: 20),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -1282,6 +1291,8 @@ class _LedgerViewState extends State<_LedgerView> {
                 ShimmerWarmCard(height: 82),
                 SizedBox(height: AppTheme.space2),
                 ShimmerWarmCard(height: 82),
+                SizedBox(height: AppTheme.space3),
+                ShimmerScreenFill(reservedHeight: 480, itemHeight: 82),
               ],
             );
           }
@@ -1322,7 +1333,7 @@ class _LedgerViewState extends State<_LedgerView> {
               context.read<LedgerBloc>().add(const LedgerPageStarted());
             },
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
               children: [
                 // SUBMODULE NAVIGATION BAR (flush at top over This period)
                 Container(
@@ -1561,7 +1572,8 @@ class _LedgerViewState extends State<_LedgerView> {
                           visualDensity: VisualDensity.compact,
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         ),
-                        onPressed: () => _showRecordEntrySheet(context, ledger.id),
+                        onPressed: () =>
+                            _showRecordEntrySheet(context, ledger.id, currency),
                         icon: const Icon(Icons.add, size: 15),
                         label: const Text(
                           'Record Entry',
